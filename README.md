@@ -96,16 +96,118 @@ lançamentos**, mais a lista de contas analíticas do plano de contas. Nunca arq
 dados da Orbe, da Ponte ou de lojistas. A sugestão volta com `metodo=IA`, confiança menor que 1 e
 **sempre** vira pendência de revisão humana; a IA não calcula nem decide nada. Código: `src/ia.py`.
 
-## Usar com assistente de IA 
+## Usar com assistente de IA
 
 A skill `skills/fechamento-tarvo/SKILL.md` segue o padrão aberto Agent Skills (atalho em `.agents/skills/`;
 testada no Claude Code e no Claude.ai; ver [SOLUCAO.md](SOLUCAO.md), seção 5) e ensina um assistente a conduzir o fechamento **usando os mesmos
 comandos deste README**: ele roda `validar` e `fechar`, lê `saida/resumo.json` e o relatório,
 explica de onde vem cada número (`explicar`), conduz as pendências e propõe regras, que só são
 gravadas com aprovação nominal. Ele nunca calcula nem edita entradas. `AGENTS.md` resume o fluxo
-para agentes que não leem skills. Para distribuir: `python -m src empacotar-skill` gera um zip
-autocontido em `dist/`. Detalhes em "Dados enviados à IA", abaixo. No Windows, o atalho `.agents/skills`
-é symlink e pode virar arquivo de texto: use `skills/fechamento-tarvo/` direto ou o `AGENTS.md`.
+para agentes que não leem skills. Detalhes do que vai para a IA em "Dados enviados à IA", abaixo.
+
+Há dois jeitos de usar: **abrir o repositório** (nada a instalar) ou **instalar a skill empacotada**
+(zip autocontido, para usar fora do repositório ou no Claude.ai).
+
+### Opção A: abrir o repositório (nada a instalar)
+
+Abra a pasta do projeto no assistente (Claude Code no terminal ou no VS Code, Cursor, Codex, Copilot) e
+peça, por exemplo, "fecha setembro com o zip que está na raiz". O Claude Code encontra a skill em
+`.agents/skills/fechamento-tarvo/`; os demais agentes leem o `AGENTS.md`, que aponta para ela. O
+assistente roda os comandos a partir da raiz, com o `.venv` criado pelo `./fechar.sh` (ou pelo
+`pip install -r requirements.txt`). No Windows, o atalho `.agents/skills` é symlink e pode virar arquivo
+de texto: aponte o assistente para `skills/fechamento-tarvo/SKILL.md` ou para o `AGENTS.md`.
+
+### Opção B: instalar a skill empacotada
+
+O zip **não é versionado** (`dist/` está no `.gitignore`); ele é gerado a partir do repositório e leva
+tudo de que a skill precisa: `SKILL.md`, `references/`, uma cópia do motor em `scripts/src/`,
+`scripts/requirements.txt`, a base de regras atual em `assets/regras_iniciais/`, o `AGENTS.md` e o
+`COMO_FECHAR_O_MES.md`.
+
+1. **Gerar o zip** (na raiz do repositório, com o `.venv` já criado):
+   ```bash
+   .venv/bin/python -m src empacotar-skill        # cria dist/fechamento-tarvo.zip
+   ```
+2. **Instalar** conforme o assistente:
+
+   | Assistente | Como instalar |
+   |---|---|
+   | **Claude Code**, para todos os projetos | `mkdir -p ~/.claude/skills && unzip -o dist/fechamento-tarvo.zip -d ~/.claude/skills/` |
+   | **Claude Code**, só em um projeto | `unzip -o dist/fechamento-tarvo.zip -d <projeto>/.claude/skills/` |
+   | **Claude.ai** (chat) | Em *Configurações*, ligue a execução de código e as Skills; na lista de Skills, envie `dist/fechamento-tarvo.zip` |
+   | **Claude Desktop / Cowork** | O mesmo zip, pela tela de Skills (mesmo formato, não testado à parte) |
+   | Outros agentes compatíveis com SKILL.md | Descompacte o zip na pasta de skills do agente (por exemplo `.agents/skills/` do projeto); deve ficar `<pasta de skills>/fechamento-tarvo/SKILL.md` |
+
+   No Windows (PowerShell): `Expand-Archive dist\fechamento-tarvo.zip -DestinationPath $HOME\.claude\skills -Force`.
+3. **Instalar as dependências do motor** uma vez (o Claude.ai faz isso sozinho no ambiente dele):
+   ```bash
+   python3 -m pip install -r ~/.claude/skills/fechamento-tarvo/scripts/requirements.txt
+   ```
+   Se o pip recusar por ambiente gerenciado (Python do Homebrew ou do sistema), use o Python do `.venv`
+   do repositório (`.venv/bin/python`) ao pedir ao assistente que rode a skill.
+4. **Conferir:** reinicie o assistente e peça "fecha o mês com os arquivos desta pasta". Na skill
+   instalada, os comandos rodam a partir de `fechamento-tarvo/scripts/`; sem `--regras`, o motor usa
+   `assets/regras_iniciais/` e avisa no `resumo.json` e no relatório que está na base inicial. Para usar
+   a base de regras do time (com as regras aprovadas depois), passe `--regras <pasta ou zip>`.
+
+Para atualizar a skill depois de mudar o motor ou as regras, gere o zip de novo e repita o passo 2
+(o `unzip -o` sobrescreve a versão anterior).
+
+### Instalação por um agente com acesso ao repositório
+
+Um agente que só tem o endereço do repositório consegue baixar e instalar a skill com este bloco
+(macOS/Linux; precisa de `git`, Python 3.10+ e `unzip`):
+
+```bash
+git clone --depth 1 https://github.com/murilozgodoy/hackaton_barte_AI.git
+cd hackaton_barte_AI
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m src empacotar-skill                          # gera dist/fechamento-tarvo.zip
+mkdir -p ~/.claude/skills && unzip -o dist/fechamento-tarvo.zip -d ~/.claude/skills/
+python3 -m pip install -r ~/.claude/skills/fechamento-tarvo/scripts/requirements.txt
+```
+
+Para outro agente, troque `~/.claude/skills` pela pasta de skills dele. Para o Claude.ai, pare depois do
+`empacotar-skill` e envie `dist/fechamento-tarvo.zip` pela tela de Skills.
+
+### Prompt para qualquer IA baixar a skill e fechar o mês
+
+Serve para qualquer assistente que **execute código** (Claude, ChatGPT, Gemini, Cursor, Codex, Copilot e
+outros), com ou sem suporte a skills. Anexe os arquivos do mês (ou o zip do data pack) e cole:
+
+```text
+Quero fechar o mês da Tarvo Pagamentos com a skill fechamento-tarvo, do repositório público
+https://github.com/murilozgodoy/hackaton_barte_AI. Siga estes passos, sem pular nenhum:
+
+1. Baixe o repositório. Com git: git clone --depth 1 https://github.com/murilozgodoy/hackaton_barte_AI.git
+   Sem git: baixe https://github.com/murilozgodoy/hackaton_barte_AI/archive/refs/heads/main.zip e
+   descompacte (a pasta se chama hackaton_barte_AI-main). Se você não tiver acesso à internet, peça
+   que eu anexe esse zip.
+2. Na raiz do repositório, instale as dependências (Python 3.10+):
+   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+   (no Windows: .venv\Scripts\pip; se não puder criar venv, use pip install -r requirements.txt)
+3. Leia skills/fechamento-tarvo/SKILL.md inteiro e siga as regras dele durante toda a conversa,
+   começando pela seção "Limites". Se a sua ferramenta instala skills, pode instalar esta; se não,
+   apenas siga o arquivo.
+4. Rode, a partir da raiz, com os arquivos do mês que anexei (zip ou pasta). Onde está "python",
+   use o Python do venv (.venv/bin/python) se você o criou:
+   python -m src validar --entrada <zip ou pasta> --regras regras --json
+   Se o código de saída for 1 ou 2, explique o problema e pare.
+   python -m src fechar --entrada <zip ou pasta> --regras regras --saida saida --json
+   Se o código for 3, explique e pare.
+5. Apresente o resultado a partir de saida/resumo.json e saida/RELATORIO_FECHAMENTO.md (página 1 é
+   para o CFO), me entregue os CSVs de saida/ e conduza as pendências com
+   python -m src pendencias --saida saida --json e python -m src explicar <id> ...
+
+Regras: todo número vem de saida/; não calcule, estime nem ajuste valores por conta própria; não edite
+os arquivos de entrada; não decida pendências; não grave regra sem a minha aprovação nominal; não
+envie e-mail. Se você não puder executar código, diga isso e me indique o COMO_FECHAR_O_MES.md do
+repositório, sem tentar fazer o fechamento à mão.
+```
+
+Os arquivos do mês precisam ser anexados: o data pack não está no repositório, que é público. Com o zip de
+setembro em mãos, a IA também consegue ensaiar o mês seguinte com
+`python -m tests.outubro_sintetico <pasta> <zip de setembro>` e `fechar --anterior saida`.
 
 ### Outros comandos
 
