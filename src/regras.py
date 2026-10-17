@@ -73,7 +73,7 @@ TIPOS_PENDENCIA = {
     "EXCESSO_SPREAD_CONTESTADO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO", "EXTRATO_NAO_IDENTIFICADO",
     "DEVOLUCAO", "EM_TRANSITO", "REVISAR_IA", "MANUAL", "FORA_COMPETENCIA", "COMPLIANCE",
     "DUPLICATA_DIVERGENTE", "RECURSO_SEM_OPERACAO", "CONFERIR_REPASSE_PONTE", "ALERTA_ANTECIPACAO",
-    "CONFERIR_AJUSTE_PONTE", "LINHA_NAO_INTERPRETADA", "DADO_INSUFICIENTE",
+    "CONFERIR_AJUSTE_PONTE", "LINHA_NAO_INTERPRETADA", "DADO_INSUFICIENTE", "DUPLICATA_PONTE",
 }
 # Pendências que o próprio motor gera (sem regra que as origine): precisam de DONO_PENDENCIA.
 PENDENCIAS_DO_MOTOR = {
@@ -84,7 +84,7 @@ PENDENCIAS_DO_MOTOR = {
 }
 # Pendências opcionais: o motor só as gera se houver DONO_PENDENCIA ativa (sem dono, a situação
 # é tratada por lembrete MANUAL). Ligar/desligar é dado (status da regra), não código.
-PENDENCIAS_OPCIONAIS = {"RECURSO_SEM_OPERACAO"}
+PENDENCIAS_OPCIONAIS = {"RECURSO_SEM_OPERACAO", "DUPLICATA_PONTE"}
 CRITERIOS = {"orbe": {"status_cadastro"},
              "ponte": {"status_cadastro", "spread_negativo", "status_compliance_fora"}}
 # AJUSTE_PARCEIRO: linha do relatório do parceiro que é ajuste de mês anterior (entra na comissão pelo valor, vira

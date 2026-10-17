@@ -77,6 +77,8 @@ def _extrair_zip(zip_path: Path) -> Path:
 
 
 def _e_sistema_ou_documentacao(p: Path) -> bool:
+    """`p` é o caminho RELATIVO à pasta da entrada (ou à raiz): o caminho até ela (`../`, pasta oculta como ~/.x/)
+    não conta, senão todos os arquivos seriam ignorados."""
     if _IGNORAR_PARTES & set(p.parts) or any(parte.startswith(".") for parte in p.parts):
         return True
     if p.name.startswith("~$") or p.name.lower() in _IGNORAR_NOMES:
@@ -86,7 +88,8 @@ def _e_sistema_ou_documentacao(p: Path) -> bool:
 
 def _arquivos_de_dados(pasta: Path) -> list[Path]:
     """Arquivos sob a pasta (recursivo), fora lixo de sistema, ocultos e o README do pacote."""
-    return sorted(p for p in Path(pasta).rglob("*") if p.is_file() and not _e_sistema_ou_documentacao(p))
+    pasta = Path(pasta)
+    return sorted(p for p in pasta.rglob("*") if p.is_file() and not _e_sistema_ou_documentacao(p.relative_to(pasta)))
 
 
 # --------------------------------------------------------------------------- reconhecimento por conteúdo
@@ -200,7 +203,7 @@ def preparar_entrada(entrada: Path | None, raiz: Path, cfg: dict) -> Path:
         extraida = _extrair_zip(pacotes[0])
         # arquivos de dados soltos na raiz, ao lado do zip (reconhecidos por conteúdo ou nome), entram junto
         for p in sorted(raiz.iterdir()):
-            if p.is_file() and p.suffix.lower() != ".zip" and not _e_sistema_ou_documentacao(p) \
+            if p.is_file() and p.suffix.lower() != ".zip" and not _e_sistema_ou_documentacao(p.relative_to(raiz)) \
                     and classificar_arquivo(p, cfg) is not None:
                 shutil.copy(p, extraida / p.name)
         return extraida

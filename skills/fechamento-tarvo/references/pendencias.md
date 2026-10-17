@@ -9,7 +9,7 @@ Hoje: Helena (Financeiro) decide o fechamento; **cadastro e contrato quem decide
 (Helena à Casa Barton, 17/10 11h01); extratos são do Financeiro.
 
 **Informativas** (`informativa=true` na regra): aparecem com valor e rastro, mas ficam fora do
-"em jogo": EM_TRANSITO, ALERTA_ANTECIPACAO, CONFERIR_AJUSTE_PONTE. **Já incluída em outra**
+"em jogo": EM_TRANSITO, ALERTA_ANTECIPACAO, CONFERIR_AJUSTE_PONTE, DUPLICATA_PONTE. **Já incluída em outra**
 (`incluida_em=`): EXCESSO_SPREAD_CONTESTADO, cuja metade já está na divergência da Mundo Aberto.
 Pendência de acompanhamento com motivo e próximo passo não é alarme falso (Organização, 17/10 11h27).
 
@@ -34,13 +34,14 @@ Pendência de acompanhamento com motivo e próximo passo não é alarme falso (O
 | **EXTRATO_NAO_IDENTIFICADO / CREDITO_SEM_ORIGEM** | O lançamento sem identificação, classificado em créditos não identificados | "De quem é? Para onde vai?" | Financeiro | Se recorrente: CLASSIFICAR_CONTA |
 | **EXTRATO_NAO_IDENTIFICADO / SEM_REGRA ou CONFLITO_DE_REGRAS** | Lançamento que nenhuma regra cobre (ou duas discordam); conta vazia | "Qual é a contrapartida?" | Financeiro | Sim, quase sempre: `regra propor --tipo CLASSIFICAR_CONTA` (ou ajustar prioridades) |
 | **DEVOLUCAO** | Repasse que voltou (devolução PIX), com o lojista; fica em 2.1.01.001 (C-18) | "Por que voltou? Dados bancários errados? Repassar de novo?" | Financeiro | Não |
+| **DUPLICATA_PONTE** (informativa, valor 0) | Operação repetida no relatório da Ponte, com os mesmos valores, contada uma vez; rastro com as duas linhas físicas (valor 0); o efeito no repasse já está na CONFERIR_REPASSE_PONTE | "Mando o pedido de correção do relatório (pedido c) junto com a contestação?" | Helena (DP-18) | Já é regra |
 | **EM_TRANSITO** (informativa) | Transferência entre contas próprias que saiu de um banco e não entrou no outro no mês | Informativo: "confere no próximo fechamento" | Financeiro | Não |
 | **REVISAR_IA** | Conta sugerida pela IA com a confiança | "A conta está certa?" | Financeiro | Se certa e recorrente: CLASSIFICAR_CONTA |
 | **FORA_COMPETENCIA / COMPLIANCE / DUPLICATA_DIVERGENTE** | As linhas e por que ficaram fora | "Pertence a outro mês? A Ponte confirma qual linha vale?" | Helena | Não |
 
 ## O que não é pendência (e onde está)
 
-- **Contestação à Ponte**: anexo `saida/comunicacoes/ponte_contestacao.csv` + rascunho `ponte.md`, em pedidos (a, b, c…). Somar os pedidos repetiria as pendências atômicas.
+- **Contestação à Ponte**: anexo `saida/comunicacoes/ponte_contestacao.csv` + rascunho `ponte.md`, em pedidos (a, b, c…). Somar os pedidos repetiria as pendências atômicas. O pedido c (operação repetida) também tem a pendência de acompanhamento DUPLICATA_PONTE, de valor 0.
 - **Contestação à Orbe**: `orbe_contestacao.csv` + `orbe.md` (só natureza CONTRATO; a Casa fica fora).
 - **Recurso de remessa sem operação** (PIX de R$ 18.240): lembrete M-05 na conciliação.
 - **Carteira pendente**: `carteira_pendente.csv` (Atlas, EC novo, parcelado fora da faixa) para o próximo `fechar --anterior`.

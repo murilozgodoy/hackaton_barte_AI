@@ -19,7 +19,8 @@ Time MN AI: Nader Taha e Murilo Godoy.
    Nada mais: sem banco, sem servidor, sem chave de API.
 2. **Coloque os arquivos do mês numa pasta**, ou use o zip do data pack como veio. Serve o zip
    (com qualquer nome), uma pasta com o zip dentro, os 6 arquivos soltos ou em subpastas. A pasta
-   `entrada/` deste projeto já existe para isso.
+   `entrada/` deste projeto já existe para isso. O caminho pode ser relativo (`../pasta`) e pode passar
+   por pasta oculta (ex.: `~/.x/case`): só o que é oculto ou de sistema **dentro** da entrada é ignorado.
 3. **Rode um comando** na raiz do projeto:
    ```bash
    ./fechar.sh caminho/do/zip_ou_pasta      # macOS/Linux
@@ -235,7 +236,11 @@ exatamente um destino (nada some); todo lançamento classificado; saldo do Auror
 Setembro/2026 (relatório da Orbe + os 14 ajustes tardios do arquivo 06, publicados em 17/10): comissão
 CHECKOUT R$ 203.735,34 (21 lojistas, 1.900 transações), REMESSA R$ 39.543,45 (14), 21 notas (R$ 243.284,29;
 sem o 06 seriam R$ 207.039,73 e R$ 246.588,68), 115 divergências de contrato (R$ 1.576,23 checkout + R$ 1.418,85 remessa,
-contestadas), 184 lançamentos classificados por regra, 16 pendências. As 118 transações da Casa do
+contestadas), 184 lançamentos classificados por regra, 17 pendências (a 17ª, DUPLICATA_PONTE, é a operação
+PC-0926-0162 repetida no relatório da Ponte: contada uma vez, valor 0 e informativa, para a Ponte corrigir o
+relatório). Cada `motivo` de `pendencias.csv` tem até 3 frases (o que aconteceu, quanto vale, o que fazer e até
+quando; nas contestações da Ponte, o prazo vem do e-mail do parceiro) e nenhum código de regra: o código fica só
+em `regra_id`, e o `o_que_fazer` traz o texto inteiro da regra. As 118 transações da Casa do
 Estudante ficam fora de `divergencias_taxa.csv` por regra (X-01, `destino=PENDENCIA`): são uma concessão
 comercial fora do contrato, e a devolução ao lojista por conta da Tarvo (R$ 15.396,77, o que a Orbe cobrou de
 fato; a fórmula daria R$ 15.397,42) existe só na pendência TARIFA_ZERO_COBRADA, com o detalhe por transação
@@ -305,7 +310,9 @@ pendência com dono, nunca palpite.
 - O extrato OFX do Meridiano não traz saldo inicial, então o saldo desse banco não é conferido
   linha a linha (o do Aurora é).
 - A duplicata da Ponte é resolvida ficando a primeira linha do arquivo quando os valores são
-  iguais; se diferirem, nenhuma entra e vira pendência.
+  iguais (e vira a pendência de acompanhamento DUPLICATA_PONTE, valor 0 e informativa, para a Ponte corrigir o
+  relatório; o efeito da linha repetida no repasse fica na CONFERIR_REPASSE_PONTE); se diferirem, nenhuma entra e
+  vira pendência DUPLICATA_DIVERGENTE.
 - Lojista sem contrato de checkout que faz remessa recebe comissão (o spread é pago pelo
   parceiro) e gera pendência informativa.
 - **Alerta de antecipação sem histórico de meses anteriores.** O motor só enxerga as vendas do arquivo
@@ -321,13 +328,19 @@ pendência com dono, nunca palpite.
   (`validar` e o topo do relatório listam todos). A X-01 (Casa do Estudante, TAXA_EXCECAO, que o Comercial
   aprova) só tem as mensagens da Helena relatando a concessão, sem aprovação nominal do Comercial no Slack.
   Regra confirmada pela Helena e alterada depois pelo time conta como premissa (a linha mais recente do
-  histórico decide).
+  histórico decide). Mudança só de redação (mesmo conteúdo, ex.: o `o_que_fazer` de X-01, DP-01, E-03 e A-01
+  reordenado com a ação primeiro, em 17/10) mantém o status: a linha do histórico repete a aprovação anterior e
+  diz que só muda a redação.
 - **Os cenários 10 a 13 dos evals** (prazo, total, painel, base inicial) estão descritos, mas ainda não
   foram rodados num modelo; o comportamento do motor que eles cobram tem teste automatizado.
 - A sugestão de conta por IA, quando ligada, usa o modelo definido em `ANTHROPIC_MODEL`
   (padrão `claude-opus-5-5`) e não foi exercitada com dados reais neste mês.
-- **`ref_origem` em pendências.** Nas pendências por lojista (ex.: Atlas sem contrato), `ref_origem` é o CNPJ,
-  porque a pendência não tem uma linha de origem só; as linhas que a compõem estão no `rastro.csv`. Na PEN-0006
+- **`ref_origem` em pendências.** Nas pendências por lojista (DIVERGENCIA_TAXA, TARIFA_ZERO_COBRADA, SEM_CONTRATO,
+  ALERTA_ANTECIPACAO e EXCESSO_SPREAD_CONTESTADO), `ref_origem` traz os ids das linhas de origem unidos por "|", na
+  mesma ordem do `rastro.csv` (a Organização aceita vários ids separados por "|", 17/10 11h27); o CNPJ fica só na
+  coluna `cnpj`. No relatório e no terminal o `ref_origem` aparece resumido (os primeiros ids e quantos mais); o CSV
+  traz todos. A comissão
+  negativa (SALDO_NEGATIVO_LOJISTA) continua com o CNPJ. Na PEN-0006
   (CONFERIR_REPASSE_PONTE), R$ 0,56 vêm da linha de total "SPREAD TOTAL R$:" do relatório da Ponte (linha 241),
   que não tem Nº Operação; o `ref_origem` aponta a linha do relatório. As outras 5 parcelas usam o Nº Operação.
   A soma do rastro bate com o valor da pendência.

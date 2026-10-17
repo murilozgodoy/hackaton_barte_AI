@@ -244,7 +244,7 @@ def test_sem_o_ajuste_tardio_da_os_valores_antigos(pasta_dados, tmp_path, capsys
     assert j["contexto"]["fontes"]["orbe"]["linhas"] == 1943 and j["entrada"]["arquivos"]["orbe"] == "01_orbe_relatorio_comissoes_set2026.csv"
     com = list(csv.DictReader(open(tmp_path / "saida" / "comissoes_por_lojista.csv", encoding="utf-8"), delimiter=";"))
     assert sum(int(r["qtd_transacoes"]) for r in com if r["linha_negocio"] == "CHECKOUT") == 1886
-    assert j["totais"]["divergencias"]["linhas"] == 115 and j["totais"]["pendencias"]["quantidade"] == 16
+    assert j["totais"]["divergencias"]["linhas"] == 115 and j["totais"]["pendencias"]["quantidade"] == 17
 
 
 def test_fonte_obrigatoria_ausente_para_e_diz_o_que_achou(pasta_dados, tmp_path, capsys):
@@ -305,4 +305,72 @@ def test_id_transacao_repetido_entre_arquivos_da_orbe(pasta_dados, tmp_path, cap
     rastro_base = list(csv.DictReader(open(RAIZ / "saida" / "rastro.csv", encoding="utf-8"), delimiter=";"))
     comissao_linha = sum(Decimal(r["valor"]) for r in rastro_base if r["id_saida"].startswith("COM-CHK") and r["ref_origem"] == id_dif)
     assert Decimal(j["totais"]["comissao_checkout_brl"]) == Decimal("203735.34") - comissao_linha
-    assert j["totais"]["pendencias"]["quantidade"] == 17
+    assert j["totais"]["pendencias"]["quantidade"] == 18
+
+
+# ---------------------------------------------------------------- caminho até a entrada: "..", pasta oculta, zip + 06 solto
+# O filtro de ocultos e de lixo de sistema olha só o caminho DENTRO da entrada (ou da raiz), nunca o caminho até ela:
+# antes, `--entrada ../<pasta>` ou uma pasta oculta no caminho (ex.: ~/.x/case) fazia todos os arquivos serem ignorados.
+
+def _arvore(pasta: Path) -> dict[str, bytes]:
+    return {str(p.relative_to(pasta)): p.read_bytes() for p in sorted(pasta.rglob("*")) if p.is_file()}
+
+
+def _fecha_igual_ao_versionado(entrada: str, saida: Path) -> None:
+    assert _main(["fechar", "--entrada", entrada, "--saida", str(saida), "--sem-ia"]) == 0
+    assert _arvore(saida) == _arvore(RAIZ / "saida")   # saida/ inteira, byte a byte (CSVs, resumo, relatório, rascunhos)
+
+
+def _zip_sem_o_06(pasta_dados: Path, destino: Path, prefixo: str = "") -> Path:
+    """O zip como foi publicado antes do ajuste tardio: os arquivos do mês sem o 06."""
+    with zipfile.ZipFile(destino, "w") as z:
+        for p in sorted(pasta_dados.iterdir()):
+            if p.is_file() and not p.name.startswith("06_"):
+                z.write(p, prefixo + p.name)
+    return destino
+
+
+def test_entrada_relativa_com_ponto_ponto_fecha_igual(pasta_dados, tmp_path, monkeypatch):
+    shutil.copytree(pasta_dados, tmp_path / "mes")
+    (tmp_path / "trabalho").mkdir()
+    monkeypatch.chdir(tmp_path / "trabalho")
+    _fecha_igual_ao_versionado("../mes", tmp_path / "saida")
+
+
+def test_pasta_oculta_no_caminho_da_entrada_fecha_igual(pasta_dados, tmp_path):
+    entrada = tmp_path / ".x" / "case"
+    shutil.copytree(pasta_dados, entrada)
+    _fecha_igual_ao_versionado(str(entrada), tmp_path / "saida")
+
+
+def test_zip_sem_o_06_e_o_06_solto_ao_lado_fecha_igual(pasta_dados, tmp_path):
+    entrada = tmp_path / "recebido"
+    entrada.mkdir()
+    _zip_sem_o_06(pasta_dados, entrada / "Tarvo_Data_Pack_set2026.zip", prefixo="Tarvo_Data_Pack_set2026/")
+    shutil.copy(next(pasta_dados.glob("06_orbe_*.csv")), entrada)
+    _fecha_igual_ao_versionado(str(entrada), tmp_path / "saida")
+
+
+def test_raiz_em_pasta_oculta_le_o_arquivo_solto_ao_lado_do_zip(pasta_dados, tmp_path):
+    """Sem --entrada, com o projeto dentro de uma pasta oculta: o 06 solto ao lado do zip entra (antes sumia em silêncio,
+    e setembro fechava com os valores sem o ajuste tardio). Arquivo oculto na raiz continua ignorado."""
+    raiz = tmp_path / ".x" / "projeto"
+    raiz.mkdir(parents=True)
+    _zip_sem_o_06(pasta_dados, raiz / "Tarvo_Data_Pack_set2026.zip")
+    ajuste = next(pasta_dados.glob("06_orbe_*.csv"))
+    shutil.copy(ajuste, raiz)
+    shutil.copy(ajuste, raiz / ".06_orbe_copia_oculta.csv")
+    achados = localizar(preparar_entrada(None, raiz, FONTES), FONTES)
+    assert [p.name for p in achados["orbe"]] == ["01_orbe_relatorio_comissoes_set2026.csv", "06_orbe_ajustes_tardios_set2026.csv"]
+
+
+def test_entrada_em_pasta_oculta_ainda_ignora_o_oculto_de_dentro(tmp_path, monkeypatch):
+    """O que é oculto DENTRO da entrada (subpasta ou arquivo) continua fora, com a entrada em pasta oculta ou via '..'."""
+    pasta = _soltos(tmp_path / ".x" / "case")
+    (pasta / ".lixo").mkdir()
+    (pasta / ".lixo" / NOMES["orbe"]).write_text("x", encoding="utf-8")
+    (pasta / ("._" + NOMES["orbe"])).write_text("x", encoding="utf-8")
+    assert _nomes(localizar(preparar_entrada(pasta, tmp_path, FONTES), FONTES)) == ESPERADO
+    (tmp_path / "trabalho").mkdir()
+    monkeypatch.chdir(tmp_path / "trabalho")
+    assert _nomes(localizar(preparar_entrada(Path("../.x/case"), tmp_path, FONTES), FONTES)) == ESPERADO

@@ -19,6 +19,7 @@ from .dinheiro import brl, soma
 from .regras import (COLUNAS_COMPLEMENTO, COLUNAS_REGRAS, STATUS_CADASTRO, TIPOS, Regra, _Contexto, cnpj_config,
                      formatar_parametros, ler_csv_regras, normalizar, parse_parametros, validar_conjunto,
                      validar_linha_regra)
+from .pendencias import ref_legivel
 from .saida import COLUNAS_OBRIGATORIAS, gravar_texto
 
 ARQUIVOS_COM_ID = {
@@ -185,7 +186,7 @@ def imprimir_pendencias(res: dict) -> None:
             sub = f"/{r['subtipo']}" if r.get("subtipo") else ""
             marca = (" [informativa]" if normalizar(r.get("informativa", "")) == "TRUE"
                      else (f" [já incluída em {r['incluida_em']}]" if r.get("incluida_em") else ""))
-            print(f"  {r['id_saida']} {r['tipo']}{sub} ({r['ref_origem']}, {valor}){marca}")
+            print(f"  {r['id_saida']} {r['tipo']}{sub} ({ref_legivel(r['ref_origem'])}, {valor}){marca}")
             print(f"      {r['motivo']}")
 
 

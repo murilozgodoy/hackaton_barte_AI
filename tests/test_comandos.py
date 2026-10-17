@@ -44,7 +44,7 @@ def test_explicar_id_inexistente_codigo_4(saida, capsys):
 def test_pendencias_filtros(saida, capsys):
     assert main(["pendencias", "--saida", str(saida), "--json"]) == 0
     res = json.loads(capsys.readouterr().out)
-    assert res["total"] == 16 and {g["quem_decide"] for g in res["por_responsavel"]} == {
+    assert res["total"] == 17 and {g["quem_decide"] for g in res["por_responsavel"]} == {
         "Helena (Financeiro)", "Helena (Financeiro) + Comercial", "Comercial", "Financeiro"}
     assert main(["pendencias", "--saida", str(saida), "--quem", "comercial", "--json"]) == 0
     res = json.loads(capsys.readouterr().out)

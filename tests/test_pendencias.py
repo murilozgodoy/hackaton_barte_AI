@@ -32,16 +32,21 @@ def test_lista_de_pendencias(fech):
     assert p.tipo.value_counts().to_dict() == {
         "TARIFA_ZERO_COBRADA": 1, "DIVERGENCIA_TAXA": 3, "EXCESSO_SPREAD_CONTESTADO": 1,
         "CONFERIR_REPASSE_PONTE": 1, "SPREAD_NEGATIVO": 4, "SEM_CONTRATO": 1, "SALDO_NEGATIVO_LOJISTA": 1,
-        "EXTRATO_NAO_IDENTIFICADO": 1, "DEVOLUCAO": 1, "EM_TRANSITO": 1, "ALERTA_ANTECIPACAO": 1}
+        "EXTRATO_NAO_IDENTIFICADO": 1, "DEVOLUCAO": 1, "EM_TRANSITO": 1, "ALERTA_ANTECIPACAO": 1, "DUPLICATA_PONTE": 1}
     assert p.quem_decide.notna().all() and (p.motivo.str.len() > 40).all()
-    assert p.quem_decide.value_counts().to_dict() == {"Helena (Financeiro)": 10, "Helena (Financeiro) + Comercial": 2,
+    assert p.quem_decide.value_counts().to_dict() == {"Helena (Financeiro)": 11, "Helena (Financeiro) + Comercial": 2,
                                                      "Comercial": 1, "Financeiro": 3}
     # a metade do excesso já está na divergência da Mundo Aberto: aparece, mas fora da soma do "em jogo"
     assert p[p.tipo == "EXCESSO_SPREAD_CONTESTADO"].incluida_em.iloc[0] == "DIVERGENCIA_TAXA"
     from src.relatorio import valor_em_jogo
     assert valor_em_jogo(p[p.quem_decide == "Helena (Financeiro)"]) == D("5341.28")
     # informativas (por regra, informativa=true): fora do "em jogo"
-    assert set(p[p.informativa].tipo) == {"EM_TRANSITO", "ALERTA_ANTECIPACAO"} and p.informativa.dtype == bool
+    assert set(p[p.informativa].tipo) == {"EM_TRANSITO", "ALERTA_ANTECIPACAO", "DUPLICATA_PONTE"} and p.informativa.dtype == bool
+    # tipo novo no fim da ordem: PEN-0001..0016 não renumeram
+    assert p.tipo.tolist() == ["TARIFA_ZERO_COBRADA"] + ["DIVERGENCIA_TAXA"] * 3 + [
+        "EXCESSO_SPREAD_CONTESTADO", "CONFERIR_REPASSE_PONTE"] + ["SPREAD_NEGATIVO"] * 4 + [
+        "SEM_CONTRATO", "ALERTA_ANTECIPACAO", "SALDO_NEGATIVO_LOJISTA", "EXTRATO_NAO_IDENTIFICADO", "DEVOLUCAO", "EM_TRANSITO",
+        "DUPLICATA_PONTE"]
 
 
 def test_alerta_antecipacao_so_para_a_atlas(fech):
@@ -56,8 +61,10 @@ def test_alerta_antecipacao_so_para_a_atlas(fech):
     assert r.valor_brl == D("179592.82") and r.qtd_itens == 4 and r.informativa
     assert r.motivo.startswith("Em 2026-09-15, R$ 179.592,82 antecipados contra R$ 55.357,50 vendidos até a data. "
                                "No mês, R$ 235.943,10 antecipados e R$ 108.712,14 revertidos (líquido R$ 127.230,96) "
-                               "contra R$ 135.428,90 vendidos.")
-    assert "Alerta de controle, não perda" in r.motivo and "SEM_CONTRATO" in r.motivo
+                               "contra R$ 135.428,90 vendidos (ATLAS IDIOMAS: lojista sem contrato no cadastro).")
+    assert r.motivo.endswith("Conferir com a adquirente a agenda de recebíveis do lojista e, se for lojista sem contrato, "
+                             "tratar junto com o Comercial.")
+    assert "Alerta de controle, não perda" in r.o_que_fazer and "SEM_CONTRATO" not in r.motivo
     rastro = fech.rastro[fech.rastro.id_saida == r.id_saida]
     assert len(rastro) == 4 and rastro.ref_origem.str.startswith("AN").all() and soma(rastro.valor) == D("179592.82")
 
@@ -74,10 +81,12 @@ def test_casa_do_estudante_tarifa_zero(fech):
     r = _por(fech, "TARIFA_ZERO_COBRADA").iloc[0]
     assert (r.cnpj, r.valor_brl, r.qtd_itens, r.regra_id) == (CASA, D("15396.77"), 118, "X-01")   # o que foi cobrado, devolve-se
     assert r.quem_decide == "Helena (Financeiro) + Comercial"
-    assert "cobrou efetivamente R$ 15.396,77" in r.motivo and "a fórmula bruto × taxa daria R$ 15.397,42" in r.motivo
+    assert "cobrou efetivamente R$ 15.396,77" in r.motivo and "Esse é o valor desta pendência" in r.motivo
+    assert "e não o da fórmula bruto × taxa, que daria R$ 15.397,42" in r.motivo
     assert "R$ 0,65 de truncamento da adquirente que o lojista não pagou" in r.motivo
     assert "devolução ao lojista" in r.motivo and "não há o que cobrar da Orbe" in r.motivo
-    assert "fica FORA de divergencias_taxa.csv e de orbe_contestacao.csv" in r.motivo and "Concessão do Comercial fora do contrato" in r.motivo
+    assert "concessão do Comercial fora do contrato" in r.motivo and r.motivo.endswith("decidindo com o Comercial.")
+    assert "fica FORA de divergencias_taxa.csv e de orbe_contestacao.csv" in r.o_que_fazer   # o resto da regra, na coluna
     assert r.motivo.count("fora do contrato") == 1   # cada informação uma vez (observação da regra não se repete)
     assert "custo da Tarvo" in r.motivo   # F16: quem abriu mão da receita foi a Tarvo
     rastro = fech.rastro[fech.rastro.id_saida == r.id_saida]
@@ -105,7 +114,8 @@ def test_divergencias_rota_bridge_mundo_aberto(fech):
 def test_excesso_contestado(fech):
     r = _por(fech, "EXCESSO_SPREAD_CONTESTADO").iloc[0]
     assert (r.cnpj, r.valor_brl, r.qtd_itens) == (MA, D("709.46"), 23)
-    assert "P-05" in r.motivo and "Entrou na nota" in r.motivo
+    assert "Entrou na nota do mês, e já está dentro da divergência do lojista: fica fora da soma do em jogo" in r.motivo
+    assert "P-05" not in r.motivo and r.regra_id == "DP-02"   # o código fica só em regra_id
 
 
 def test_atlas_sem_contrato(fech):
@@ -138,7 +148,7 @@ def test_spread_negativo_com_os_dois_valores(fech):
         assert (r.valor_brl, r.spread_relatorio_brl, r.spread_contratado_brl, r.diferenca_contrato_brl, r.metade_tarvo_contrato_brl) == \
             (D(rel), D(rel), D(contr), D(dif), D(metade)), ref
         assert f"O que aconteceu: spread {brl(D(rel))} no relatório" in r.motivo
-        assert f"O que pedimos ao parceiro (a trava deveria ter sido honrada): spread contratado {brl(D(contr))}" in r.motivo
+        assert f"o que pedimos ao parceiro (a trava deveria ter sido honrada): spread contratado {brl(D(contr))}" in r.motivo
         assert f"a diferença de {brl(-D(dif))} até esse spread contratado, do qual a metade da Tarvo seria {brl(D(metade))}" in r.motivo
     assert (soma(s.spread_relatorio_brl), soma(s.spread_contratado_brl), soma(s.diferenca_contrato_brl), soma(s.metade_tarvo_contrato_brl)) == \
         (D("-1834.05"), D("1731.93"), D("-3565.98"), D("865.98"))
@@ -199,12 +209,13 @@ def test_conferir_repasse_ponte(fech):
     assert _por(fech, "REPASSE_PONTE_DIVERGENTE").empty
     r = _por(fech, "CONFERIR_REPASSE_PONTE").iloc[0]
     assert (r.valor_brl, r.quem_decide, r.regra_id) == (D("506.65"), "Helena (Financeiro)", "DP-11")
-    assert r.motivo.startswith("Conferir o TED do parceiro de câmbio previsto para 2026-10-06 (data do e-mail do parceiro) contra a "
+    assert r.motivo.startswith("Conferir o TED do parceiro de câmbio previsto para 2026-10-06 (data de repasse informada no e-mail do "
+                               "parceiro) contra a "
                                "nota NF-0021 (R$ 39.543,45). Se o parceiro pagar 50% do total que declarou (R$ 78.073,59 -> "
                                "R$ 39.036,80), a diferença possível é R$ 506,65 (= ")
-    assert "+ R$ 917,03 de 4 operações excluídas (Spread negativo na remessa, regra E-03)" in r.motivo
+    assert "+ R$ 917,03 de 4 operações excluídas (Spread negativo na remessa)" in r.motivo and "E-03" not in r.motivo
     assert "- R$ 410,94 de 1 operação repetida, contada uma vez" in r.motivo and "+ R$ 0,56 de arredondamento" in r.motivo
-    assert "Não é perda: a contestação ainda não foi aberta" in r.motivo and "previsto para 2026-10-06 (data do e-mail do parceiro)" in r.motivo
+    assert "Não é perda: a contestação ainda não foi aberta" in r.motivo and "previsto para 2026-10-06 (data de repasse informada no e-mail do parceiro)" in r.motivo
     assert "06/10" not in r.o_que_fazer      # nenhuma data fixa na regra: a data vem do e-mail
     assert "credita só 50%" not in r.motivo and "Contestar" not in r.motivo and ";" not in r.motivo and not r.informativa
     rastro = fech.rastro[fech.rastro.id_saida == r.id_saida]
@@ -281,14 +292,14 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     res = json.loads((tmp_path / "resumo.json").read_text(encoding="utf-8"))
     assert res["status_integridade"] == "OK" and res["competencia"] == "2026-09"
     assert res["totais"]["comissao_checkout_brl"] == "203735.34" and res["totais"]["comissao_remessa_brl"] == "39543.45"
-    assert res["totais"]["pendencias"]["quantidade"] == 16
+    assert res["totais"]["pendencias"]["quantidade"] == 17
     pr = res["totais"]["pendencias"]["por_responsavel"]
     assert pr["Comercial"] == {"quantidade": 1, "valor_brl": "7876.05", "informativas": 0, "incluidas_em_outra": 0}
     # informativas (EM_TRANSITO, ALERTA_ANTECIPACAO) e a metade do excesso (já na divergência) ficam fora do "em jogo"
     assert pr["Financeiro"] == {"quantidade": 3, "valor_brl": "19750.00", "informativas": 1, "incluidas_em_outra": 0}
     assert pr["Helena (Financeiro) + Comercial"] == {"quantidade": 2, "valor_brl": "15396.77", "informativas": 1, "incluidas_em_outra": 0}
-    assert pr["Helena (Financeiro)"] == {"quantidade": 10, "valor_brl": "5341.28", "informativas": 0, "incluidas_em_outra": 1}
-    assert res["totais"]["pendencias"]["informativas"] == 2 and res["totais"]["pendencias"]["em_jogo_brl"] == "48364.10"
+    assert pr["Helena (Financeiro)"] == {"quantidade": 11, "valor_brl": "5341.28", "informativas": 1, "incluidas_em_outra": 1}
+    assert res["totais"]["pendencias"]["informativas"] == 3 and res["totais"]["pendencias"]["em_jogo_brl"] == "48364.10"
     assert res["conciliacao"]["parceiro_cambio"]["data_repasse"] == "2026-10-06"
     assert "M-05" in res["conciliacao"]["remessa_x_banco"]["observacao"] and "18.240,00" in res["conciliacao"]["remessa_x_banco"]["observacao"]
     assert res["arquivos"]["pendencias"] == "pendencias.csv"
@@ -318,7 +329,7 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert "RECURSO_SEM_OPERACAO" not in rel and "M-05" in rel and "mês seguinte" in rel
     assert "pendencias.csv" in rel and "saldo negativo sem nota" in rel and "R$ 5,50" in rel
     assert "### Financeiro — 3 pendência(s), R$ 19.750,00 em jogo (1 informativa)" in rel and "REPASSE_PONTE_DIVERGENTE" not in rel
-    assert "### Helena (Financeiro) — 10 pendência(s), R$ 5.341,28 em jogo" in rel
+    assert "### Helena (Financeiro) — 11 pendência(s), R$ 5.341,28 em jogo" in rel
     assert "Rodapé: EXCESSO_SPREAD_CONTESTADO (R$ 709,46) já incluído em DIVERGENCIA_TAXA de Mundo Aberto" in rel
     assert "1.5%–1.5%" not in rel and "+ -R$" not in rel
     # página 1: dinheiro por natureza, nunca somado; métrica de linhas conferidas; a causa de processo fica no interno
@@ -327,10 +338,141 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert "| Cobrar da adquirente |" in rel and "R$ 1.576,23 |" in rel and "comunicacoes/orbe.md" in rel
     assert "| Contestar com o parceiro de câmbio | a: excesso de spread cobrado do lojista, volta ao lojista." in rel and "R$ 1.418,85 |" in rel
     assert "b: 4 operações com spread negativo" in rel and "| -R$ 1.834,05 aconteceu / R$ 3.565,98 pedido |" in rel
-    assert "c: corrigir o relatório: PC-0926-0162 aparece mais de uma vez" in rel
+    assert "c: corrigir o relatório: PC-0926-0162 aparece mais de uma vez" in rel and "acompanhamento na pendência PEN-0017" in rel
+    assert rel.count("PC-0926-0162 aparece") == 1   # a pendência de acompanhamento é o pedido c, não outra linha
     assert "| Devolver ao lojista por conta da Tarvo |" in rel and "R$ 15.396,77 |" in rel
     assert "| Não faturar até decidir |" in rel and "R$ 7.876,05 cobrados pela adquirente em 57 transações, R$ 262.138,61 brutos na carteira pendente" in rel
     assert "R$ 179.592,82 (informativa)" in rel and "| Só acompanhar |" in rel and "até R$ 506,65" in rel and "R$ 300.000,00 (informativa)" in rel
-    assert "**2.374 linhas de origem conferidas** (1.957 da adquirente + 233 do parceiro de câmbio + 184 dos extratos) → **16 decisões para pessoas**" in rel
+    assert "**2.374 linhas de origem conferidas** (1.957 da adquirente + 233 do parceiro de câmbio + 184 dos extratos) → **17 decisões para pessoas**" in rel
     assert "8 dias" not in rel and "falha de processo nossa" in rel   # causa de processo é interna: fica no relatório
 
+
+
+def test_duplicata_da_ponte_vira_pendencia_de_acompanhamento(fech):
+    """Helena ao Insper AI (16/10 22h34): "A duplicada vocês contam uma vez no fechamento, e ela também entra na lista para
+    a Ponte corrigir o relatório." Pendência DUPLICATA_PONTE (regra DP-18), valor 0 e informativa: a operação já está na
+    comissão e o efeito da linha repetida no repasse já está na PEN-0006 (nada conta duas vezes)."""
+    d = _por(fech, "DUPLICATA_PONTE")
+    assert len(d) == 1
+    r = d.iloc[0]
+    assert (r.id_saida, r.ref_origem, r.valor_brl, r.quem_decide, r.regra_id, r.natureza) == (
+        "PEN-0017", "PC-0926-0162", D("0"), "Helena (Financeiro)", "DP-18", "CONTESTAR_PONTE")
+    assert r.informativa and not r.incluida_em and (r.linha_negocio, r.qtd_itens) == ("REMESSA", 2)
+    assert "contada uma vez" in r.motivo and "corrija o relatório" in r.motivo and "corrija o relatório" in r.o_que_fazer
+    rastro = fech.rastro[fech.rastro.id_saida == r.id_saida]
+    assert rastro.ref_origem.tolist() == ["PC-0926-0162", "PC-0926-0162"] and (rastro.valor == D("0")).all()
+    assert set(rastro.arquivo_origem) == {"03_email_ponte_cambio_relatorio_set2026.eml"} and set(rastro.regra_id) == {"D-01"}
+    # a PC-0926-0162 continua contada uma vez na comissão e como parcela da conferência do repasse
+    rep = fech.rastro[(fech.rastro.id_saida == _por(fech, "CONFERIR_REPASSE_PONTE").iloc[0].id_saida)
+                      & (fech.rastro.ref_origem == "PC-0926-0162")]
+    assert rep.valor.tolist() == [D("-410.94")]
+    from src.relatorio import valor_em_jogo
+    assert valor_em_jogo(fech.pendencias) == D("48364.10")
+
+
+def test_duplicata_da_ponte_so_existe_com_dono_ativo(dados, tmp_path):
+    """Pendência opcional: com a DP-18 inativa, a repetida volta a ficar só na contestação (pedido c) e na PEN-0006."""
+    from src.regras import carregar_config
+    from tests.sintetico import regras_copia
+    regras = regras_copia(tmp_path)
+    p = regras / "regras_negocio.csv"
+    t = p.read_text(encoding="utf-8")
+    linha = next(l for l in t.splitlines() if l.startswith("DP-18;"))
+    p.write_text(t.replace(linha, linha.replace(";ATIVA;", ";INATIVA;")), encoding="utf-8")
+    cfg = carregar_config(regras, dados["taxas"], dados["plano_contas"], {"AURORA", "MERIDIANO"})
+    f = executar(dados, cfg, "2026-09", usar_ia=False)
+    assert "DUPLICATA_PONTE" not in set(f.pendencias.tipo) and len(f.pendencias) == 16 and f.integro
+
+
+def test_ref_origem_das_pendencias_por_lojista_sao_os_ids_do_rastro():
+    """Organização (17/10 11h27): ref_origem pode ter vários ids separados por "|" ("o que importa é dar para achar cada
+    origem"). Nas pendências por lojista, os ids das linhas de origem na ordem do rastro.csv; o CNPJ fica na coluna cnpj.
+    Conferido nos arquivos versionados (saida/ = gerado, há teste)."""
+    import csv
+    from src.pendencias import TIPOS_REF_DO_RASTRO
+    pend = list(csv.DictReader(open(RAIZ / "saida" / "pendencias.csv", encoding="utf-8"), delimiter=";"))
+    rastro = list(csv.DictReader(open(RAIZ / "saida" / "rastro.csv", encoding="utf-8"), delimiter=";"))
+    assert TIPOS_REF_DO_RASTRO == {"DIVERGENCIA_TAXA", "TARIFA_ZERO_COBRADA", "SEM_CONTRATO", "ALERTA_ANTECIPACAO",
+                                   "EXCESSO_SPREAD_CONTESTADO"}
+    por_lojista = [p for p in pend if p["tipo"] in TIPOS_REF_DO_RASTRO]
+    assert [p["id_saida"] for p in por_lojista] == ["PEN-0001", "PEN-0002", "PEN-0003", "PEN-0004", "PEN-0005", "PEN-0011", "PEN-0012"]
+    for p in por_lojista:
+        linhas = [r for r in rastro if r["id_saida"] == p["id_saida"]]
+        assert p["ref_origem"] == "|".join(r["ref_origem"] for r in linhas), p["id_saida"]
+        assert len(p["ref_origem"].split("|")) == len(linhas) == int(p["qtd_itens"]), p["id_saida"]
+        assert p["cnpj"] and p["cnpj"] not in p["ref_origem"].split("|")
+        assert soma(D(r["valor"]) for r in linhas) == D(p["valor_brl"])   # valor e rastro não mudaram
+    por_id = {p["id_saida"]: p for p in pend}
+    assert por_id["PEN-0001"]["cnpj"] == CASA and por_id["PEN-0011"]["cnpj"] == ATLAS_CNPJ
+    assert por_id["PEN-0012"]["ref_origem"] == "AN88445637|AN88445646|AN88445703|AN88445766"
+    # as demais seguem com a própria origem (operação, linha do extrato, linha de total, CNPJ do saldo negativo)
+    assert [por_id[i]["ref_origem"] for i in ("PEN-0006", "PEN-0007", "PEN-0013", "PEN-0014", "PEN-0017")] == [
+        "linha 241 do relatório (SPREAD TOTAL R$:)", "PC-0926-0326", CASA, "L50", "PC-0926-0162"]
+    assert not any("|" in p["ref_origem"] for p in pend if p["tipo"] not in TIPOS_REF_DO_RASTRO)
+
+
+def test_ref_origem_com_muitos_ids_fica_curto_no_relatorio():
+    from src.pendencias import ref_legivel
+    assert ref_legivel("PC-0926-0162") == "PC-0926-0162" and ref_legivel("A|B|C") == "A, B, C"
+    assert ref_legivel("|".join(f"T{i}" for i in range(118))) == "T0, T1, T2, T3, T4 e mais 113 (todos em pendencias.csv e rastro.csv)"
+    rel = (RAIZ / "saida" / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
+    assert "TX88410128|" not in rel and "e mais 113 (todos em pendencias.csv e rastro.csv)" in rel
+
+
+# ---------------------------------------------------------------- linguagem para a Helena (só texto)
+import re
+
+CODIGO_INTERNO = re.compile(r"\b[A-Z]{1,2}-\d{2}\b|[Pp]rioridade \d")   # X-01, DP-01, P-05, J-01/J-02, "Prioridade 50"
+
+
+def test_motivo_em_ate_3_frases_e_sem_codigo_interno():
+    """Cada motivo: o que aconteceu, quanto vale, o que fazer e até quando, em no máximo 3 frases. Nenhum código de
+    regra no motivo nem no o_que_fazer: o código continua só na coluna regra_id."""
+    import csv
+    from src.textos import frases
+    pend = list(csv.DictReader(open(RAIZ / "saida" / "pendencias.csv", encoding="utf-8"), delimiter=";"))
+    assert len(pend) == 17
+    for p in pend:
+        assert 1 <= len(frases(p["motivo"])) <= 3, (p["id_saida"], frases(p["motivo"]))
+        assert not CODIGO_INTERNO.findall(p["motivo"]) and not CODIGO_INTERNO.findall(p["o_que_fazer"]), p["id_saida"]
+        assert CODIGO_INTERNO.fullmatch(p["regra_id"]), p["id_saida"]
+
+
+def test_contestar_a_ponte_tem_o_prazo_do_email_do_parceiro():
+    """Até quando: nas pendências de contestar o parceiro, o prazo vem da regra de prazo da contestação e das datas do
+    e-mail (enviado em 2026-10-02, 5 dias úteis), nunca da data de hoje."""
+    import csv
+    pend = list(csv.DictReader(open(RAIZ / "saida" / "pendencias.csv", encoding="utf-8"), delimiter=";"))
+    prazo = "prazo para contestar: até 2026-10-09 (5 dias úteis a partir do e-mail do parceiro de 2026-10-02, sem descontar feriados)"
+    com_prazo = [p["id_saida"] for p in pend if prazo in p["motivo"]]
+    assert com_prazo == [p["id_saida"] for p in pend if p["natureza"] == "CONTESTAR_PONTE"]
+    assert com_prazo == ["PEN-0004", "PEN-0005", "PEN-0007", "PEN-0008", "PEN-0009", "PEN-0010", "PEN-0017"]
+    assert not any("2026-10-09" in p["o_que_fazer"] for p in pend)   # data nenhuma fixa na regra
+
+
+def test_pagina_1_do_relatorio_sem_codigo_interno():
+    rel = (RAIZ / "saida" / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
+    p1 = rel.split("## Página 1")[1].split("## Anexo")[0]
+    assert not CODIGO_INTERNO.findall(p1)
+    assert not re.findall(r"\b[A-Z]+(?:_[A-Z]+)+\b", p1)   # nem o código do tipo (TARIFA_ZERO_COBRADA...)
+    assert "Concessão comercial cobrada pela adquirente; Antecipação acima das vendas (alerta)." in p1
+    # a lista das últimas alterações da base de regras, com o código de cada regra, fica no anexo
+    assert "As últimas estão no anexo" in p1 and "## Conhecimento capturado — últimas alterações da base de regras" in rel
+    assert "· DP-18 · CRIOU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 16/10 22h34" in rel
+
+
+def test_duplicata_de_operacao_fora_da_comissao_nao_diz_que_foi_contada(dados, config):
+    """A linha repetida de uma operação que ficou fora da comissão (aqui, um spread negativo): a DUPLICATA_PONTE não diz
+    que ela foi contada na comissão e na nota; a operação segue fora, com a pendência dela (SPREAD_NEGATIVO)."""
+    import pandas as pd
+    ponte = dados["ponte"]
+    copia = ponte[ponte.num_operacao == "PC-0926-0326"].copy()
+    copia["linha_planilha"] = 999
+    nova = pd.concat([ponte, copia], ignore_index=True)
+    nova.attrs = dict(ponte.attrs)
+    f = executar({**dados, "ponte": nova}, config, "2026-09", usar_ia=False)
+    d = f.pendencias[(f.pendencias.tipo == "DUPLICATA_PONTE") & (f.pendencias.ref_origem == "PC-0926-0326")]
+    assert len(d) == 1 and d.iloc[0].valor_brl == D("0")
+    assert "fora da comissão e da nota, com pendência própria" in d.iloc[0].motivo and "contada uma vez na comissão" not in d.iloc[0].motivo
+    assert "PC-0926-0326" in set(f.pendencias[f.pendencias.tipo == "SPREAD_NEGATIVO"].ref_origem) and f.integro
+    assert f.notas[f.notas.linha_negocio == "REMESSA"].valor_brl.iloc[0] == D("39543.45")   # a nota não muda

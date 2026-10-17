@@ -189,7 +189,8 @@
           }
         },
         "fora_da_soma": [
-          "PEN-0005 (incluída em DIVERGENCIA_TAXA)"
+          "PEN-0005 (incluída em DIVERGENCIA_TAXA)",
+          "PEN-0017 (informativa)"
         ],
         "quantidade_de": "pedidos",
         "pedidos": [
@@ -342,8 +343,8 @@
     },
     "por_natureza_nota": "uma entrada por natureza (o que fazer com o dinheiro), com por_tipo = {tipo: quantidade, valor_brl, ids}; valor_brl = soma dos valores absolutos dos ids no arquivo_origem, sem informativas nem incluídas em outra (fora_da_soma). O valor_brl da natureza só existe quando todos os ids são do mesmo tipo; senão é null (motivo_sem_total) e o total é por tipo. CONTESTAR_PONTE = soma dos pedidos (o que se pede). Naturezas diferentes nunca se somam: não há total geral",
     "pendencias": {
-      "quantidade": 16,
-      "informativas": 2,
+      "quantidade": 17,
+      "informativas": 3,
       "em_jogo_brl": "48364.10",
       "nota": "valor_brl por responsável e por tipo é a soma dos valores absolutos (valor em jogo), sem as pendências informativas nem as já incluídas em outra (incluida_em): nenhuma linha de origem conta duas vezes",
       "por_responsavel": {
@@ -354,9 +355,9 @@
           "incluidas_em_outra": 0
         },
         "Helena (Financeiro)": {
-          "quantidade": 10,
+          "quantidade": 11,
           "valor_brl": "5341.28",
-          "informativas": 0,
+          "informativas": 1,
           "incluidas_em_outra": 1
         },
         "Comercial": {
@@ -434,6 +435,12 @@
           "incluidas_em_outra": 0
         },
         "EM_TRANSITO": {
+          "quantidade": 1,
+          "valor_brl": "0.00",
+          "informativas": 1,
+          "incluidas_em_outra": 0
+        },
+        "DUPLICATA_PONTE": {
           "quantidade": 1,
           "valor_brl": "0.00",
           "informativas": 1,
@@ -548,7 +555,7 @@
     }
   ],
   "base_de_regras": {
-    "regras_ativas": 69,
+    "regras_ativas": 70,
     "lojistas": 25,
     "ultima_alteracao_historico": "2026-10-17"
   },
@@ -581,12 +588,12 @@
     {
       "nome": "1. soma do rastro = valor reportado (pendencias.csv)",
       "ok": true,
-      "detalhe": "16 ids conferidos"
+      "detalhe": "17 ids conferidos"
     },
     {
       "nome": "1. todo id do rastro existe nas saídas",
       "ok": true,
-      "detalhe": "371 ids no rastro"
+      "detalhe": "372 ids no rastro"
     },
     {
       "nome": "2. comissões de checkout com saldo > 0 = notas CHECKOUT",

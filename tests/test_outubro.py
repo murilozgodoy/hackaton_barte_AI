@@ -101,7 +101,7 @@ def test_ajuste_da_ponte_entra_no_mes_e_aponta_para_a_contestacao_de_setembro(ou
     aj = pend[pend.tipo == "CONFERIR_AJUSTE_PONTE"].iloc[0]
     assert aj.ref_origem == "PC-1026-0901" and aj.quem_decide == "Helena (Financeiro)" and aj.informativa == "true"
     assert aj.subtipo == "DEBITO" and D(aj.valor_brl) == D("-22.50") and aj.regra_id == "DP-14"
-    assert "Refere-se à operação PC-0926-0016, pedido a (EXCESSO_SPREAD) da contestação do fechamento anterior (2026-09)" in aj.motivo
+    assert "Refere-se à operação PC-0926-0016, pedido a (excesso de spread) da contestação do fechamento anterior (2026-09)" in aj.motivo
     assert "Abateu -R$ 22,50" in aj.motivo and "dentro da nota única do parceiro" in aj.motivo
     assert "PC-1026-0901" not in set(pend[pend.tipo == "SPREAD_NEGATIVO"].ref_origem)
     rastro = _csv(out / "rastro.csv")

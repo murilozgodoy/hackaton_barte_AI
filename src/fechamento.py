@@ -96,9 +96,10 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
     ext = extratos.classificar(bancos, config, dados["plano_contas"], usar_ia=usar_ia)
     conc = conciliacao.calcular(dados, rem.linhas, rem.comissoes, ext.lancamentos,
                                 config.parametro("participacao_spread", ref), config.parametro("arredondamento", ref))
+    meta_ponte = {k: dados["ponte"].attrs.get(k) for k in ("remetente", "assunto", "data_envio", "data_repasse", "prazo_dias_uteis")}
     pend = pendencias.calcular(ref, chk.linhas, rem.linhas, div, sem_nota, chk.rastro, ext.lancamentos,
                                ext.em_transito, conc, nf, config, taxas=dados["taxas"], contestacao_anterior=contestacao_anterior,
-                               rem_rastro=rem.rastro, so_pendencia=dv.so_pendencia)
+                               rem_rastro=rem.rastro, so_pendencia=dv.so_pendencia, meta_ponte=meta_ponte)
 
     colunas_com = ["id_saida", "cnpj", "lojista", "linha_negocio", "comissao_brl"]
     comissoes = pd.concat([chk.comissoes, rem.comissoes], ignore_index=True)
@@ -135,7 +136,6 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
         avisos_extra.append(f"relatório do parceiro de câmbio, linha {ign['linha']} ignorada (sem Nº Operação ou data de "
                             f"contratação válida): {ign['conteudo']}")
 
-    meta_ponte = {k: dados["ponte"].attrs.get(k) for k in ("remetente", "assunto", "data_envio", "data_repasse", "prazo_dias_uteis")}
     f = Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, nf, sem_nota,
                    ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, cart, n_cart, dados["taxas"],
                    meta_ponte, checagens, list(config.avisos) + ext.avisos + avisos_extra, dv.so_pendencia)

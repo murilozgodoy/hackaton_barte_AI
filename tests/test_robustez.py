@@ -361,7 +361,7 @@ def test_ajuste_do_parceiro_entra_na_comissao_do_mes_e_vira_pendencia_informativ
     assert len(p) == 3 and set(p.quem_decide) == {"Helena (Financeiro)"} and p.informativa.all() and set(p.regra_id) == {"DP-14"}
     assert p.loc["PC-0826-0901", "valor_brl"] == D("343.76") and "crédito de R$ 687,52" in p.loc["PC-0826-0901", "motivo"]
     assert "Refere-se à operação PC-0926-0210, que não está na contestação do fechamento anterior" in p.loc["PC-0826-0901", "motivo"]
-    assert "Refere-se à operação PC-0926-0011, pedido a (EXCESSO_SPREAD) da contestação do fechamento anterior (2026-08)" in p.loc["PC-0826-0902", "motivo"]
+    assert "Refere-se à operação PC-0926-0011, pedido a (excesso de spread) da contestação do fechamento anterior (2026-08)" in p.loc["PC-0826-0902", "motivo"]
     assert "Abateu -R$ 14,78" in p.loc["PC-0826-0902", "motivo"] and "dentro da nota única do parceiro" in p.loc["PC-0826-0902", "motivo"]
     assert "não cita a operação original" in p.loc["PC-0826-0903", "motivo"]
     assert soma(f.rastro[f.rastro.id_saida == p.loc["PC-0826-0901", "id_saida"]].valor) == D("343.76")

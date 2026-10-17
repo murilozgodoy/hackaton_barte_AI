@@ -7,7 +7,7 @@
       "Tarvo_Data_Pack_set2026.zip",
       "regras/"
     ],
-    "expected_output": "Roda validar e fechar (código 0), lê resumo.json e apresenta: comissão CHECKOUT 203.735,34 (21 lojistas, com os ajustes tardios do 06), REMESSA 39.543,45 (14 lojistas), 21 notas somando 243.284,29, 115 divergências de contrato (1.576,23 + 1.418,85) e a devolução da Casa do Estudante só em pendência (15.396,77), 16 pendências por responsável. Entrega os CSVs. Não recalcula nada.",
+    "expected_output": "Roda validar e fechar (código 0), lê resumo.json e apresenta: comissão CHECKOUT 203.735,34 (21 lojistas, com os ajustes tardios do 06), REMESSA 39.543,45 (14 lojistas), 21 notas somando 243.284,29, 115 divergências de contrato (1.576,23 + 1.418,85) e a devolução da Casa do Estudante só em pendência (15.396,77), 17 pendências por responsável (a 17ª, DUPLICATA_PONTE, informativa, valor 0). Entrega os CSVs. Não recalcula nada.",
     "assertions": [
       "executou `python -m src validar` antes de `fechar`",
       "todos os totais apresentados são iguais aos de saida/resumo.json",

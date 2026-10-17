@@ -20,6 +20,7 @@ from .dinheiro import CENTAVO, ZERO, brl, soma
 from .regras import NATUREZAS_PENDENCIA
 from .notas import competencia_texto, primeiro_dia
 from .saida import gravar_texto
+from .pendencias import ref_legivel
 
 # pendências cuja causa é a do lojista (regras/causas_divergencia.csv), não o tipo
 TIPOS_POR_CAUSA = {"DIVERGENCIA_TAXA", "TARIFA_ZERO_COBRADA", "SEM_CONTRATO"}
@@ -37,7 +38,15 @@ ROTULOS_TIPO = {
     "FORA_COMPETENCIA": "Linhas fora da competência", "COMPLIANCE": "Operação reprovada no compliance",
     "RECURSO_SEM_OPERACAO": "Recurso de lojista sem operação", "REVISAR_IA": "Conta sugerida pela IA a revisar",
     "DADO_INSUFICIENTE": "Estorno ou reversão sem data da venda original (venda fora do arquivo)",
+    "DUPLICATA_PONTE": "Operação repetida no relatório do parceiro (contada uma vez)",
+    "EXCESSO_SPREAD_CONTESTADO": "Metade da Tarvo sobre o excesso de spread em contestação",
+    "ALERTA_ANTECIPACAO": "Antecipação acima das vendas (alerta)", "EM_TRANSITO": "Transferência entre contas em trânsito",
 }
+
+
+def rotulo_tipo(tipo: str) -> str:
+    """Nome do tipo de pendência para quem lê o relatório (o código fica em pendencias.csv)."""
+    return ROTULOS_TIPO.get(tipo, str(tipo).replace("_", " ").capitalize())
 
 ASSUNTO_CONCILIACAO_ADQUIRENTE = "conciliacao_adquirente"
 ASSUNTO_RECURSO_SEM_OPERACAO = "recurso_sem_operacao"
@@ -447,11 +456,14 @@ def dinheiro_por_natureza(f, causas: dict, config=None) -> list[dict]:
         grupos.setdefault((r.natureza or SEM_NATUREZA, r.tipo, r.linha_negocio or ""), []).append(r)
     lc = lista_contestacao(f.ponte_linhas) if len(f.ponte_linhas) else pd.DataFrame(columns=["natureza", "ref_origem"])
     repetidas = lc[lc["natureza"] == "REPETIDA"] if len(lc) else lc
+    dup_ponte = [r for r in ativas.itertuples(index=False) if r.tipo == "DUPLICATA_PONTE"] if len(ativas) else []
     for nat_key, rotulo in NATUREZAS:
         primeira = True
         for (nat, tipo, linha), rs in grupos.items():
             if nat != nat_key:
                 continue
+            if tipo == "DUPLICATA_PONTE" and nat_key == "CONTESTAR_PONTE" and len(repetidas):
+                continue   # é o pedido "c" (corrigir o relatório), logo abaixo: a mesma operação não aparece duas vezes
             informativa = all(bool(r.informativa) for r in rs)
             quem = " / ".join(dict.fromkeys(r.quem_decide for r in rs))
             total = soma(abs(r.valor_brl) for r in rs if r.valor_brl is not None)
@@ -483,7 +495,7 @@ def dinheiro_por_natureza(f, causas: dict, config=None) -> list[dict]:
                 o_que = "TED do parceiro de câmbio a conferir contra a nota de remessa: " + "; ".join(_primeira_frase(r.motivo) for r in rs)
                 valor = "até " + valor
             else:
-                o_que = ROTULOS_TIPO.get(tipo, tipo.replace("_", " ").capitalize()) + ": " + "; ".join(
+                o_que = rotulo_tipo(tipo) + ": " + "; ".join(
                     f"{r.lojista + ': ' if r.lojista else ''}{_primeira_frase(r.motivo)}" for r in rs[:3]) + ("; …" if len(rs) > 3 else "")
             out.append({"natureza": rotulo if primeira else "", "o_que": o_que, "valor": valor, "quem": quem})
             primeira = False
@@ -492,8 +504,11 @@ def dinheiro_por_natureza(f, causas: dict, config=None) -> list[dict]:
             regra_dup = config.regra_duplicado("ponte", primeiro_dia(f.competencia)) if config is not None else None
             out.append({"natureza": rotulo if primeira else "",
                         "o_que": f"c: corrigir o relatório: {', '.join(repetidas['ref_origem'])} aparece mais de uma vez "
-                                 f"(contada uma vez no fechamento). Rascunho: comunicacoes/ponte.md",
-                        "valor": brl(ZERO), "quem": regra_dup.quem_decide if regra_dup is not None else ""})
+                                 f"(contada uma vez no fechamento"
+                                 + (f"; acompanhamento na pendência {', '.join(r.id_saida for r in dup_ponte)}" if dup_ponte else "")
+                                 + "). Rascunho: comunicacoes/ponte.md",
+                        "valor": brl(ZERO) + (" (informativa)" if dup_ponte and all(bool(r.informativa) for r in dup_ponte) else ""),
+                        "quem": regra_dup.quem_decide if regra_dup is not None else ""})
     return out
 
 
@@ -553,7 +568,7 @@ def _pagina_cfo(f, config, res: dict, causas: dict, historico: list[dict], pend_
         n_inf = int(g["informativa"].astype(bool).sum())
         n_inc = int(g["incluida_em"].notna().sum())
         notas_g = [f"{n_inf} informativa{'s' if n_inf > 1 else ''}"] * bool(n_inf) + [f"{n_inc} já incluída{'s' if n_inc > 1 else ''} em outra"] * bool(n_inc)
-        tipos = ", ".join(dict.fromkeys(g["tipo"]))
+        tipos = "; ".join(dict.fromkeys(rotulo_tipo(t) for t in g["tipo"]))
         partes.append(f"- **{quem}**: {len(g)} pendência(s), {brl(valor_em_jogo(g))} em jogo"
                       + (f" ({', '.join(notas_g)})" if notas_g else "") + f": {tipos}.")
     if f.pendencias.empty:
@@ -568,9 +583,9 @@ def _pagina_cfo(f, config, res: dict, causas: dict, historico: list[dict], pend_
         for k, v in rascunhos.items():
             nome = k.split("/", 1)[1]
             partes.append(f"- `{Path(v).parent.name}/{Path(v).name}`: {descr.get(nome, nome)}.")
-    # conhecimento capturado
+    # conhecimento capturado (a lista das últimas alterações, com o código de cada regra, fica no anexo)
     partes += ["", "### Conhecimento capturado", ""]
-    recentes = [h for h in historico if h.get("data", "") >= ref.isoformat()]
+    recentes = _historico_recente(historico, ref)
     if recentes:
         por_acao = {}
         for h in recentes:
@@ -578,10 +593,7 @@ def _pagina_cfo(f, config, res: dict, causas: dict, historico: list[dict], pend_
         partes.append(f"- Base de regras: {len(recentes)} alterações registradas em `historico_alteracoes.csv` desde {ref} "
                       f"({', '.join(f'{v} {k.lower()}' for k, v in por_acao.items())}), em "
                       f"{len({h['id_regra'] for h in recentes})} regras/arquivos. Cada linha traz quem aprovou, quem registrou e a fonte "
-                      f"(pessoa, canal, hora). Últimas:")
-        for h in recentes[-8:]:
-            partes.append(f"  - {h['data']} · {h['id_regra']} · {h['acao']} · aprovado por {h.get('aprovado_por') or '—'}, registrado por "
-                          f"{h.get('registrado_por') or h.get('quem') or '—'} · fonte: {(h.get('fonte') or '')[:110]}")
+                      f"(pessoa, canal, hora). As últimas estão no anexo, em \"Conhecimento capturado\".")
     else:
         partes.append("- Base de regras: nenhuma alteração registrada desde o início da competência.")
     if pend_anteriores is not None and len(f.pendencias):
@@ -593,6 +605,22 @@ def _pagina_cfo(f, config, res: dict, causas: dict, historico: list[dict], pend_
         partes.append("- Pendências: sem `--anterior`, não dá para dizer quais são novas e quais são recorrentes.")
     partes += ["", "---", "", "## Anexo — detalhe do fechamento", ""]
     return partes
+
+
+def _historico_recente(historico: list[dict], ref) -> list[dict]:
+    return [h for h in historico if h.get("data", "") >= ref.isoformat()]
+
+
+def _ultimas_alteracoes(historico: list[dict], ref) -> list[str]:
+    """Anexo: as 8 últimas linhas do histórico de regras desde o início da competência, com o código de cada regra."""
+    recentes = _historico_recente(historico, ref)
+    if not recentes:
+        return []
+    partes = ["## Conhecimento capturado — últimas alterações da base de regras", ""]
+    for h in recentes[-8:]:
+        partes.append(f"- {h['data']} · {h['id_regra']} · {h['acao']} · aprovado por {h.get('aprovado_por') or '—'}, registrado por "
+                      f"{h.get('registrado_por') or h.get('quem') or '—'} · fonte: {(h.get('fonte') or '')[:110]}")
+    return partes + [""]
 
 
 def markdown(f, config, res: dict, causas: dict | None = None, historico: list[dict] | None = None,
@@ -701,7 +729,7 @@ def markdown(f, config, res: dict, causas: dict | None = None, historico: list[d
             if pend_anteriores is not None:
                 marca += " (recorrente)" if _chave_pendencia(r) in pend_anteriores else " (nova)"
             partes.append(f"- **{r.id_saida} · {r.tipo}{(' / ' + r.subtipo) if r.subtipo else ''}**{marca} "
-                          f"({r.ref_origem}, {valor}): {r.motivo}")
+                          f"({ref_legivel(r.ref_origem)}, {valor}): {r.motivo}")
         incl = g[g["incluida_em"].notna()]
         for r in incl.itertuples():
             partes.append(f"- Rodapé: {r.tipo} ({brl(r.valor_brl)}) já incluído em {r.incluida_em} de {r.lojista}: "
@@ -761,6 +789,7 @@ def markdown(f, config, res: dict, causas: dict | None = None, historico: list[d
                       + (" — ver pendência CONFERIR_REPASSE_PONTE." if pc["diferenca"] != ZERO else "."))
     partes.append("")
 
+    partes += _ultimas_alteracoes(historico or [], ref)
     partes += ["## Checagens de integridade", ""]
     partes += [f"- {'✅' if ch.ok else '❌'} {ch.nome}: {ch.detalhe}" for ch in f.checagens]
     partes += ["", "Arquivos: " + ", ".join(f"`{v}`" for v in res["arquivos"].values()) + ".", ""]

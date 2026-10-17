@@ -296,7 +296,9 @@ def imprimir_fechamento(f: Fechamento) -> None:
         for r in g.itertuples(index=False):
             valor = brl(r.valor_brl) if r.valor_brl is not None else "sem valor"
             sub = f"/{r.subtipo}" if r.subtipo else ""
-            print(f"    {r.id_saida} {r.tipo}{sub:<30} {str(r.ref_origem)[:24]:<24} {valor:>16}  {str(r.lojista or '')[:30]}")
+            ids = str(r.ref_origem).split("|")   # vários ids de origem: o primeiro e quantos mais (todos em pendencias.csv)
+            ref = ids[0] + (f" +{len(ids) - 1}" if len(ids) > 1 else "")
+            print(f"    {r.id_saida} {r.tipo}{sub:<30} {ref[:24]:<24} {valor:>16}  {str(r.lojista or '')[:30]}")
 
     print("\nChecagens de integridade:")
     for c in f.checagens:

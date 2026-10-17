@@ -162,7 +162,7 @@ deixá-lo conduzível por qualquer um do time.
 | Devolver ao lojista (Casa do Estudante, concessão comercial fora do contrato) | R$ 15.396,77 |
 | Não faturar até o Comercial decidir | Atlas Idiomas, sem contrato |
 | Lançamentos de extrato classificados | 184 de 184, todos por regra |
-| Pendências com dono | 16 |
+| Pendências com dono | 17 (3 informativas) |
 
 As naturezas não se somam entre si (faturar, cobrar, contestar e devolver são dinheiros diferentes). O detalhe está em
 `saida/RELATORIO_FECHAMENTO.md`.

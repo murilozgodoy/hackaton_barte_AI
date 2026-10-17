@@ -166,10 +166,13 @@ def gerar(f, config, dir_regras: Path, pasta_saida: Path, competencia_txt: str, 
     for r in pend.itertuples():
         valor = brl(r.valor_brl) if r.valor_brl is not None else "sem valor"
         motivo = r.motivo if r.motivo.endswith(".") else r.motivo + "."
-        # rascunho interno: leva a causa de processo, sem repetir o que o motivo já diz
-        causa = sem_repeticao(causas_internas.get((r.cnpj, r.linha_negocio or ""), ""), ja_dito=motivo).rstrip(".")
+        # o motivo tem até 3 frases: o rascunho leva também o resto do o_que_fazer da regra, sem repetir o que o motivo diz
+        resto = sem_repeticao(r.o_que_fazer or "", ja_dito=motivo).rstrip(".")
+        texto = f"{motivo} {resto}." if resto else motivo
+        # rascunho interno: leva a causa de processo, sem repetir o que o texto já diz
+        causa = sem_repeticao(causas_internas.get((r.cnpj, r.linha_negocio or ""), ""), ja_dito=texto).rstrip(".")
         linhas.append(f"- **{r.id_saida} · {r.tipo}**{' (informativa)' if r.informativa else ''} — {r.lojista or ''} "
-                      f"({valor}): {motivo}" + (f" Causa: {causa}." if causa else ""))
+                      f"({valor}): {texto}" + (f" Causa: {causa}." if causa else ""))
     if pend.empty:
         linhas.append("Nenhuma pendência do Comercial neste mês.")
     linhas += ["", textos["COMERCIAL"]["fechamento"], ""]

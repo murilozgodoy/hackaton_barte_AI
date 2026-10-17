@@ -60,7 +60,7 @@ def test_cli_fechar_gera_saidas_e_json(dados, tmp_path, capsys):
     assert j["lancamentos"] == {"REGRA": 184, "IA": 0, "HUMANO": 0}
     assert all(isinstance(c["ok"], bool) for c in j["integridade"] + j["contexto"]["checagens"])
     assert all(c["ok"] for c in j["integridade"])
-    assert j["totais"]["pendencias"]["quantidade"] == 16 and j["arquivos"]["resumo"] == "resumo.json"
+    assert j["totais"]["pendencias"]["quantidade"] == 17 and j["arquivos"]["resumo"] == "resumo.json"
     for nome in ["comissoes_por_lojista.csv", "divergencias_taxa.csv", "notas_a_emitir.csv",
                  "lancamentos_classificados.csv", "rastro.csv"]:
         with open(tmp_path / nome, encoding="utf-8", newline="") as f:
@@ -120,8 +120,8 @@ def test_cli_fechar_imprime_resumo_final_em_portugues(dados, tmp_path, capsys):
             "fora do arquivo, por regra, 118 transações de concessão comercial fora do contrato (R$ 15.396,77 cobrados de fato "
             "pela adquirente, devolução ao lojista por conta da Tarvo, só em pendência)") in bloco
     assert "Lançamentos classificados: 184" in bloco
-    assert "Pendências: 16 (2 informativas), por responsável:" in bloco and "em jogo, por responsável" not in bloco and "Financeiro: 3 pendência(s), R$ 19.750,00 em jogo (1 informativa)" in bloco
-    assert "Helena (Financeiro): 10 pendência(s), R$ 5.341,28 em jogo (1 já incluída em outra)" in bloco
+    assert "Pendências: 17 (3 informativas), por responsável:" in bloco and "em jogo, por responsável" not in bloco and "Financeiro: 3 pendência(s), R$ 19.750,00 em jogo (1 informativa)" in bloco
+    assert "Helena (Financeiro): 11 pendência(s), R$ 5.341,28 em jogo (1 informativa, 1 já incluída em outra)" in bloco
     assert "Checagens de integridade: 8 de 8 ok" in bloco
     assert str(tmp_path) in bloco
     assert linhas[-1].strip().endswith("RELATORIO_FECHAMENTO.md")

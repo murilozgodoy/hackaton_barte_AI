@@ -21,7 +21,7 @@ tem linhas em `rastro.csv` somando exatamente o valor (checagem 1, em todo `fech
 
 ## Significados
 
-- **ref_origem**: `id_transacao` da Orbe (TX…/AN…), `Nº Operação` da Ponte (PC-…), linha física do Aurora (`L<n>`, contando o cabeçalho), FITID do Meridiano (MRD…). Em pendência agregada por lojista, é o CNPJ. Uma linha por origem; nunca vários valores na mesma célula.
+- **ref_origem**: `id_transacao` da Orbe (TX…/AN…), `Nº Operação` da Ponte (PC-…), linha física do Aurora (`L<n>`, contando o cabeçalho), FITID do Meridiano (MRD…). Em `rastro.csv`, uma linha por origem. Em `pendencias.csv`, nas pendências por lojista (DIVERGENCIA_TAXA, TARIFA_ZERO_COBRADA, SEM_CONTRATO, ALERTA_ANTECIPACAO, EXCESSO_SPREAD_CONTESTADO), os ids das linhas de origem unidos por "|", na ordem do `rastro.csv`; o CNPJ fica na coluna `cnpj` (SALDO_NEGATIVO_LOJISTA segue com o CNPJ).
 - **taxas `_pct`**: percentual (2.69 = 2,69%). `spread_pct` da Ponte tem até 4 casas (1.5006).
 - **metodo**: REGRA (regra CLASSIFICAR_CONTA, confiança 1), IA (sugestão com chave de API, confiança < 1, sempre com pendência REVISAR_IA), HUMANO (sem regra, conta vazia, pendência EXTRATO_NAO_IDENTIFICADO).
 - **conta_codigo** é a **contrapartida** do movimento bancário: se o valor já estava registrado (provisão, recebível, obrigação), é a conta onde estava; só é receita/despesa quando não havia registro anterior.
