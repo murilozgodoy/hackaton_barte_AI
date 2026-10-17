@@ -132,7 +132,11 @@ motor executa.
 ## 4. Como a banca roda
 
 Tudo está no [README](README.md), seção "Rodar em 3 passos": instalar Python 3.10+, colocar o zip ou os
-arquivos do mês numa pasta (ou em `entrada/`) e rodar `./fechar.sh <pasta ou zip>` (Windows: `fechar.bat`).
-O script cria o ambiente, instala as versões fixas, roda `validar` e `fechar` e imprime o resumo; `saida/`
-sai com os 6 CSVs obrigatórios, `carteira_pendente.csv`, `resumo.json` e `RELATORIO_FECHAMENTO.md`,
-byte a byte iguais ao `saida/` versionado (há teste). Nenhuma chave de API é necessária.
+arquivos do mês numa pasta (ou em `entrada/`) e rodar `./fechar.sh <pasta ou zip>` (Windows: `fechar.bat`,
+não testado em Windows pelo time). O script cria o ambiente, instala as versões fixas, roda `validar` e
+`fechar` e imprime o resumo; `saida/` sai com os 6 CSVs obrigatórios, `carteira_pendente.csv`, `resumo.json`,
+`RELATORIO_FECHAMENTO.md` (página 1 para o CFO + anexo) e os rascunhos de `comunicacoes/`, byte a byte iguais
+ao `saida/` versionado (há teste; `saida/` é só setembro, Organização 17/10 11h27). Nenhuma chave de API é
+necessária. O mês seguinte fecha com `./fechar.sh <zip de outubro> saida_outubro --anterior saida`; sem
+arquivos reais, `python -m tests.outubro_sintetico <pasta>` gera um outubro completo e
+`skills/fechamento-tarvo/evals/teste_ferias.md` traz o roteiro de pedidos e resultados esperados.

@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
 # Fecha o mês com um comando (macOS/Linux):
-#   ./fechar.sh [zip ou pasta com os arquivos do mês] [pasta de saída, padrão: saida]
+#   ./fechar.sh [zip ou pasta com os arquivos do mês] [pasta de saída, padrão: saida] [--anterior <saída do mês anterior>]
 # Cria o ambiente virtual se não existir, instala as dependências fixas de requirements.txt,
 # roda `validar` (para com código 1 ou 2 se entrada ou regras tiverem problema) e `fechar`.
+# Mês seguinte: ./fechar.sh outubro.zip saida_outubro --anterior saida   (relê a carteira e a contestação de setembro)
 set -euo pipefail
 cd "$(dirname "$0")"
-ENTRADA="${1:-}"
-SAIDA="${2:-saida}"
+ENTRADA=""
+SAIDA="saida"
+ANTERIOR=""
+POS=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --anterior) ANTERIOR="${2:-}"; shift 2 ;;
+    --saida) SAIDA="${2:-saida}"; shift 2 ;;
+    *) if [ $POS -eq 0 ]; then ENTRADA="$1"; elif [ $POS -eq 1 ]; then SAIDA="$1"; fi; POS=$((POS + 1)); shift ;;
+  esac
+done
 
 if [ ! -x .venv/bin/python ]; then
   PY=""
@@ -28,6 +38,8 @@ fi
 .venv/bin/python -m pip install -q -r requirements.txt
 
 ARGS=()
-if [ -n "$ENTRADA" ]; then ARGS=(--entrada "$ENTRADA"); fi
+if [ -n "$ENTRADA" ]; then ARGS+=(--entrada "$ENTRADA"); fi
+ANT=()
+if [ -n "$ANTERIOR" ]; then ANT+=(--anterior "$ANTERIOR"); fi
 .venv/bin/python -m src validar "${ARGS[@]}" --regras regras
-.venv/bin/python -m src fechar "${ARGS[@]}" --regras regras --saida "$SAIDA"
+.venv/bin/python -m src fechar "${ARGS[@]}" --regras regras --saida "$SAIDA" "${ANT[@]}"

@@ -7,23 +7,28 @@ lembrar todo mês até alguém automatizar.**
 
 ## Dois caminhos
 
-1. **Com o assistente de IA.** Descreva a situação em português ("a Casa do Estudante
-   não paga tarifa até dezembro"). Ele propõe a linha, mostra o que muda no fechamento
-   e **só grava depois que você aprovar**. O histórico é registrado sozinho.
+1. **Com o assistente de IA (ou `python -m src regra propor`).** Descreva a situação em
+   português ("a Casa do Estudante não paga tarifa até dezembro"). Ele propõe a linha, **simula
+   o fechamento com a regra** (comissão e nota por lojista que mudam, pendências que somem ou
+   aparecem) e **só grava depois que quem pode aprovar aquele tipo disser sim** (`aprovadores.csv`).
+   O histórico é registrado sozinho, com quem aprovou e quem registrou.
 2. **Sem IA.** Abra `regras_negocio.csv` no Excel, copie uma linha parecida, ajuste,
    salve e rode `python -m src validar`. Ele aponta qualquer erro com o id da linha e
    como corrigir. Depois, anote a mudança em `historico_alteracoes.csv`.
 
-## Qual tipo usar: 4 perguntas
+## Qual tipo usar: 5 perguntas
 
 1. **É um número ou texto geral que pode mudar** (percentual, tolerância, quem é o
    tomador da nota)? → `PARAMETRO`
 2. **É um lojista com condição diferente da planilha por um período?** → `TAXA_EXCECAO`
 3. **É algo que não pode ser faturado até alguém decidir** (spread negativo, lojista
    sem contrato)? → `EXCLUIR_E_PENDENCIA`
-4. **É um lançamento de extrato que vai sempre para a mesma conta?** → `CLASSIFICAR_CONTA`
+4. **É uma linha do relatório da Ponte que é ajuste de um mês anterior** (observação
+   "AJUSTE REF PC-…", Spread R$ negativo)? → `AJUSTE_PARCEIRO` (já existe: J-01 e J-02;
+   tem `prioridade` menor que a exclusão por spread negativo, por isso o ajuste não cai nela)
+5. **É um lançamento de extrato que vai sempre para a mesma conta?** → `CLASSIFICAR_CONTA`
 
-Não é nenhum dos quatro? → `MANUAL`. O sistema não executa nada: só repete, no
+Não é nenhum dos cinco? → `MANUAL`. O sistema não executa nada: só repete, no
 relatório de cada fechamento, o seu texto de `o_que_fazer` como lembrete para quem
 está em `quem_decide`.
 

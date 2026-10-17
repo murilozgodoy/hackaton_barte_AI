@@ -48,12 +48,28 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 - **Versões:** `requirements.txt` fixa pandas 2.3.3, openpyxl 3.1.5 e pytest 9.1.1. O motor foi
   testado em Python 3.10, 3.11, 3.12, 3.13 e 3.14, com pandas 2.3.3 e com pandas 3.0.6, e o
   `saida/` é idêntico em todas as combinações (pandas 3 exige Python 3.11+).
-- **Mês seguinte:** `fechar --entrada <outubro> --anterior saida_de_setembro` relê `carteira_pendente.csv`
-  e fatura, junto com o mês, as transações que agora têm taxa (ex.: TAXA_EXCECAO retroativa da Atlas);
-  as demais continuam na carteira com a idade em meses.
 - Todos os comandos aceitam `--json` (saída para agentes). Códigos de saída: 0 ok · 1 problema nos
   arquivos de entrada · 2 problema na base de regras · 3 integridade falhou (nesse caso `resumo.json`
   não é gravado e o relatório sai marcado como inválido) · 4 id inexistente.
+
+## Fechar o mês seguinte
+
+Quando chegarem os arquivos de outubro, feche **apontando para a saída de setembro**:
+```bash
+./fechar.sh caminho/do/zip_de_outubro saida_outubro --anterior saida      # macOS/Linux
+fechar.bat caminho\do\zip_de_outubro saida_outubro --anterior saida      # Windows
+.venv/bin/python -m src fechar --entrada <zip de outubro> --regras regras --saida saida_outubro --anterior saida
+```
+Com `--anterior`, o fechamento (a) relê `saida/carteira_pendente.csv` e fatura, junto com o mês, as
+transações guardadas que agora têm taxa (ex.: TAXA_EXCECAO retroativa da Atlas aprovada pelo Comercial;
+as demais continuam na carteira com a idade em meses); (b) reconhece os **ajustes da Ponte** (linha nova
+com `AJUSTE REF PC-…` e Spread R$ negativo), que abatem a participação do mês dentro da nota única e viram
+pendência informativa ligada ao pedido da contestação de setembro; (c) marca no relatório as pendências
+**novas** e **recorrentes**. A competência vem dos dados; nada de setembro muda, e `saida/` continua sendo
+só setembro (não haverá pacote de outubro, Organização 17/10). Para ensaiar sem arquivos reais há um
+**outubro sintético** completo: `python -m tests.outubro_sintetico <pasta>` gera os 6 arquivos a partir de
+setembro (EC novo, Bridge na taxa nova, Casa zerada, venda em 13x, carteira da Atlas, um ajuste da Ponte,
+CNPJ novo na Ponte); o roteiro de uso está em `skills/fechamento-tarvo/evals/teste_ferias.md`.
 
 ## Chave de API
 
@@ -91,8 +107,9 @@ autocontido em `dist/`. Detalhes em "Dados enviados à IA", abaixo.
 |---|---|
 | `python -m src explicar <id_saida> --saida saida [--entrada ... --regras ...]` | De onde vem um número: linhas do rastro, regra e taxa usadas, campos da linha original |
 | `python -m src pendencias --saida saida [--quem Helena] [--tipo SPREAD_NEGATIVO]` | Pendências por responsável, com valor em jogo |
-| `python -m src regra propor --regras regras --tipo <TIPO> --campos chave=valor ...` | Monta e valida uma regra, mostra o efeito; **não grava** |
-| `python -m src regra aplicar --regras regras --proposta <arquivo> --aprovado-por "<nome>" [--registrado-por "<nome>"]` | Grava a regra validada e registra em `historico_alteracoes.csv`; só aceita quem `regras/aprovadores.csv` diz que aprova aquele tipo (taxa = Comercial, resto = Helena) |
+| `python -m src regra propor --regras regras --entrada <mês> [--anterior <saida anterior>] --tipo <TIPO> --campos chave=valor ...` | Monta e valida uma regra, mostra o efeito esperado e, com `--entrada`, o **efeito simulado** (fecha o mês de novo numa pasta temporária com a regra: comissão e nota por lojista que mudam, pendências que somem ou aparecem, carteira que entraria); **não grava** |
+| `python -m src regra aplicar --regras regras --proposta <arquivo> --aprovado-por "<nome>" [--registrado-por "<nome>"]` | Diz quem aprova e quem registra aquele tipo, grava a regra validada e registra em `historico_alteracoes.csv`; recusa aprovador de outro papel (taxa e condição comercial = Comercial, resto = Helena, `regras/aprovadores.csv`) |
+| `python -m tests.outubro_sintetico <pasta>` | Gera um pacote completo do mês seguinte a partir de setembro, para ensaiar `fechar --anterior` |
 | `python -m src empacotar-skill` | Gera `dist/fechamento-tarvo.zip` (skill autocontida com o motor e a base inicial) |
 
 Roteiro completo para a analista, sem IA: [COMO_FECHAR_O_MES.md](COMO_FECHAR_O_MES.md).
@@ -108,17 +125,24 @@ positivas; nota de remessa = soma da remessa; toda linha da Orbe e toda operaç�
 exatamente um destino (nada some); todo lançamento classificado; saldo do Aurora fecha.
 
 Setembro/2026: comissão CHECKOUT R$ 207.039,73 (21 lojistas), REMESSA R$ 39.543,45 (14),
-21 notas (R$ 246.588,68), 115 divergências de contrato (R$ 1.576,23 checkout + R$ 1.418,85
-remessa) mais 118 transações da Casa do Estudante tratadas como devolução ao lojista
-(R$ 15.397,42, fora das divergências), 184 lançamentos classificados por regra, 16 pendências.
+21 notas (R$ 246.588,68), 233 divergências = 115 de contrato (R$ 1.576,23 checkout + R$ 1.418,85
+remessa, `natureza=CONTRATO`, contestadas) + 118 transações da Casa do Estudante
+(`natureza=DEVOLUCAO_LOJISTA`: concessão comercial fora do contrato, R$ 15.397,42 de devolução ao
+lojista por conta da Tarvo, fora de qualquer cobrança à Orbe), 184 lançamentos classificados por
+regra, 16 pendências (R$ 48.364,75 em jogo). O `RELATORIO_FECHAMENTO.md` abre com a página do CFO
+(totais, notas, dinheiro em jogo por causa, pendências por responsável, rascunhos prontos em
+`saida/comunicacoes/`, conhecimento capturado) e traz o detalhe em anexo.
 
 ## Como funciona
 
 ```
 regras/                 base de conhecimento do financeiro (CSV que abre no Excel)
-  regras_negocio.csv      8 tipos: PARAMETRO, TAXA_EXCECAO, IGNORAR_DUPLICADO, EXCLUIR_E_PENDENCIA,
-                          CLASSIFICAR_CONTA, DONO_PENDENCIA, ALERTA, MANUAL — com vigência, status e fonte
+  regras_negocio.csv      9 tipos: PARAMETRO, TAXA_EXCECAO, IGNORAR_DUPLICADO, EXCLUIR_E_PENDENCIA,
+                          AJUSTE_PARCEIRO, CLASSIFICAR_CONTA, DONO_PENDENCIA, ALERTA, MANUAL — com vigência,
+                          status, prioridade (regras de destino) e fonte
   aprovadores.csv         quem aprova e quem registra cada tipo de regra
+  causas_divergencia.csv  a causa de cada divergência por lojista (vai para os rascunhos e o relatório)
+  comunicacoes.csv        destinatários e textos dos rascunhos por contraparte
   complemento_cadastro.csv  só lacunas da planilha de taxas (EC em branco, lojista sem contrato)
   historico_alteracoes.csv  quem mudou o quê e por quê
   fontes.csv              padrões de nome dos arquivos e abas
@@ -126,10 +150,12 @@ entrada/                onde deixar o zip ou os arquivos do mês (ignorada pelo 
 fechar.sh / fechar.bat  um comando: cria o venv, instala, valida e fecha
   COMO_CRIAR_REGRA.md     guia de uma página para quem não é técnico
 src/                    motor: leitores/ (uma fonte cada), regras.py (validação), checkout.py,
-                        remessa.py, divergencias.py, notas.py, extratos.py, pendencias.py,
-                        conciliacao.py, relatorio.py, validacao.py, cli.py
+                        remessa.py, divergencias.py, notas.py, extratos.py, pendencias.py, carteira.py,
+                        conciliacao.py, comunicacoes.py (rascunhos), relatorio.py, simulacao.py (efeito de
+                        regra antes de gravar), validacao.py, cli.py
 skills/fechamento-tarvo/  Agent Skill (SKILL.md + references + evals); atalho em .agents/skills/
-tests/                  mais de 260 testes (pytest), inclusive casos sintéticos que rodam sem o data pack
+tests/                  quase 300 testes (pytest), inclusive casos sintéticos que rodam sem o data pack e o
+                        outubro sintético (tests/outubro_sintetico.py) fechado de ponta a ponta com --anterior
 ```
 
 Princípios: a planilha de taxas é o cadastro mestre; lojista só se identifica por CNPJ/EC,
@@ -161,6 +187,15 @@ pendência com dono, nunca palpite.
   iguais; se diferirem, nenhuma entra e vira pendência.
 - Lojista sem contrato de checkout que faz remessa recebe comissão (o spread é pago pelo
   parceiro) e gera pendência informativa.
+- **Alerta de antecipação sem histórico de meses anteriores.** O motor só enxerga as vendas do arquivo
+  do mês; lojistas antigos antecipam vendas de meses anteriores, por isso o alerta (A-01) só vale para
+  lojista sem contrato ou cuja primeira transação é no próprio mês, comparando o bruto antecipado com o
+  vendido até o dia (critério do time, delegado pela Helena em 17/10; `HIPOTESES.md`).
+- **Formato do ajuste da Ponte** foi descrito pela Helena (linha nova, `AJUSTE REF PC-…`, Spread R$
+  negativo), mas nenhum ajuste real chegou em setembro: as regras J-01/J-02 foram exercitadas só com o
+  outubro sintético.
+- **`fechar.bat` não foi testado em Windows** pelo time (só o `fechar.sh` em macOS/Linux). O motor em si
+  roda em qualquer sistema com Python 3.10+.
 - A sugestão de conta por IA, quando ligada, usa o modelo definido em `ANTHROPIC_MODEL`
   (padrão `claude-opus-5-5`) e não foi exercitada com dados reais neste mês.
 
