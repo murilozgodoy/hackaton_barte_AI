@@ -9,29 +9,77 @@ facilitadora opcional (skill `fechamento-tarvo`): conduz, explica e propõe regr
 
 Time MN AI: Nader Taha e Murilo Godoy.
 
-## Instalar e rodar do zero
+## Rodar em 3 passos
 
-Requer Python 3.11+ (sem banco, sem servidor, sem chave de API).
+1. **Instale o Python** 3.10 ou mais novo ([python.org/downloads](https://www.python.org/downloads/)).
+   Nada mais: sem banco, sem servidor, sem chave de API.
+2. **Coloque os arquivos do mês numa pasta**, ou use o zip do data pack como veio. Serve o zip
+   (com qualquer nome), uma pasta com o zip dentro, os 6 arquivos soltos ou em subpastas. A pasta
+   `entrada/` deste projeto já existe para isso.
+3. **Rode um comando** na raiz do projeto:
+   ```bash
+   ./fechar.sh caminho/do/zip_ou_pasta      # macOS/Linux
+   fechar.bat caminho\do\zip_ou_pasta      # Windows
+   ```
+   Sem argumento, usa `entrada/` (e, se ela estiver vazia, o único `Tarvo_Data_Pack_*.zip` da raiz).
+   O script cria o `.venv` se não existir, instala as versões fixas de `requirements.txt`, roda
+   `validar` (para com código 1 ou 2 se a entrada ou a base de regras tiverem problema) e `fechar`.
+   No fim imprime o **resumo do fechamento** (totais por linha de negócio, notas, divergências,
+   pendências por responsável, checagens) e onde estão os arquivos: `saida/` com os 6 CSVs,
+   `resumo.json` e `RELATORIO_FECHAMENTO.md`.
 
+Mesmo resultado sem o script:
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-
-# coloque o zip do mês na raiz (ex.: Tarvo_Data_Pack_set2026.zip) e rode:
-.venv/bin/python -m src validar          # confere as 6 fontes e a base de regras, não calcula
-.venv/bin/python -m src fechar           # gera saida/ (6 CSVs + resumo.json + RELATORIO_FECHAMENTO.md)
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m src validar --entrada <zip ou pasta> --regras regras      # confere, não calcula
+.venv/bin/python -m src fechar  --entrada <zip ou pasta> --regras regras --saida saida
 ```
 
-O data pack **não é versionado** (decisão do time; repositório público). O motor acha o único
-`Tarvo_Data_Pack_*.zip` da raiz e extrai em `data/`. Para apontar outro mês ou outra base:
+- **Entrada:** cada arquivo é reconhecido pelo padrão de nome em `regras/fontes.csv` (`01_orbe_*.csv`,
+  `02_tabela_taxas*.xlsx`, `03_email_ponte*.eml`, `04_plano_de_contas*.csv`, `05a_extrato_banco_aurora*.csv`,
+  `05b_extrato_banco_meridiano*.ofx`), nunca por nome fixo de um mês. A competência vem dos dados
+  (`--competencia AAAA-MM` só se quiser forçar). Arquivo ausente ou repetido para o fechamento com
+  uma mensagem em português dizendo qual. O data pack **não é versionado** (repositório público).
+- **Determinismo:** rodar de novo, em qualquer máquina, gera os mesmos arquivos byte a byte (sem data
+  ou hora, ordem estável, UTF-8, quebra de linha `\n`). Há teste que compara o `saida/` versionado
+  com o que o código gera (`tests/test_conciliacao_revisao.py::test_saida_versionada_e_a_do_codigo_atual`)
+  e outro que fecha por pasta solta, subpasta e pasta com zip e confere que sai o mesmo `saida/`.
+- **Versões:** `requirements.txt` fixa pandas 2.3.3, openpyxl 3.1.5 e pytest 9.1.1. O motor foi
+  testado em Python 3.10, 3.11, 3.12, 3.13 e 3.14, com pandas 2.3.3 e com pandas 3.0.6, e o
+  `saida/` é idêntico em todas as combinações (pandas 3 exige Python 3.11+).
+- Todos os comandos aceitam `--json` (saída para agentes). Códigos de saída: 0 ok · 1 problema nos
+  arquivos de entrada · 2 problema na base de regras · 3 integridade falhou (nesse caso `resumo.json`
+  não é gravado e o relatório sai marcado como inválido) · 4 id inexistente.
 
-```bash
-.venv/bin/python -m src fechar --entrada <zip ou pasta> --regras <pasta ou zip> --saida saida --competencia 2026-10
-```
+## Chave de API
 
-Todos os comandos aceitam `--json` (saída para agentes). Códigos de saída: 0 ok · 1 problema
-nos arquivos de entrada · 2 problema na base de regras · 3 integridade falhou (nesse caso
-`resumo.json` não é gravado e o relatório sai marcado como inválido) · 4 id inexistente.
+**Não é necessária.** O fechamento inteiro é determinístico e roda sem internet.
+
+`ANTHROPIC_API_KEY` é **opcional** e serve para uma única coisa: sugerir uma conta contábil para
+lançamento de extrato que **nenhuma regra** de `regras/regras_negocio.csv` cobre. Está desligada por
+padrão (sem a chave, nada acontece) e **nunca foi usada em setembro/2026**: os 184 lançamentos do mês
+tiveram regra. Se quiser ligar:
+
+1. Instale o cliente: `.venv/bin/pip install anthropic`.
+2. Defina a variável de ambiente antes de rodar: `export ANTHROPIC_API_KEY=sk-ant-...` (macOS/Linux)
+   ou `set ANTHROPIC_API_KEY=sk-ant-...` (Windows). Não há arquivo de configuração nem `.env`;
+   o motor só lê a variável. Opcional: `ANTHROPIC_MODEL` (padrão `claude-opus-5-5`).
+3. Rode o `fechar` normalmente. Para desligar sem apagar a chave: `--sem-ia`.
+
+O que é enviado, e só se houver lançamento sem regra: banco, data, descrição e valor **desses
+lançamentos**, mais a lista de contas analíticas do plano de contas. Nunca arquivos inteiros, nunca
+dados da Orbe, da Ponte ou de lojistas. A sugestão volta com `metodo=IA`, confiança menor que 1 e
+**sempre** vira pendência de revisão humana; a IA não calcula nem decide nada. Código: `src/ia.py`.
+
+## Usar com assistente de IA (opcional)
+
+A skill `skills/fechamento-tarvo/SKILL.md` (padrão aberto Agent Skills; atalho em `.agents/skills/`)
+ensina um assistente (Claude, Codex, Cursor, Copilot) a conduzir o fechamento **usando os mesmos
+comandos deste README**: ele roda `validar` e `fechar`, lê `saida/resumo.json` e o relatório,
+explica de onde vem cada número (`explicar`), conduz as pendências e propõe regras, que só são
+gravadas com aprovação nominal. Ele nunca calcula nem edita entradas. `AGENTS.md` resume o fluxo
+para agentes que não leem skills. Para distribuir: `python -m src empacotar-skill` gera um zip
+autocontido em `dist/`. Detalhes em "Dados enviados à IA", abaixo.
 
 ### Outros comandos
 
@@ -68,12 +116,14 @@ regras/                 base de conhecimento do financeiro (CSV que abre no Exce
   complemento_cadastro.csv  só lacunas da planilha de taxas (EC em branco, lojista sem contrato)
   historico_alteracoes.csv  quem mudou o quê e por quê
   fontes.csv              padrões de nome dos arquivos e abas
+entrada/                onde deixar o zip ou os arquivos do mês (ignorada pelo git)
+fechar.sh / fechar.bat  um comando: cria o venv, instala, valida e fecha
   COMO_CRIAR_REGRA.md     guia de uma página para quem não é técnico
 src/                    motor: leitores/ (uma fonte cada), regras.py (validação), checkout.py,
                         remessa.py, divergencias.py, notas.py, extratos.py, pendencias.py,
                         conciliacao.py, relatorio.py, validacao.py, cli.py
 skills/fechamento-tarvo/  Agent Skill (SKILL.md + references + evals); atalho em .agents/skills/
-tests/                  228 testes (pytest), inclusive casos sintéticos que rodam sem o data pack
+tests/                  251 testes (pytest), inclusive casos sintéticos que rodam sem o data pack
 ```
 
 Princípios: a planilha de taxas é o cadastro mestre; lojista só se identifica por CNPJ/EC,
@@ -81,18 +131,7 @@ nunca por nome; dinheiro só em `Decimal` com arredondamento HALF_UP por linha; 
 lojista, taxa, conta ou mês dentro de `src/` (há teste); o que nenhuma regra cobre vira
 pendência com dono, nunca palpite.
 
-## Usar com IA
-
-A skill `skills/fechamento-tarvo/SKILL.md` segue o padrão aberto Agent Skills e funciona em
-Claude (Claude.ai, Claude Code, Cowork), Codex, Cursor e Copilot (que a encontram em
-`.agents/skills/`). `AGENTS.md` resume o fluxo para agentes que não leem skills. Para
-distribuir: `python -m src empacotar-skill` gera um zip autocontido (motor em `scripts/`,
-base inicial em `assets/regras_iniciais/`) para upload na organização.
-
-A skill só executa o motor e lê `saida/`. Toda regra proposta por ela passa por `regra propor`
-(mostra o que seria gravado) e só é gravada com aprovação nominal (`regra aplicar --aprovado-por`).
-
-### Dados enviados à IA
+## Dados enviados à IA
 
 - **No fluxo da skill, nenhum arquivo é enviado pelo motor a serviço externo.** O agente roda
   `python -m src` localmente (ou no sandbox de code execution) e lê os resultados.

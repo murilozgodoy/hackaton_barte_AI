@@ -3,15 +3,15 @@
 Roteiro para a analista, usando só o terminal. Tempo esperado: minutos, não dias.
 
 ## Uma vez (instalação)
-```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-```
+Instale o Python 3.10 ou mais novo. O resto o script faz sozinho na primeira vez (`.venv` e
+dependências). Se preferir à mão: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`.
 
 ## Todo mês
 1. **Receba os arquivos** do mês como eles vêm (relatório da Orbe, planilha de taxas, e-mail da
-   Ponte com o anexo, plano de contas, extratos Aurora e Meridiano) e coloque o zip na raiz do
-   projeto (ou os 6 arquivos numa pasta). Não edite nada.
+   Ponte com o anexo, plano de contas, extratos Aurora e Meridiano) e coloque na pasta `entrada/`
+   (o zip ou os 6 arquivos, soltos ou em subpastas). Não edite nada.
+   **Atalho:** `./fechar.sh` (macOS/Linux) ou `fechar.bat` (Windows) faz os passos 2 e 3 de uma vez
+   e imprime o resumo no fim; `./fechar.sh caminho/do/zip_ou_pasta` usa outro lugar.
 2. **Confira entradas e regras** (não calcula nada):
    ```bash
    .venv/bin/python -m src validar --entrada <zip ou pasta> --regras regras
