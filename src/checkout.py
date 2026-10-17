@@ -9,7 +9,11 @@ lojista. Cada linha da Orbe recebe exatamente um destino:
   SEM_CADASTRO      EC que não está na planilha de taxas nem no complemento
   SEM_TAXA          lojista sem taxa contratada para o produto, parcelas ou data
   FORA_COMPETENCIA  data de movimento fora do mês que está sendo fechado
+  DADO_INSUFICIENTE estorno ou reversão sem data da venda original e cuja venda (id_referencia) não está
+                    no arquivo: sem a data não há taxa contratada; fica fora da comissão, com pendência
 
+Estorno e reversão usam a data da venda original (coluna do arquivo; sem ela, a data da venda
+achada pelo id_referencia no próprio arquivo). Antecipação usa a data do movimento.
 Nenhum nome de lojista, taxa, conta ou mês aqui: tudo vem dos dados e de regras/.
 """
 from __future__ import annotations
@@ -27,6 +31,7 @@ PREFIXO_ID = "COM-CHK-"
 PRODUTO_ANTECIPACAO = "ANTECIPACAO"
 PRODUTO_PARCELADO = "CREDITO PARCELADO"
 TIPOS_ANTECIPACAO = {"ANTECIPACAO", "REVERSAO ANTECIPACAO"}
+TIPOS_COM_ORIGINAL = {"ESTORNO", "REVERSAO ANTECIPACAO"}   # a taxa é a da venda/antecipação original (id_referencia)
 SUBTIPO_FORA_FAIXA = "PARCELAS_FORA_FAIXA"   # parcelado com quantidade que nenhuma faixa da planilha cobre
 
 COLUNAS_LINHAS = [
@@ -93,18 +98,31 @@ def calcular(orbe: pd.DataFrame, taxas: pd.DataFrame, config: Config, competenci
     """`carteira`: linhas de meses anteriores (carteira_pendente.csv) que passam de novo pelo cálculo; a competência
     delas não é conferida (vieram de outro mês) e cada uma guarda competencia_origem."""
     tabela = TabelaTaxas(taxas)
-    registros = [_destino_da_linha(r, tabela, config, competencia) for r in orbe.itertuples(index=False)]
+    # data de movimento de cada transação do arquivo: estorno/reversão sem data da venda original procura a venda aqui
+    datas = dict(zip(orbe["id_transacao"], orbe["data_movimento"]))
+    registros = [_destino_da_linha(r, tabela, config, competencia, datas) for r in orbe.itertuples(index=False)]
     if carteira is not None and len(carteira):
-        registros += [{**_destino_da_linha(r, tabela, config, None), "competencia_origem": r.competencia_origem}
+        registros += [{**_destino_da_linha(r, tabela, config, None, datas), "competencia_origem": r.competencia_origem}
                       for r in carteira.itertuples(index=False)]
     linhas = pd.DataFrame(registros, columns=COLUNAS_LINHAS)
     comissoes, rastro = _agrupar_por_lojista(linhas)
     return ResultadoCheckout(linhas, comissoes, rastro)
 
 
-def _destino_da_linha(r, tabela: TabelaTaxas, config: Config, competencia: str | None) -> dict:
+def _destino_da_linha(r, tabela: TabelaTaxas, config: Config, competencia: str | None,
+                      datas: dict | None = None) -> dict:
     data_mov = r.data_movimento.date()
-    data_taxa = (r.data_venda_original if pd.notna(r.data_venda_original) else r.data_movimento).date()
+    sem_original = None   # id da venda original que faltou (estorno/reversão sem data e sem a venda no arquivo)
+    if pd.notna(r.data_venda_original):
+        data_taxa = r.data_venda_original.date()
+    elif r.tipo_lancamento in TIPOS_COM_ORIGINAL:
+        original = (datas or {}).get(r.id_referencia) if r.id_referencia else None
+        if original is not None and pd.notna(original):
+            data_taxa = original.date()          # a venda está no arquivo: taxa pela data dela
+        else:
+            data_taxa, sem_original = data_mov, r.id_referencia or "(sem id_referencia)"
+    else:
+        data_taxa = data_mov                     # venda e antecipação: data do movimento
     parcelas = int(r.qtd_parcelas) if pd.notna(r.qtd_parcelas) else None
     produto = PRODUTO_ANTECIPACAO if r.tipo_lancamento in TIPOS_ANTECIPACAO else r.modalidade
     out = dict.fromkeys(COLUNAS_LINHAS)
@@ -128,6 +146,11 @@ def _destino_da_linha(r, tabela: TabelaTaxas, config: Config, competencia: str |
                           "de taxas nem no complemento"}
     out.update(cnpj=lojista.cnpj, lojista=lojista.nome or r.nome_estabelecimento,
                status_cadastro=lojista.status)
+
+    if sem_original is not None:
+        return {**out, "destino": "DADO_INSUFICIENTE", "tipo_pendencia": "DADO_INSUFICIENTE",
+                "motivo": f"{r.tipo_lancamento} sem data da venda original e a transação de origem {sem_original} "
+                          f"não está no arquivo: sem a data da venda não há como saber a taxa contratada"}
 
     # uma TAXA_EXCECAO vigente para o lojista é a confirmação da taxa: destrava a exclusão por status do cadastro
     excecao = config.excecao_taxa(lojista.cnpj, LINHA_NEGOCIO, produto, data_taxa) if produto else None

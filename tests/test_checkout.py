@@ -159,3 +159,33 @@ def test_sem_taxa_contratada_vira_cadastro(dados, config):
     assert len(sem) > 0 and set(sem.cnpj) == {OXFORD} and set(sem.produto) == {"PIX"}
     assert set(sem.tipo_pendencia) == {"CADASTRO"} and set(sem.subtipo) == {"TAXA_NAO_CADASTRADA"}
     assert "nenhuma taxa contratada vigente" in sem.motivo.iloc[0]
+
+
+def test_estorno_sem_data_da_venda_busca_a_venda_no_arquivo_ou_vira_pendencia(dados, config):
+    """Helena: estorno e reversão usam a taxa da venda original. Sem data_venda_original, o motor procura a venda pelo
+    id_referencia no próprio arquivo e usa a data dela; se não achar, a linha fica fora da comissão com pendência
+    DADO_INSUFICIENTE (Helena). Antecipação continua pela data do movimento. Setembro não muda (todos têm data)."""
+    from src.fechamento import executar
+    orbe = dados["orbe"].copy()
+    com_venda = orbe.index[orbe.id_transacao == "TX88444937"][0]      # estorno de 02/09 da venda TX88410045 (01/09, no arquivo)
+    sem_venda = orbe.index[orbe.id_transacao == "TX88444848"][0]      # estorno de 01/09 da venda TX87651902 (agosto, fora do arquivo)
+    orbe.loc[[com_venda, sem_venda], "data_venda_original"] = pd.NaT
+    base = calcular(dados["orbe"], dados["taxas"], config, "2026-09")
+    r = calcular(orbe, dados["taxas"], config, "2026-09")
+    a, b = _linha(r, "TX88444937"), _linha(base, "TX88444937")
+    assert a.destino == "COMISSAO" and a.data_taxa == b.data_taxa == pd.Timestamp("2026-09-01") and a.comissao_brl == b.comissao_brl
+    s = _linha(r, "TX88444848")
+    assert (s.destino, s.tipo_pendencia, s.comissao_brl) == ("DADO_INSUFICIENTE", "DADO_INSUFICIENTE", None)
+    assert "TX87651902" in s.motivo and "não está no arquivo" in s.motivo
+    assert len(r.linhas) == len(base.linhas) and r.linhas.destino.value_counts()["DADO_INSUFICIENTE"] == 1
+    # a comissão do lojista cai exatamente pelo valor da linha que saiu
+    cnpj = s.cnpj
+    assert _comissao(base, cnpj).comissao_brl - _comissao(r, cnpj).comissao_brl == _linha(base, "TX88444848").comissao_brl
+    f = executar({**dados, "orbe": orbe}, config, "2026-09", usar_ia=False)
+    p = f.pendencias[f.pendencias.tipo == "DADO_INSUFICIENTE"]
+    assert len(p) == 1
+    pr = p.iloc[0]
+    assert pr.quem_decide == "Helena (Financeiro)" and pr.cnpj == cnpj and pr.qtd_itens == 1 and pr.linha_negocio == "CHECKOUT"
+    assert "TX88444848" in pr.motivo and "TX87651902" in pr.motivo and "fora da comissão" in pr.motivo
+    assert pr.valor_brl == s.valor_taxa_orbe and len(f.rastro[f.rastro.id_saida == pr.id_saida]) == 1
+    assert f.integro and "DADO_INSUFICIENTE" not in set(f.carteira.destino)

@@ -34,6 +34,7 @@ ROTULOS_TIPO = {
     "LINHA_NAO_INTERPRETADA": "Linha do relatório do parceiro não interpretada", "DUPLICATA_DIVERGENTE": "Operação repetida com valores diferentes",
     "FORA_COMPETENCIA": "Linhas fora da competência", "COMPLIANCE": "Operação reprovada no compliance",
     "RECURSO_SEM_OPERACAO": "Recurso de lojista sem operação", "REVISAR_IA": "Conta sugerida pela IA a revisar",
+    "DADO_INSUFICIENTE": "Estorno ou reversão sem data da venda original (venda fora do arquivo)",
 }
 
 ASSUNTO_CONCILIACAO_ADQUIRENTE = "conciliacao_adquirente"

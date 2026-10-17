@@ -111,11 +111,15 @@ def test_com_a_taxa_aprovada_outubro_fatura_setembro_junto(dados, config, setemb
     assert a.equals(base.comissoes_checkout.set_index("cnpj").comissao_brl.loc[a.index])
 
 
-def test_cli_anterior(dados, tmp_path, capsys):
+def test_cli_anterior(dados, pasta_dados, tmp_path, capsys):
+    from tests.test_saida_cli import _entrada_com_extratos_de_outubro
     assert main(["fechar", "--saida", str(tmp_path / "set"), "--sem-ia"]) == 0
     capsys.readouterr()
-    assert main(["fechar", "--saida", str(tmp_path / "out"), "--sem-ia", "--competencia", "2026-10", "--anterior",
-                 str(tmp_path / "set"), "--json"]) == 3    # tudo de setembro fica fora da competência, mas a carteira é lida
+    # Orbe e Ponte de setembro com extratos de outubro e competência 2026-10: tudo de setembro fica fora da competência
+    # (integridade falha, código 3), mas a carteira anterior é lida
+    entrada = _entrada_com_extratos_de_outubro(pasta_dados, tmp_path)
+    assert main(["fechar", "--entrada", str(entrada), "--saida", str(tmp_path / "out"), "--sem-ia", "--competencia", "2026-10",
+                 "--anterior", str(tmp_path / "set"), "--json"]) == 3
     j = json.loads(capsys.readouterr().out)
     assert j["carteira_pendente"]["de_meses_anteriores"] == 57
     assert main(["fechar", "--saida", str(tmp_path / "x"), "--sem-ia", "--anterior", str(tmp_path / "nada")]) == 1

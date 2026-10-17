@@ -28,7 +28,7 @@ COLUNAS_RASTRO = ["id_saida", "arquivo_origem", "ref_origem", "valor", "regra_id
 # ordem de apresentação: o que mexe com dinheiro e nota primeiro, informativas depois
 ORDEM_TIPOS = ["TARIFA_ZERO_COBRADA", "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO",
                "CONFERIR_REPASSE_PONTE", "CONFERIR_AJUSTE_PONTE", "SPREAD_NEGATIVO", "SEM_CONTRATO", "ALERTA_ANTECIPACAO",
-               "SALDO_NEGATIVO_LOJISTA", "CADASTRO",
+               "SALDO_NEGATIVO_LOJISTA", "CADASTRO", "DADO_INSUFICIENTE",
                "RECURSO_SEM_OPERACAO",
                "EXTRATO_NAO_IDENTIFICADO", "DEVOLUCAO", "EM_TRANSITO", "REVISAR_IA", "FORA_COMPETENCIA",
                "LINHA_NAO_INTERPRETADA", "COMPLIANCE", "DUPLICATA_DIVERGENTE", "MANUAL"]
@@ -97,6 +97,7 @@ def calcular(competencia_ref: date, chk_linhas, rem_linhas, divergencias, sem_no
     _exclusoes(c, rem_linhas, "REMESSA", "operações", "spread_brl", "cnpj")
     _alertas(c, chk_linhas, taxas)
     _cadastro(c, chk_linhas, rem_linhas)
+    _dado_insuficiente(c, chk_linhas)
     _fora_competencia(c, chk_linhas, "CHECKOUT", "valor_taxa_orbe")
     _fora_competencia(c, rem_linhas, "REMESSA", "spread_brl")
     _duplicatas_divergentes(c, rem_linhas)
@@ -351,6 +352,25 @@ def _alertas(c: _Coletor, chk: pd.DataFrame, taxas: pd.DataFrame | None) -> None
         c.add(regra.tipo_pendencia, a["cnpj"], a["acumulado_antecipado"], motivo, regra,
               _rastro(g, "valor_bruto", col_taxa="taxa_aplicada_pct"), subtipo=regra.subtipo,
               linha_negocio="CHECKOUT", cnpj=a["cnpj"], lojista=a["lojista"], qtd_itens=len(g))
+
+
+def _dado_insuficiente(c: _Coletor, chk: pd.DataFrame) -> None:
+    """Estorno/reversão sem data da venda original cuja venda não está no arquivo: fora da comissão, uma pendência por
+    lojista pelo que a adquirente lançou (valor_taxa, com sinal), rastro por linha."""
+    sem = chk[chk["destino"] == "DADO_INSUFICIENTE"]
+    if sem.empty:
+        return
+    regra = c.dono("DADO_INSUFICIENTE")
+    for cnpj, g in sem.groupby("cnpj", sort=False):
+        valor = soma(g["valor_taxa_orbe"])
+        itens = "; ".join(f"{r.ref_origem} ({str(r.tipo_lancamento).lower()} de {r.data_movimento.date()}, "
+                          f"{brl(r.valor_bruto)}, origem {r.id_referencia or 'sem id_referencia'})" for r in g.head(5).itertuples())
+        motivo = (f"{len(g)} linha(s) de {g['lojista'].iloc[0]} sem data da venda original e cuja transação de origem não "
+                  f"está no arquivo da adquirente: {itens}{'; ...' if len(g) > 5 else ''}. Sem a data da venda não há como "
+                  f"saber a taxa contratada, então ficaram fora da comissão e da nota (a adquirente lançou {brl(valor)} de "
+                  f"taxa nessas linhas). {regra.o_que_fazer}")
+        c.add("DADO_INSUFICIENTE", cnpj, valor, motivo, regra, _rastro(g, "valor_taxa_orbe", col_taxa="taxa_aplicada_pct"),
+              linha_negocio="CHECKOUT", cnpj=cnpj, lojista=g["lojista"].iloc[0], qtd_itens=len(g))
 
 
 def _cadastro(c: _Coletor, chk: pd.DataFrame, rem: pd.DataFrame) -> None:
