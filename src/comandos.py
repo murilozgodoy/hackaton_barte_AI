@@ -158,10 +158,9 @@ def listar_pendencias(pasta_saida: Path, quem: str | None = None, tipo: str | No
     grupos = []
     for q, g in p.groupby("quem_decide", sort=False):
         inf = g["informativa"].map(normalizar).eq("TRUE") if "informativa" in g.columns else pd.Series(False, index=g.index)
-        if "incluida_em" in g.columns:
-            inf = inf | g["incluida_em"].astype(str).str.strip().ne("")
-        valores = [_dec(v) for v, i in zip(g["valor_brl"], inf) if not i]
-        grupos.append({"quem_decide": q, "quantidade": int(len(g)), "informativas": int(inf.sum()),
+        incl = g["incluida_em"].astype(str).str.strip().ne("") if "incluida_em" in g.columns else pd.Series(False, index=g.index)
+        valores = [_dec(v) for v, fora in zip(g["valor_brl"], inf | incl) if not fora]
+        grupos.append({"quem_decide": q, "quantidade": int(len(g)), "informativas": int(inf.sum()), "incluidas_em_outra": int(incl.sum()),
                        "valor_em_jogo_brl": str(soma(abs(v) for v in valores if v is not None)),
                        "pendencias": g.to_dict("records")})
     return {"total": int(len(p)), "por_responsavel": grupos}
@@ -170,13 +169,15 @@ def listar_pendencias(pasta_saida: Path, quem: str | None = None, tipo: str | No
 def imprimir_pendencias(res: dict) -> None:
     print(f"{res['total']} pendência(s)")
     for g in res["por_responsavel"]:
-        inf = g.get("informativas", 0)
+        inf, incl = g.get("informativas", 0), g.get("incluidas_em_outra", 0)
+        notas_g = [f"{inf} informativa{'s' if inf > 1 else ''}"] * bool(inf) + [f"{incl} já incluída{'s' if incl > 1 else ''} em outra"] * bool(incl)
         print(f"\n{g['quem_decide']}: {g['quantidade']} pendência(s), {brl(Decimal(g['valor_em_jogo_brl']))} em jogo"
-              + (f" ({inf} informativa{'s' if inf > 1 else ''})" if inf else ""))
+              + (f" ({', '.join(notas_g)})" if notas_g else ""))
         for r in g["pendencias"]:
             valor = brl(Decimal(r["valor_brl"])) if r["valor_brl"] else "sem valor"
             sub = f"/{r['subtipo']}" if r.get("subtipo") else ""
-            marca = " [informativa]" if normalizar(r.get("informativa", "")) == "TRUE" else ""
+            marca = (" [informativa]" if normalizar(r.get("informativa", "")) == "TRUE"
+                     else (f" [já incluída em {r['incluida_em']}]" if r.get("incluida_em") else ""))
             print(f"  {r['id_saida']} {r['tipo']}{sub} ({r['ref_origem']}, {valor}){marca}")
             print(f"      {r['motivo']}")
 

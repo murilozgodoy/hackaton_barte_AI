@@ -167,8 +167,9 @@ def test_conferir_repasse_ponte(fech):
     assert _por(fech, "REPASSE_PONTE_DIVERGENTE").empty
     r = _por(fech, "CONFERIR_REPASSE_PONTE").iloc[0]
     assert (r.valor_brl, r.quem_decide, r.regra_id) == (D("506.65"), "Helena (Financeiro)", "DP-11")
-    assert r.motivo.startswith("Conferir o TED do parceiro de câmbio contra a nota NF-0021 (R$ 39.543,45). Se o parceiro pagar 50% "
-                               "do total que declarou (R$ 78.073,59 -> R$ 39.036,80), a diferença possível é R$ 506,65 (= ")
+    assert r.motivo.startswith("Conferir o TED do parceiro de câmbio previsto para 2026-10-06 (data do e-mail do parceiro) contra a "
+                               "nota NF-0021 (R$ 39.543,45). Se o parceiro pagar 50% do total que declarou (R$ 78.073,59 -> "
+                               "R$ 39.036,80), a diferença possível é R$ 506,65 (= ")
     assert "+ R$ 917,03 de 4 operações excluídas (Spread negativo na remessa, regra E-03)" in r.motivo
     assert "- R$ 410,94 de 1 operação repetida, contada uma vez" in r.motivo and "+ R$ 0,56 de arredondamento" in r.motivo
     assert "Não é perda: a contestação ainda não foi aberta" in r.motivo and "previsto para 2026-10-06 (data do e-mail do parceiro)" in r.motivo
