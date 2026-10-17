@@ -541,7 +541,7 @@
     }
   ],
   "avisos": [
-    "base de regras: premissas em uso, sem aprovação do financeiro (34): P-03, P-10, E-02, E-04, C-01, C-02, C-03, C-04, C-05, C-13, C-17, C-19, C-20, C-22, C-23, C-24, C-25, C-26, DP-02, DP-05, DP-07, DP-08, DP-09, M-01, M-02, DP-11, P-13, A-01, DP-15, DP-16, DP-17, J-02, complemento:22348118000148, naturezas_das_pendencias. O motivo de cada uma está em HIPOTESES.md",
+    "base de regras: premissas em uso, sem aprovação do financeiro (32): P-03, P-10, E-02, E-04, C-01, C-02, C-03, C-04, C-05, C-13, C-19, C-20, C-22, C-23, C-24, C-25, C-26, DP-02, DP-05, DP-07, DP-08, DP-09, M-01, M-02, P-13, A-01, DP-15, DP-16, DP-17, J-02, complemento:22348118000148, naturezas_das_pendencias. O motivo de cada uma está em HIPOTESES.md",
     "base de regras: última alteração registrada em historico_alteracoes.csv em 2026-10-17"
   ],
   "arquivos": {

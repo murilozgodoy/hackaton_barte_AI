@@ -211,7 +211,7 @@ pendência com dono, nunca palpite.
   outubro sintético.
 - **`fechar.bat` não foi testado em Windows** pelo time (só o `fechar.sh` em macOS/Linux). O motor em si
   roda em qualquer sistema com Python 3.10+.
-- **Aprovação da base de regras.** 34 itens da base são premissas do time, sem aprovação do financeiro
+- **Aprovação da base de regras.** 32 itens da base são premissas do time, sem aprovação do financeiro
   (`validar` e o topo do relatório listam todos). A X-01 (Casa do Estudante, TAXA_EXCECAO, que o Comercial
   aprova) só tem as mensagens da Helena relatando a concessão, sem aprovação nominal do Comercial no Slack.
   Regra confirmada pela Helena e alterada depois pelo time conta como premissa (a linha mais recente do
