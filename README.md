@@ -12,13 +12,6 @@ Requer Python 3.11+.
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
-
-## Dados de entrada
-
-O data pack **não é versionado** (fica fora do git por regra do projeto). Antes de
-rodar, copie o zip do mês, sem descompactar nem editar, para a raiz do repositório
-(ex.: `Tarvo_Data_Pack_set2026.zip`). O motor extrai sozinho para `data/`.
-
 ## Rodar
 
 ```bash
