@@ -17,7 +17,7 @@ tem linhas em `rastro.csv` somando exatamente o valor (checagem 1, em todo `fech
 | `RELATORIO_FECHAMENTO.md` | — | página 1 para o CFO (totais, notas, dinheiro em jogo por natureza (nunca somado entre naturezas), pendências por responsável, rascunhos, conhecimento capturado) + anexo com o detalhe | marcado "INVÁLIDO" se a integridade falhou |
 | `comunicacoes/orbe.md` + `orbe_contestacao.csv` | rascunho + anexo da contestação à adquirente (só natureza CONTRATO) | ref_origem, cnpj, lojista, linha_negocio, data, produto, taxa_contratada_pct, taxa_aplicada_pct, valor_brl, natureza | motivo, arquivo_origem |
 | `comunicacoes/ponte.md` + `ponte_contestacao.csv` | rascunho + anexo da contestação ao parceiro, em pedidos (a, b, c…) | idem | **pedido**, spread_relatorio_brl, spread_contratado_brl, diferenca_contrato_brl, metade_tarvo_contrato_brl (pedido b), motivo, regra_id, arquivo_origem |
-| `comunicacoes/comercial.md`, `avisos_nova_condicao.md` | rascunhos para o Comercial e avisos de condição nova às contrapartes (só divergências de contrato) | — | tudo é RASCUNHO: quem decide revisa e envia |
+| `comunicacoes/comercial.md`, `avisos_nova_condicao.md` | rascunhos para o Comercial e avisos de condição nova às contrapartes (só vigência a partir da competência seguinte, ou no mês sem divergência: regra P-13; com divergência, o canal é a contestação) | — | tudo é RASCUNHO: quem decide revisa e envia |
 
 ## Significados
 
