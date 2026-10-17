@@ -16,7 +16,7 @@ def test_resumo_recusa_valor_nao_arredondado():
 
 
 def test_dono_de_pendencia_vencido_para_no_validar_com_codigo_2(dados, tmp_path, capsys):
-    regras = regras_copia(tmp_path, [("tipo_pendencia=REPASSE_PONTE_DIVERGENTE;Contestar", "tipo_pendencia=REPASSE_PONTE_DIVERGENTE;Contestar")])
+    regras = regras_copia(tmp_path, [("tipo_pendencia=CONFERIR_REPASSE_PONTE;", "tipo_pendencia=CONFERIR_REPASSE_PONTE;")])
     p = regras / "regras_negocio.csv"
     t = p.read_text(encoding="utf-8")
     linha = next(l for l in t.splitlines() if l.startswith("DP-11;"))
@@ -25,7 +25,7 @@ def test_dono_de_pendencia_vencido_para_no_validar_com_codigo_2(dados, tmp_path,
     p.write_text(t.replace(linha, nova), encoding="utf-8")
     assert main(["validar", "--regras", str(regras), "--json"]) == 2
     j = json.loads(capsys.readouterr().out)
-    assert j["ok"] is False and "REPASSE_PONTE_DIVERGENTE" in j["erro"] and "não cobre a competência" in j["erro"]
+    assert j["ok"] is False and "CONFERIR_REPASSE_PONTE" in j["erro"] and "não cobre a competência" in j["erro"]
     assert main(["fechar", "--regras", str(regras), "--saida", str(tmp_path / "s"), "--sem-ia", "--json"]) == 2
     j = json.loads(capsys.readouterr().out)
     assert j["ok"] is False

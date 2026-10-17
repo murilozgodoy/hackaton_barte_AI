@@ -24,6 +24,8 @@ COLUNAS_OBRIGATORIAS = {
     "lancamentos_classificados.csv": ["id_saida", "banco", "ref_origem", "data", "descricao", "valor",
                                       "conta_codigo", "metodo", "confianca"],
     "pendencias.csv": ["id_saida", "tipo", "ref_origem", "valor_brl", "motivo", "quem_decide"],
+    "carteira_pendente.csv": ["arquivo_origem", "ref_origem", "cnpj", "ec", "data_venda", "produto", "valor_bruto",
+                              "motivo", "competencia_origem"],
     "rastro.csv": ["id_saida", "arquivo_origem", "ref_origem", "valor"],
 }
 # colunas Decimal que não são dinheiro

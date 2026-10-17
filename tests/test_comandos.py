@@ -44,7 +44,7 @@ def test_explicar_id_inexistente_codigo_4(saida, capsys):
 def test_pendencias_filtros(saida, capsys):
     assert main(["pendencias", "--saida", str(saida), "--json"]) == 0
     res = json.loads(capsys.readouterr().out)
-    assert res["total"] == 16 and {g["quem_decide"] for g in res["por_responsavel"]} == {
+    assert res["total"] == 17 and {g["quem_decide"] for g in res["por_responsavel"]} == {
         "Helena (Financeiro)", "Helena (Financeiro) + Comercial", "Comercial", "Financeiro"}
     assert main(["pendencias", "--saida", str(saida), "--quem", "comercial", "--json"]) == 0
     res = json.loads(capsys.readouterr().out)
@@ -175,7 +175,10 @@ def test_taxa_excecao_so_o_comercial_aprova_e_a_helena_registra(saida, pasta_dad
     err = capsys.readouterr().err
     assert "TAXA_EXCECAO" in err and "Comercial" in err and "não pode aprovar" in err and "--registrado-por" in err
     assert "X-02" not in (regras / "regras_negocio.csv").read_text(encoding="utf-8")   # nada gravado
-    # o Comercial aprova, a Helena registra
+    # o Comercial aprova, mas só a Helena registra
+    assert main(["regra", "aplicar", "--regras", str(regras), "--proposta", str(proposta), "--aprovado-por", "Diego (Comercial)",
+                 "--entrada", str(pasta_dados)]) == 2
+    assert "não pode registrar" in capsys.readouterr().err
     assert main(["regra", "aplicar", "--regras", str(regras), "--proposta", str(proposta), "--aprovado-por", "Diego (Comercial)",
                  "--registrado-por", "Helena (Financeiro)", "--entrada", str(pasta_dados)]) == 0
     assert "\nX-02;" in (regras / "regras_negocio.csv").read_text(encoding="utf-8")

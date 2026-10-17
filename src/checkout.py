@@ -33,6 +33,7 @@ COLUNAS_LINHAS = [
     "nome_orbe", "cnpj", "lojista", "status_cadastro", "tipo_lancamento", "produto", "qtd_parcelas",
     "id_referencia", "valor_bruto", "taxa_aplicada_pct", "valor_taxa_orbe", "taxa_contratada_pct",
     "regra_id", "comissao_brl", "destino", "destino_regra", "tipo_pendencia", "subtipo", "motivo",
+    "data_venda_original", "competencia_origem",
 ]
 
 
@@ -77,15 +78,21 @@ class TabelaTaxas:
         return r.taxa_pct, r.ref_origem, "OK"
 
 
-def calcular(orbe: pd.DataFrame, taxas: pd.DataFrame, config: Config, competencia: str) -> ResultadoCheckout:
+def calcular(orbe: pd.DataFrame, taxas: pd.DataFrame, config: Config, competencia: str,
+             carteira: pd.DataFrame | None = None) -> ResultadoCheckout:
+    """`carteira`: linhas de meses anteriores (carteira_pendente.csv) que passam de novo pelo cálculo; a competência
+    delas não é conferida (vieram de outro mês) e cada uma guarda competencia_origem."""
     tabela = TabelaTaxas(taxas)
     registros = [_destino_da_linha(r, tabela, config, competencia) for r in orbe.itertuples(index=False)]
+    if carteira is not None and len(carteira):
+        registros += [{**_destino_da_linha(r, tabela, config, None), "competencia_origem": r.competencia_origem}
+                      for r in carteira.itertuples(index=False)]
     linhas = pd.DataFrame(registros, columns=COLUNAS_LINHAS)
     comissoes, rastro = _agrupar_por_lojista(linhas)
     return ResultadoCheckout(linhas, comissoes, rastro)
 
 
-def _destino_da_linha(r, tabela: TabelaTaxas, config: Config, competencia: str) -> dict:
+def _destino_da_linha(r, tabela: TabelaTaxas, config: Config, competencia: str | None) -> dict:
     data_mov = r.data_movimento.date()
     data_taxa = (r.data_venda_original if pd.notna(r.data_venda_original) else r.data_movimento).date()
     parcelas = int(r.qtd_parcelas) if pd.notna(r.qtd_parcelas) else None
@@ -97,10 +104,10 @@ def _destino_da_linha(r, tabela: TabelaTaxas, config: Config, competencia: str) 
         cod_estabelecimento=r.cod_estabelecimento, nome_orbe=r.nome_estabelecimento,
         tipo_lancamento=r.tipo_lancamento, produto=produto, qtd_parcelas=parcelas,
         id_referencia=r.id_referencia, valor_bruto=r.valor_bruto, taxa_aplicada_pct=r.taxa_aplicada_pct,
-        valor_taxa_orbe=r.valor_taxa,
+        valor_taxa_orbe=r.valor_taxa, data_venda_original=r.data_venda_original,
     )
 
-    if r.data_movimento.strftime("%Y-%m") != competencia:
+    if competencia is not None and r.data_movimento.strftime("%Y-%m") != competencia:
         return {**out, "destino": "FORA_COMPETENCIA", "tipo_pendencia": "FORA_COMPETENCIA",
                 "motivo": f"data de movimento {data_mov} fora da competência {competencia}"}
 
@@ -112,16 +119,18 @@ def _destino_da_linha(r, tabela: TabelaTaxas, config: Config, competencia: str) 
     out.update(cnpj=lojista.cnpj, lojista=lojista.nome or r.nome_estabelecimento,
                status_cadastro=lojista.status)
 
-    for regra in config.regras_exclusao("orbe", data_mov):
-        if regra.params["criterio"] == "status_cadastro" and lojista.status in regra.params["status"]:
-            return {**out, "destino": "EXCLUIDO", "destino_regra": regra.id,
-                    "tipo_pendencia": regra.tipo_pendencia, "subtipo": regra.subtipo, "motivo": regra.situacao}
+    # uma TAXA_EXCECAO vigente para o lojista é a confirmação da taxa: destrava a exclusão por status do cadastro
+    excecao = config.excecao_taxa(lojista.cnpj, LINHA_NEGOCIO, produto, data_taxa) if produto else None
+    if excecao is None:
+        for regra in config.regras_exclusao("orbe", data_mov):
+            if regra.params["criterio"] == "status_cadastro" and lojista.status in regra.params["status"]:
+                return {**out, "destino": "EXCLUIDO", "destino_regra": regra.id,
+                        "tipo_pendencia": regra.tipo_pendencia, "subtipo": regra.subtipo, "motivo": regra.situacao}
 
     if not produto:
         return {**out, "destino": "SEM_TAXA", "tipo_pendencia": "CADASTRO", "subtipo": "TAXA_NAO_CADASTRADA",
                 "motivo": f"linha {r.tipo_lancamento} sem modalidade: não dá para escolher a taxa"}
 
-    excecao = config.excecao_taxa(lojista.cnpj, LINHA_NEGOCIO, produto, data_taxa)
     if excecao is not None:
         taxa, regra_id = excecao.params["taxa_pct"], excecao.id
     else:

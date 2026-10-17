@@ -146,7 +146,9 @@ def test_exclusoes_duplicado_e_donos(config):
     alertas = config.por_tipo("ALERTA")
     assert [r.id for r in alertas] == ["A-01"] and alertas[0].params["criterio"] == "antecipacao_acima_das_vendas"
     assert alertas[0].params["so_para"] == {"SEM_CONTRATO", "PRIMEIRO_MES"} and alertas[0].tipo_pendencia == "ALERTA_ANTECIPACAO"
-    assert alertas[0].quem_decide == "Helena (Financeiro) + Comercial"
+    assert alertas[0].quem_decide == "Helena (Financeiro) + Comercial" and alertas[0].params["informativa"] is True
+    assert config.dono("EM_TRANSITO", SET).params["informativa"] is True and config.dono("DIVERGENCIA_TAXA", SET).params["informativa"] is False
+    assert config.dono("CONTESTACAO_PONTE", SET).id == "DP-13" and config.dono("CONFERIR_REPASSE_PONTE", SET).id == "DP-11"
     assert config.regra("DP-10").status == "INATIVA" and config.dono_se_houver("RECURSO_SEM_OPERACAO", SET) is None
     assert all(r.tipo == "MANUAL" and r.quem_decide for r in lembretes)
     assert lembretes[2].params == {"linha_negocio": "REMESSA", "cnpj": "17217888000111"}

@@ -31,6 +31,12 @@ def test_conciliacao_ponte_decomposta(fech):
     assert p["total_declarado_ref"] == "linha 241 do relatório (SPREAD TOTAL R$:)"
 
 
+def test_em_jogo_do_financeiro_exclui_informativas(fech):
+    from src.relatorio import valor_em_jogo
+    fin = fech.pendencias[fech.pendencias.quem_decide == "Financeiro"]
+    assert valor_em_jogo(fin) == D("19750.00") and len(fin) == 3 and fin.informativa.sum() == 1
+
+
 def test_conciliacao_remessa_fecha_com_valor_mais_iof(fech):
     r = fech.conciliacao["remessa_banco"]
     assert r["liquidado_na_ponte"] == D("5611447.12") == r["operacoes_valor_mais_iof"]
@@ -78,7 +84,7 @@ def test_saida_versionada_e_a_do_codigo_atual(dados, tmp_path):
     """saida/ é o que a banca vê: tem que ser exatamente o que o código gera hoje."""
     assert main(["fechar", "--saida", str(tmp_path), "--sem-ia"]) == 0
     gerados = list(tmp_path.glob("*.csv")) + [tmp_path / "resumo.json", tmp_path / "RELATORIO_FECHAMENTO.md"]
-    assert len(gerados) == 8
+    assert len(gerados) == 9
     for p in gerados:
         versionado = RAIZ / "saida" / p.name
         assert versionado.exists(), f"saida/{p.name} não está versionado"

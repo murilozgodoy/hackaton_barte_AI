@@ -56,7 +56,7 @@ def test_cli_fechar_gera_saidas_e_json(dados, tmp_path, capsys):
     assert j["lancamentos"] == {"REGRA": 184, "IA": 0, "HUMANO": 0}
     assert all(isinstance(c["ok"], bool) for c in j["integridade"] + j["contexto"]["checagens"])
     assert all(c["ok"] for c in j["integridade"])
-    assert j["totais"]["pendencias"]["quantidade"] == 16 and j["arquivos"]["resumo"] == "resumo.json"
+    assert j["totais"]["pendencias"]["quantidade"] == 17 and j["arquivos"]["resumo"] == "resumo.json"
     for nome in ["comissoes_por_lojista.csv", "divergencias_taxa.csv", "notas_a_emitir.csv",
                  "lancamentos_classificados.csv", "rastro.csv"]:
         with open(tmp_path / nome, encoding="utf-8", newline="") as f:
@@ -112,7 +112,7 @@ def test_cli_fechar_imprime_resumo_final_em_portugues(dados, tmp_path, capsys):
     assert "115 (R$ 2.995,08)" in bloco and "R$ 1.576,23" in bloco and "R$ 1.418,85" in bloco
     assert "fora delas" in bloco and "118" in bloco and "R$ 15.397,42" in bloco
     assert "Lançamentos classificados: 184" in bloco
-    assert "Pendências: 16" in bloco and "Helena" in bloco
+    assert "Pendências: 17 (2 informativas)" in bloco and "Financeiro: 3 pendência(s), R$ 19.750,00 em jogo (1 informativa)" in bloco
     assert "Checagens de integridade: 6 de 6 ok" in bloco
     assert str(tmp_path) in bloco
     assert linhas[-1].strip().endswith("RELATORIO_FECHAMENTO.md")

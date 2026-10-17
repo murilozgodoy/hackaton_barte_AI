@@ -18,11 +18,12 @@ from .regras import NATUREZA_CONTRATO, Config, Regra
 
 PREFIXO_ID = "PEN-"
 COLUNAS = ["id_saida", "tipo", "ref_origem", "valor_brl", "motivo", "quem_decide", "subtipo", "linha_negocio",
-           "cnpj", "lojista", "qtd_itens", "regra_id", "o_que_fazer"]
+           "cnpj", "lojista", "qtd_itens", "regra_id", "o_que_fazer", "informativa"]
 COLUNAS_RASTRO = ["id_saida", "arquivo_origem", "ref_origem", "valor", "regra_id", "taxa_pct"]
 # ordem de apresentação: o que mexe com dinheiro e nota primeiro, informativas depois
-ORDEM_TIPOS = ["TARIFA_ZERO_COBRADA", "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO", "REPASSE_PONTE_DIVERGENTE",
-               "SPREAD_NEGATIVO", "SEM_CONTRATO", "ALERTA_ANTECIPACAO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO",
+ORDEM_TIPOS = ["TARIFA_ZERO_COBRADA", "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO", "CONTESTACAO_PONTE",
+               "CONFERIR_REPASSE_PONTE", "SPREAD_NEGATIVO", "SEM_CONTRATO", "ALERTA_ANTECIPACAO",
+               "SALDO_NEGATIVO_LOJISTA", "CADASTRO",
                "RECURSO_SEM_OPERACAO",
                "EXTRATO_NAO_IDENTIFICADO", "DEVOLUCAO", "EM_TRANSITO", "REVISAR_IA", "FORA_COMPETENCIA",
                "COMPLIANCE", "DUPLICATA_DIVERGENTE", "MANUAL"]
@@ -50,6 +51,7 @@ class _Coletor:
             "tipo": tipo, "ref_origem": ref_origem, "valor_brl": valor, "motivo": motivo,
             "quem_decide": regra.quem_decide, "subtipo": subtipo, "linha_negocio": linha_negocio, "cnpj": cnpj,
             "lojista": lojista, "qtd_itens": qtd_itens, "regra_id": regra.id, "o_que_fazer": regra.o_que_fazer,
+            "informativa": bool(regra.params.get("informativa", False)),   # fora do "em jogo" (regra diz)
             "_rastro": rastro,
         })
 
@@ -90,6 +92,7 @@ def calcular(competencia_ref: date, chk_linhas, rem_linhas, divergencias, sem_no
     _saldo_negativo(c, sem_nota, chk_rastro)
     _extratos(c, lancamentos, em_transito)
     _recurso_sem_operacao(c, lancamentos, conciliacao)
+    _contestacao_parceiro(c, rem_linhas)
     _repasse_parceiro(c, rem_linhas, conciliacao, notas)
     return _montar(c)
 
@@ -99,6 +102,11 @@ def calcular(competencia_ref: date, chk_linhas, rem_linhas, divergencias, sem_no
 NATUREZAS_TEXTO = {"DEVOLUCAO_LOJISTA": "devolução ao lojista"}
 _ROTULO_TIPOS = {"VENDA": "vendas", "ANTECIPACAO": "antecipações", "ESTORNO": "estornos",
                  "REVERSAO ANTECIPACAO": "reversões de antecipação"}
+
+
+def _meses(competencia_origem: str, ref: date) -> int:
+    a, m = (int(x) for x in competencia_origem.split("-"))
+    return (ref.year - a) * 12 + (ref.month - m)
 
 
 def _rotulo(tipos) -> str:
@@ -206,6 +214,11 @@ def _exclusoes(c: _Coletor, linhas: pd.DataFrame, linha_negocio: str, unidade: s
             if linha_negocio == "CHECKOUT":
                 detalhe += (f"; a adquirente cobrou {brl(soma(gg['valor_taxa_orbe']))} a taxas de "
                             f"{_pct(gg['taxa_aplicada_pct'])}")
+                if "competencia_origem" in gg.columns and gg["competencia_origem"].notna().any():
+                    antigas = gg[gg["competencia_origem"].notna()]
+                    idades = sorted({_meses(o, c.ref) for o in antigas["competencia_origem"]})
+                    texto_idades = ", ".join(f"{i} {'mês' if i == 1 else 'meses'}" for i in idades)
+                    detalhe += f" (inclui {len(antigas)} transações de meses anteriores, idade {texto_idades})"
             else:
                 detalhe += f"; spread {brl(soma(gg['spread_brl']))}"
                 obs = _nomes(gg["observacao"])
@@ -218,15 +231,16 @@ def _exclusoes(c: _Coletor, linhas: pd.DataFrame, linha_negocio: str, unidade: s
                   cnpj=gg["cnpj"].iloc[0] if gg["cnpj"].notna().any() else None, lojista=lojista, qtd_itens=len(gg))
 
 
-TIPOS_VENDA, TIPOS_ANTECIPACAO = {"VENDA"}, {"ANTECIPACAO"}
+TIPOS_VENDA, TIPOS_ANTECIPACAO, TIPOS_REVERSAO = {"VENDA"}, {"ANTECIPACAO"}, {"REVERSAO ANTECIPACAO"}
 TEXTO_SO_PARA = {"SEM_CONTRATO": "lojista SEM_CONTRATO no cadastro", "INATIVO": "lojista INATIVO no cadastro",
                  "ATIVO": "lojista ATIVO no cadastro",
                  "PRIMEIRO_MES": "primeira transação e primeira taxa vigente dentro do mês (sem histórico anterior)"}
 
 
-def _primeiro_mes(g: pd.DataFrame, cnpj: str, taxas: pd.DataFrame | None, ref: date) -> bool:
-    """Sem evidência de atividade antes do mês: nenhuma venda/estorno com data anterior e nenhuma taxa vigente antes."""
-    if (g["data_taxa"].dt.date < ref).any():
+def _primeiro_mes(todas_do_lojista: pd.DataFrame, cnpj: str, taxas: pd.DataFrame | None, ref: date) -> bool:
+    """Sem evidência de atividade antes do mês: nenhuma linha (venda, estorno, antecipação ou reversão) com data
+    de venda anterior ao mês e nenhuma taxa vigente antes dele na planilha."""
+    if (todas_do_lojista["data_taxa"].dt.date < ref).any():
         return False
     if taxas is not None and len(taxas):
         linhas = taxas[taxas["cnpj"] == cnpj]
@@ -244,7 +258,8 @@ def alertas_antecipacao(chk: pd.DataFrame, taxas: pd.DataFrame | None, config: C
     regras = [r for r in config.alertas("orbe", ref) if r.params["criterio"] == "antecipacao_acima_das_vendas"]
     if not regras or chk.empty:
         return out
-    base = chk[chk["cnpj"].notna() & chk["tipo_lancamento"].isin(TIPOS_VENDA | TIPOS_ANTECIPACAO)]
+    todas = chk[chk["cnpj"].notna()]
+    base = todas[todas["tipo_lancamento"].isin(TIPOS_VENDA | TIPOS_ANTECIPACAO)]
     for cnpj, g in base.groupby("cnpj", sort=False):
         status = g["status_cadastro"].iloc[0]
         antecip = g[g["tipo_lancamento"].isin(TIPOS_ANTECIPACAO)]
@@ -265,26 +280,29 @@ def alertas_antecipacao(chk: pd.DataFrame, taxas: pd.DataFrame | None, config: C
             motivo_lojista = None
             if not so_para or status in so_para:
                 motivo_lojista = status if so_para else "TODOS"
-            elif "PRIMEIRO_MES" in so_para and _primeiro_mes(g, cnpj, taxas, ref):
+            elif "PRIMEIRO_MES" in so_para and _primeiro_mes(todas[todas["cnpj"] == cnpj], cnpj, taxas, ref):
                 motivo_lojista = "PRIMEIRO_MES"
             if motivo_lojista is None:
                 continue
+            ate_estouro = antecip[antecip["data_movimento"].dt.date <= estouro[0]]
+            revertido = soma(todas.loc[(todas["cnpj"] == cnpj) & todas["tipo_lancamento"].isin(TIPOS_REVERSAO), "valor_bruto"])
             out.append({"regra": regra, "cnpj": cnpj, "lojista": g["lojista"].iloc[0], "motivo_lojista": motivo_lojista,
-                        "antecipado": soma(antecip["valor_bruto"]),
+                        "antecipado": soma(antecip["valor_bruto"]), "revertido": -revertido,
                         "vendido": soma(g.loc[g["tipo_lancamento"].isin(TIPOS_VENDA), "valor_bruto"]),
                         "data_estouro": estouro[0], "acumulado_antecipado": estouro[1], "acumulado_vendido": estouro[2],
-                        "linhas": antecip})
+                        "linhas": ate_estouro})
     return out
 
 
 def _alertas(c: _Coletor, chk: pd.DataFrame, taxas: pd.DataFrame | None) -> None:
     for a in alertas_antecipacao(chk, taxas, c.config, c.ref):
         regra, g = a["regra"], a["linhas"]
-        motivo = (f"{a['lojista']} ({TEXTO_SO_PARA.get(a['motivo_lojista'], a['motivo_lojista'])}) antecipou "
-                  f"{brl(a['antecipado'])} em {len(g)} antecipações no mês tendo vendido {brl(a['vendido'])}. Já em "
-                  f"{a['data_estouro']} a antecipação acumulada ({brl(a['acumulado_antecipado'])}) superava as vendas "
-                  f"acumuladas até a data ({brl(a['acumulado_vendido'])}). {regra.situacao}. {regra.o_que_fazer}")
-        c.add(regra.tipo_pendencia, a["cnpj"], a["antecipado"], motivo, regra,
+        motivo = (f"Em {a['data_estouro']}, {brl(a['acumulado_antecipado'])} antecipados contra {brl(a['acumulado_vendido'])} "
+                  f"vendidos até a data. No mês, {brl(a['antecipado'])} antecipados e {brl(a['revertido'])} revertidos "
+                  f"(líquido {brl(a['antecipado'] - a['revertido'])}) contra {brl(a['vendido'])} vendidos. "
+                  f"{a['lojista']}: {TEXTO_SO_PARA.get(a['motivo_lojista'], a['motivo_lojista'])}. {regra.o_que_fazer}")
+        # valor = antecipação acumulada no dia em que passou das vendas = soma das antecipações até esse dia (rastro)
+        c.add(regra.tipo_pendencia, a["cnpj"], a["acumulado_antecipado"], motivo, regra,
               _rastro(g, "valor_bruto", col_taxa="taxa_aplicada_pct"), subtipo=regra.subtipo,
               linha_negocio="CHECKOUT", cnpj=a["cnpj"], lojista=a["lojista"], qtd_itens=len(g))
 
@@ -433,12 +451,45 @@ def _recurso_sem_operacao(c: _Coletor, lanc: pd.DataFrame, conciliacao: dict) ->
           _rastro(base, "valor", "regra_id"), qtd_itens=len(base))
 
 
+def _contestacao_parceiro(c: _Coletor, rem: pd.DataFrame) -> None:
+    """Uma pendência por mês com tudo o que vai na resposta ao relatório do parceiro: operações com spread acima
+    do contratado (excesso cheio), operações excluídas por regra (ex.: spread negativo) e repetições. O valor é
+    o total em disputa (soma dos absolutos); a repetição entra no rastro com valor 0 (contada uma vez no
+    fechamento, vai na lista só para o parceiro corrigir o relatório), e por isso a checagem 1 fecha."""
+    excesso = rem[(rem["destino"] == "COMISSAO") & rem["diferenca_brl"].notna() & (rem["diferenca_brl"] > 0)]
+    excluidas = rem[rem["destino"] == "EXCLUIDO"]
+    repetidas = rem[rem["destino"].isin(["DUPLICATA_IGNORADA", "DUPLICATA_DIVERGENTE"])]
+    if excesso.empty and excluidas.empty and repetidas.empty:
+        return
+    regra = c.dono("CONTESTACAO_PONTE")
+    partes = [
+        _rastro(excesso, "diferenca_brl", "spread_contratado_origem", "spread_contratado_pct"),
+        _rastro(excluidas.assign(_abs=excluidas["spread_brl"].map(abs)), "_abs", "destino_regra"),
+        _rastro(repetidas.assign(_zero=ZERO), "_zero", "destino_regra"),
+    ]
+    rastro = pd.concat([x for x in partes if len(x)], ignore_index=True)
+    v_exc, v_neg = soma(excesso["diferenca_brl"]), soma(excluidas["spread_brl"].map(abs))
+    trechos = []
+    if len(excesso):
+        trechos.append(f"{len(excesso)} operações de {_nomes(excesso['lojista'])} com spread acima do contratado "
+                       f"({brl(v_exc)} de excesso cheio cobrado do lojista)")
+    if len(excluidas):
+        trechos.append(f"{len(excluidas)} operações excluídas por regra ({_nomes(excluidas['motivo'])}: {brl(v_neg)})")
+    if len(repetidas):
+        trechos.append(f"{len(repetidas)} repetida(s) no relatório ({_nomes(repetidas['num_operacao'])}), contada(s) uma "
+                       f"vez no fechamento e listada(s) para o parceiro corrigir o relatório (valor 0 no rastro)")
+    motivo = (f"Lista para a contestação do relatório do parceiro de câmbio, {brl(v_exc + v_neg)} em disputa: "
+              + "; ".join(trechos) + f". {regra.o_que_fazer}")
+    c.add("CONTESTACAO_PONTE", f"{len(rastro)} operações", v_exc + v_neg, motivo, regra, rastro,
+          linha_negocio="REMESSA", qtd_itens=len(rastro))
+
+
 def _repasse_parceiro(c: _Coletor, rem: pd.DataFrame, conciliacao: dict, notas: pd.DataFrame) -> None:
     p = conciliacao["ponte"]
     diferenca = p["diferenca"]
     if diferenca is None or diferenca == ZERO:
         return
-    regra = c.dono("REPASSE_PONTE_DIVERGENTE")
+    regra = c.dono("CONFERIR_REPASSE_PONTE")
     modo = c.config.parametro("arredondamento", c.ref)
     participacao = c.config.parametro("participacao_spread", c.ref)
     regra_arred = c.config.regra_parametro("arredondamento", c.ref)
@@ -452,7 +503,9 @@ def _repasse_parceiro(c: _Coletor, rem: pd.DataFrame, conciliacao: dict, notas: 
             efeito += v
             partes.append({"arquivo_origem": r.arquivo_origem, "ref_origem": r.ref_origem, "valor": v,
                            "regra_id": r.destino_regra or destino, "taxa_pct": participacao * 100})
-        descricao.append(f"{_assinado(efeito)} de {len(g)} {DESTINOS_PONTE.get(destino, destino.lower())}")
+        regras_g = ", ".join(sorted({f"{c.config.regra(r).situacao}, regra {r}" for r in g["destino_regra"] if r}))
+        descricao.append(f"{_assinado(efeito)} de {len(g)} {DESTINOS_PONTE.get(destino, destino.lower())}"
+                         + (f" ({regras_g})" if regras_g and destino == "EXCLUIDO" else ""))
     rastro = pd.DataFrame(partes, columns=COLUNAS_RASTRO[1:])
     residual = diferenca - soma(rastro["valor"])
     if residual != ZERO:
@@ -467,19 +520,19 @@ def _repasse_parceiro(c: _Coletor, rem: pd.DataFrame, conciliacao: dict, notas: 
                              f"{brl(p['limite_arredondamento'])}): investigar antes de contestar")
     nf = notas[notas["linha_negocio"] == "REMESSA"]
     nf_txt = f"a nota {nf['id_saida'].iloc[0]} ({brl(nf['valor_brl'].iloc[0])})" if len(nf) else "a comissão calculada"
-    motivo = (f"Diferença entre {nf_txt} e {_pct([participacao * 100])} do spread total declarado pelo parceiro "
-              f"({brl(p['spread_total_declarado'])} -> {brl(p['repasse_pelo_total_declarado'])}): {brl(diferenca)} = "
-              + " ".join(descricao) + f". {regra.o_que_fazer}")
-    c.add("REPASSE_PONTE_DIVERGENTE", p["total_declarado_ref"], diferenca, motivo, regra, rastro,
+    motivo = (f"Conferir o TED do parceiro de câmbio contra {nf_txt}. Se o parceiro pagar {_pct([participacao * 100])} "
+              f"do total que declarou ({brl(p['spread_total_declarado'])} -> {brl(p['repasse_pelo_total_declarado'])}), "
+              f"a diferença possível é {brl(diferenca)} (= " + " ".join(descricao) + f"). {regra.o_que_fazer}")
+    c.add("CONFERIR_REPASSE_PONTE", p["total_declarado_ref"], diferenca, motivo, regra, rastro,
           linha_negocio="REMESSA", qtd_itens=len(rastro))
 
 
 DESTINOS_PONTE = {
-    "EXCLUIDO": "operações excluídas por regra (ex.: spread negativo)",
-    "DUPLICATA_IGNORADA": "repetição(ões) idêntica(s) contada(s) uma vez",
-    "DUPLICATA_DIVERGENTE": "linha(s) repetida(s) com valores diferentes, fora da comissão",
-    "SEM_CADASTRO": "operação(ões) de CNPJ sem cadastro, fora da comissão",
-    "FORA_COMPETENCIA": "operação(ões) fora da competência",
+    "EXCLUIDO": "operações excluídas",
+    "DUPLICATA_IGNORADA": "operação repetida, contada uma vez",
+    "DUPLICATA_DIVERGENTE": "linha repetida com valores diferentes, fora da comissão",
+    "SEM_CADASTRO": "operação de CNPJ sem cadastro, fora da comissão",
+    "FORA_COMPETENCIA": "operação fora da competência",
 }
 
 

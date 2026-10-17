@@ -46,15 +46,21 @@ def _s(v) -> str | None:
     return f"{d.quantize(CENTAVO):f}"
 
 
-def valor_em_jogo(valores) -> Decimal:
-    """Soma dos valores absolutos: pendências misturam sinais (spread negativo, saldo negativo, trânsito)."""
-    return soma(abs(v) for v in valores if v is not None)
+def valor_em_jogo(pend) -> Decimal:
+    """Soma dos valores absolutos (pendências misturam sinais), sem as informativas (regra: informativa=true).
+
+    Aceita o DataFrame de pendências ou uma série de valores (aí nada é informativo)."""
+    if isinstance(pend, pd.DataFrame):
+        sel = pend[~pend["informativa"].astype(bool)] if "informativa" in pend.columns else pend
+        return soma(abs(v) for v in sel["valor_brl"] if v is not None)
+    return soma(abs(v) for v in pend if v is not None)
 
 
 def _grupo(df: pd.DataFrame, coluna: str, col_valor: str) -> dict:
     out = {}
     for chave, g in df.groupby(coluna, sort=False):
-        out[str(chave)] = {"quantidade": int(len(g)), "valor_brl": _s(valor_em_jogo(g[col_valor]))}
+        out[str(chave)] = {"quantidade": int(len(g)), "valor_brl": _s(valor_em_jogo(g)),
+                           "informativas": int(g["informativa"].astype(bool).sum())}
     return out
 
 
@@ -98,13 +104,16 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
             },
             "pendencias": {
                 "quantidade": int(len(f.pendencias)),
-                "nota": "valor_brl por responsável e por tipo é a soma dos valores absolutos (valor em jogo); "
-                        "tipos podem se sobrepor (ex.: excesso e sua metade)",
+                "informativas": int(f.pendencias["informativa"].astype(bool).sum()) if len(f.pendencias) else 0,
+                "em_jogo_brl": _s(valor_em_jogo(f.pendencias)) if len(f.pendencias) else "0.00",
+                "nota": "valor_brl por responsável e por tipo é a soma dos valores absolutos (valor em jogo), sem as "
+                        "pendências informativas; tipos podem se sobrepor (ex.: excesso e sua metade)",
                 "por_responsavel": _grupo(f.pendencias, "quem_decide", "valor_brl"),
                 "por_tipo": _grupo(f.pendencias, "tipo", "valor_brl"),
             },
         },
         "lancamentos": {m: int(met.get(m, 0)) for m in ("REGRA", "IA", "HUMANO")},
+        "carteira_pendente": _carteira_json(f),
         "orbe_destinos": {k: int(v) for k, v in f.destinos_orbe.items()},
         "ponte_destinos": {k: int(v) for k, v in f.destinos_ponte.items()},
         "conciliacao": {**_conciliacao_json(f.conciliacao),
@@ -118,6 +127,14 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
         "avisos": list(f.avisos),
         "arquivos": {k: Path(v).name for k, v in arquivos.items()},   # relativos à pasta deste resumo
     }
+
+
+def _carteira_json(f) -> dict:
+    c = f.carteira
+    de_antes = f.orbe_linhas[f.orbe_linhas["competencia_origem"].notna()] if "competencia_origem" in f.orbe_linhas.columns else f.orbe_linhas.iloc[0:0]
+    return {"linhas": int(len(c)), "valor_bruto_brl": _s(soma(c["valor_bruto"])) if len(c) else "0.00",
+            "de_meses_anteriores": int((c["idade_meses"] > 0).sum()) if len(c) else 0,
+            "faturadas_de_meses_anteriores": int((de_antes["destino"] == "COMISSAO").sum())}
 
 
 def escrever_resumo(res: dict, caminho: Path) -> Path:
@@ -212,16 +229,32 @@ def markdown(f, config, res: dict) -> str:
     partes.append("")
 
     partes += ["## Pendências por responsável", "",
-               "\"Em jogo\" é a soma dos valores absolutos das pendências do responsável; tipos podem se sobrepor "
+               "\"Em jogo\" é a soma dos valores absolutos das pendências do responsável, sem as informativas "
+               "(marcadas por regra, ex.: em trânsito e alertas); tipos podem se sobrepor "
                "(o excesso de spread e a metade da Tarvo sobre ele, por exemplo).", ""]
     if f.pendencias.empty:
         partes.append("Nenhuma.")
     for quem, g in f.pendencias.groupby("quem_decide", sort=False):
-        partes += [f"### {quem} — {len(g)} pendência(s), {brl(valor_em_jogo(g['valor_brl']))} em jogo", ""]
+        n_inf = int(g["informativa"].astype(bool).sum())
+        partes += [f"### {quem} — {len(g)} pendência(s), {brl(valor_em_jogo(g))} em jogo"
+                   + (f" ({n_inf} informativa{'s' if n_inf > 1 else ''})" if n_inf else ""), ""]
         for r in g.itertuples():
             valor = brl(r.valor_brl) if r.valor_brl is not None else "sem valor"
-            partes.append(f"- **{r.id_saida} · {r.tipo}{(' / ' + r.subtipo) if r.subtipo else ''}** "
-                          f"({r.ref_origem}, {valor}): {r.motivo}")
+            partes.append(f"- **{r.id_saida} · {r.tipo}{(' / ' + r.subtipo) if r.subtipo else ''}**"
+                          f"{' (informativa)' if r.informativa else ''} ({r.ref_origem}, {valor}): {r.motivo}")
+        partes.append("")
+
+    cj = res["carteira_pendente"]
+    if cj["linhas"] or cj["faturadas_de_meses_anteriores"]:
+        partes += ["## Carteira pendente (`carteira_pendente.csv`)", ""]
+        if cj["linhas"]:
+            partes.append(f"- {cj['linhas']} transações de checkout sem contrato, taxa ou cadastro ficam fora da comissão e "
+                          f"guardadas para o próximo fechamento (valor bruto {brl(Decimal(cj['valor_bruto_brl']))}; "
+                          f"{cj['de_meses_anteriores']} vieram de meses anteriores). Com a taxa confirmada (ex.: TAXA_EXCECAO "
+                          f"retroativa), o próximo `fechar --anterior` fatura essas linhas junto com as do mês.")
+        if cj["faturadas_de_meses_anteriores"]:
+            partes.append(f"- {cj['faturadas_de_meses_anteriores']} transações de meses anteriores entraram na comissão e na "
+                          f"nota deste mês (rastro aponta para o arquivo de origem).")
         partes.append("")
 
     lembretes = [r for r in config.lembretes(ref) if r.params.get("assunto") != ASSUNTO_CONCILIACAO_ADQUIRENTE]
@@ -256,7 +289,7 @@ def markdown(f, config, res: dict) -> str:
         partes.append(f"- **Parceiro de câmbio:** pelo total declarado ({brl(pc['spread_total_declarado'])}) o parceiro "
                       f"repassaria {brl(pc['repasse_pelo_total_declarado'])}; a nota é {brl(pc['comissao_calculada'])}. "
                       f"Diferença {brl(pc['diferenca'])} = " + " ".join(partes_dif)
-                      + (" — ver pendência REPASSE_PONTE_DIVERGENTE." if pc["diferenca"] != ZERO else "."))
+                      + (" — ver pendência CONFERIR_REPASSE_PONTE." if pc["diferenca"] != ZERO else "."))
     partes.append("")
 
     if f.avisos:

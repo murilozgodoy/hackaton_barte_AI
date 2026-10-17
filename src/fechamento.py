@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from . import carteira as carteira_mod
 from . import checkout, conciliacao, divergencias, extratos, notas, pendencias, relatorio, remessa
 from .notas import primeiro_dia  # noqa: F401  (usado em executar)
 from .saida import escrever_csv
@@ -28,6 +29,8 @@ class Fechamento:
     pendencias: pd.DataFrame
     rastro: pd.DataFrame
     conciliacao: dict
+    carteira: pd.DataFrame = field(default_factory=lambda: pd.DataFrame(columns=carteira_mod.COLUNAS))
+    carteira_anterior: int = 0           # linhas lidas de --anterior
     checagens: list[Checagem] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
 
@@ -57,9 +60,12 @@ def extratos_de(dados: dict[str, pd.DataFrame]) -> list[pd.DataFrame]:
     return [df for df in dados.values() if "banco" in df.columns]
 
 
-def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: bool = True) -> Fechamento:
+def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: bool = True,
+             carteira: pd.DataFrame | None = None) -> Fechamento:
     ref = primeiro_dia(competencia)
-    chk = checkout.calcular(dados["orbe"], dados["taxas"], config, competencia)
+    n_cart = int(len(carteira)) if carteira is not None else 0
+    chk = checkout.calcular(dados["orbe"], dados["taxas"], config, competencia, carteira=carteira)
+    cart = carteira_mod.montar(chk.linhas, competencia)
     rem = remessa.calcular(dados["ponte"], dados["taxas"], config, competencia)
     dv = divergencias.calcular(chk.linhas, rem.linhas, config)
     div, rastro_div = dv.divergencias, dv.rastro
@@ -91,12 +97,19 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
         "pendencias.csv": (pend.pendencias, "valor_brl"),
     }, rastro)
     checagens += checar_notas(chk.comissoes, rem.comissoes, nf)
-    checagens += checar_destinos(chk.linhas, len(dados["orbe"]), rem.linhas, len(dados["ponte"]))
+    checagens += checar_destinos(chk.linhas, len(dados["orbe"]) + n_cart, rem.linhas, len(dados["ponte"]))
+    if n_cart:
+        de_antes = chk.linhas[chk.linhas["competencia_origem"].notna()]
+        faturadas = int((de_antes["destino"] == "COMISSAO").sum())
+        continuam = int((cart["idade_meses"] > 0).sum())
+        checagens.append(Checagem("integridade", "4. toda linha da carteira anterior entrou na comissão ou continua na carteira",
+                                  n_cart == faturadas + continuam,
+                                  f"{n_cart} linhas -> {faturadas} faturadas + {continuam} na carteira"))
     checagens += checar_lancamentos(ext.lancamentos, bancos)
     checagens += checar_saldo_extratos(bancos)
 
     return Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, dv.fora_contrato, nf, sem_nota,
-                      ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, checagens,
+                      ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, cart, n_cart, checagens,
                       list(config.avisos) + ext.avisos)
 
 
@@ -115,6 +128,7 @@ def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None) ->
                                     "lancamentos_classificados.csv"),
         "pendencias": escrever_csv(f.pendencias, pasta / "pendencias.csv", "pendencias.csv"),
         "rastro": escrever_csv(f.rastro, pasta / "rastro.csv", "rastro.csv"),
+        "carteira": escrever_csv(f.carteira, pasta / "carteira_pendente.csv", "carteira_pendente.csv"),
     }
     res = relatorio.resumo(f, config, arquivos, entrada)
     arquivos["relatorio"] = relatorio.escrever_relatorio(relatorio.markdown(f, config, res),

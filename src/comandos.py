@@ -157,8 +157,9 @@ def listar_pendencias(pasta_saida: Path, quem: str | None = None, tipo: str | No
         p = p[p["tipo"].map(normalizar) == normalizar(tipo)]
     grupos = []
     for q, g in p.groupby("quem_decide", sort=False):
-        valores = [_dec(v) for v in g["valor_brl"]]
-        grupos.append({"quem_decide": q, "quantidade": int(len(g)),
+        inf = g["informativa"].map(normalizar).eq("TRUE") if "informativa" in g.columns else pd.Series(False, index=g.index)
+        valores = [_dec(v) for v, i in zip(g["valor_brl"], inf) if not i]
+        grupos.append({"quem_decide": q, "quantidade": int(len(g)), "informativas": int(inf.sum()),
                        "valor_em_jogo_brl": str(soma(abs(v) for v in valores if v is not None)),
                        "pendencias": g.to_dict("records")})
     return {"total": int(len(p)), "por_responsavel": grupos}
@@ -167,11 +168,14 @@ def listar_pendencias(pasta_saida: Path, quem: str | None = None, tipo: str | No
 def imprimir_pendencias(res: dict) -> None:
     print(f"{res['total']} pendência(s)")
     for g in res["por_responsavel"]:
-        print(f"\n{g['quem_decide']}: {g['quantidade']} pendência(s), {brl(Decimal(g['valor_em_jogo_brl']))} em jogo")
+        inf = g.get("informativas", 0)
+        print(f"\n{g['quem_decide']}: {g['quantidade']} pendência(s), {brl(Decimal(g['valor_em_jogo_brl']))} em jogo"
+              + (f" ({inf} informativa{'s' if inf > 1 else ''})" if inf else ""))
         for r in g["pendencias"]:
             valor = brl(Decimal(r["valor_brl"])) if r["valor_brl"] else "sem valor"
             sub = f"/{r['subtipo']}" if r.get("subtipo") else ""
-            print(f"  {r['id_saida']} {r['tipo']}{sub} ({r['ref_origem']}, {valor})")
+            marca = " [informativa]" if normalizar(r.get("informativa", "")) == "TRUE" else ""
+            print(f"  {r['id_saida']} {r['tipo']}{sub} ({r['ref_origem']}, {valor}){marca}")
             print(f"      {r['motivo']}")
 
 
@@ -355,9 +359,11 @@ def _efeito(regra: Regra, lancamentos: pd.DataFrame | None) -> list[str]:
                           + ", ".join(f"{r.ref_origem} ({r.conta_codigo or 'sem conta'} hoje)" for r in casa.head(8).itertuples()))
         return efeito
     if regra.tipo == "TAXA_EXCECAO":
+        natureza = ("vira divergência de contrato (divergencias_taxa.csv)" if p.get("divergencia", "CONTRATO") == "CONTRATO"
+                    else f"fica fora de divergencias_taxa.csv e vira pendência {p.get('tipo_pendencia')} ({p['divergencia'].lower().replace('_', ' ')})")
         return [f"lojista {p['cnpj']}: taxa {p['taxa_pct']}% em {p['linha_negocio']} para "
                 f"{'todos os produtos' if p['produto'] == {'TODOS'} else ', '.join(sorted(p['produto']))}, "
-                f"de {regra.vigencia_de} até {regra.vigencia_ate or 'sem fim'}; o que a adquirente cobrar diferente vira divergência"]
+                f"de {regra.vigencia_de} até {regra.vigencia_ate or 'sem fim'}; o que for cobrado diferente {natureza}"]
     if regra.tipo == "PARAMETRO":
         nome = next(iter(p))
         return [f"parâmetro {nome} passa a valer {regra.valor} a partir de {regra.vigencia_de or 'sempre'}"]
@@ -437,6 +443,9 @@ def aplicar(dir_regras: Path, proposta: Proposta, aprovado_por: str, contexto: _
                              f"'{aprovado_por}' não pode aprovar. Use --aprovado-por \"<nome> ({qa})\" e, se outra pessoa "
                              f"registrar, --registrado-por \"{qr}\"")
     registrado_por = (registrado_por or "").strip() or aprovado_por
+    if not _aprovador_bate(registrado_por, qr):
+        raise ErroComando(2, f"Regra do tipo {tipo} é registrada por {qr} (regras/aprovadores.csv); '{registrado_por}' não pode "
+                             f"registrar. Use --registrado-por \"{qr}\"")
     alvo = dir_regras / proposta.alvo
     colunas = COLUNAS_REGRAS if proposta.alvo == "regras_negocio.csv" else COLUNAS_COMPLEMENTO
     linha = revalidada.linha

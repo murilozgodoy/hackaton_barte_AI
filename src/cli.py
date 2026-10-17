@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from . import carteira as carteira_mod
 from . import comandos
 from .dinheiro import brl, soma
 from .fechamento import Fechamento, escrever, executar
@@ -230,7 +231,7 @@ def imprimir_fechamento(f: Fechamento) -> None:
 
     print(f"\nPendências ({len(f.pendencias)}), por responsável:")
     for quem, g in f.pendencias.groupby("quem_decide", sort=False):
-        print(f"  {quem}: {len(g)} pendência(s), {brl(valor_em_jogo(g['valor_brl']))} em jogo")
+        print(f"  {quem}: {len(g)} pendência(s), {brl(valor_em_jogo(g))} em jogo")
         for r in g.itertuples(index=False):
             valor = brl(r.valor_brl) if r.valor_brl is not None else "sem valor"
             sub = f"/{r.subtipo}" if r.subtipo else ""
@@ -293,15 +294,23 @@ def imprimir_resumo_final(f: Fechamento, res: dict, arquivos: dict[str, Path], c
              if dl["linhas"] else ""))
     l = res["lancamentos"]
     print(f"Lançamentos classificados: {sum(l.values())} (REGRA {l['REGRA']}, IA {l['IA']}, HUMANO {l['HUMANO']})")
-    print(f"Pendências: {t['pendencias']['quantidade']}, por responsável:")
+    n_inf = t["pendencias"].get("informativas", 0)
+    print(f"Pendências: {t['pendencias']['quantidade']}" + (f" ({n_inf} informativas)" if n_inf else "")
+          + f", {brl(Decimal(t['pendencias']['em_jogo_brl']))} em jogo, por responsável:")
     for quem, g in t["pendencias"]["por_responsavel"].items():
-        print(f"  {quem}: {g['quantidade']} pendência(s), {brl(Decimal(g['valor_brl']))} em jogo")
+        inf = g.get("informativas", 0)
+        print(f"  {quem}: {g['quantidade']} pendência(s), {brl(Decimal(g['valor_brl']))} em jogo"
+              + (f" ({inf} informativa{'s' if inf > 1 else ''})" if inf else ""))
     familias: dict[str, list[bool]] = {}
     for c in f.checagens:
         familias.setdefault(c.nome.split(".")[0], []).append(c.ok)
     ok = sum(all(v) for v in familias.values())
     print(f"Checagens de integridade: {ok} de {len(familias)} ok ({len(f.checagens)} testes)"
           + ("" if ok == len(familias) else " — veja acima qual falhou; não use os números"))
+    cj = res["carteira_pendente"]
+    if cj["linhas"] or cj["faturadas_de_meses_anteriores"]:
+        print(f"Carteira pendente: {cj['linhas']} transações sem contrato/taxa ({brl(Decimal(cj['valor_bruto_brl']))}) "
+              f"guardadas para o próximo mês; {cj['faturadas_de_meses_anteriores']} de meses anteriores faturadas agora")
     pasta = Path(arquivos["relatorio"]).parent
     print(f"Arquivos em {pasta}: " + ", ".join(Path(p).name for k, p in arquivos.items() if k != "relatorio"))
     print(f"Relatório: {arquivos['relatorio']}")
@@ -326,8 +335,15 @@ def cmd_validar(args) -> int:
 def cmd_fechar(args) -> int:
     ctx = carregar_contexto(args, resolver_regras(args.regras))
     entrada = {"arquivos": {f: p.name for f, p in ctx.arquivos.items()}, "competencia_inferida": ctx.competencia_inferida}
+    carteira = None
+    if getattr(args, "anterior", None):
+        try:
+            carteira = carteira_mod.ler(args.anterior)
+        except ErroLeitura as e:
+            raise Parada(SAIDA_ENTRADA, f"Carteira anterior com problema: {e}") from None
+        entrada["carteira_anterior"] = {"pasta": str(args.anterior), "linhas": int(len(carteira))}
     try:
-        fech = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=not args.sem_ia)
+        fech = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=not args.sem_ia, carteira=carteira)
         arquivos, res = escrever(fech, args.saida, ctx.config, entrada)
     except ErroConfig as e:
         raise Parada(SAIDA_REGRAS, str(e)) from None
@@ -388,6 +404,37 @@ def cmd_regra(args) -> int:
     hoje = date.today()
     if args.acao == "propor":
         lanc = None
+        try:
+            return _cmd_regra_propor(args, base, ctx_val, hoje)
+        except ErroConfig as err:
+            raise Parada(SAIDA_REGRAS, str(err)) from None
+
+    # aplicar
+    try:
+        proposta = comandos.ler_proposta(args.proposta)
+        res = comandos.aplicar(base.pasta, proposta, args.aprovado_por, ctx_val, hoje, args.registrado_por)
+    except comandos.ErroComando as err:
+        raise Parada(err.codigo, err.mensagem) from None
+    except ErroConfig as err:
+        raise Parada(SAIDA_REGRAS, str(err)) from None
+    except (OSError, ValueError, KeyError) as err:
+        raise Parada(SAIDA_REGRAS, f"proposta ilegível: {err}") from None
+    if base.zip_origem is not None:
+        res["zip_novo"] = str(base.gravar_zip_novo(hoje))
+    if args.json:
+        _json({"comando": "regra aplicar", "ok": True, "codigo": SAIDA_OK, **res})
+    else:
+        print(f"Regra {res['id_regra']} gravada em {res['arquivo']} e registrada em {res['historico']} "
+              f"(aprovado por {res['aprovado_por']}, registrado por {res['registrado_por']}).")
+        if "zip_novo" in res:
+            print(f"Base em zip: gravei {res['zip_novo']}. Salve este arquivo na pasta compartilhada; ele substitui o anterior.")
+        print("Rode `python -m src fechar` de novo para o fechamento refletir a regra.")
+    return SAIDA_OK
+
+
+def _cmd_regra_propor(args, base: BaseRegras, ctx_val, hoje: date) -> int:
+    if True:
+        lanc = None
         caminho_lanc = Path(args.saida) / "lancamentos_classificados.csv"
         if caminho_lanc.exists():
             lanc = pd.read_csv(caminho_lanc, sep=";", dtype=str, keep_default_na=False, encoding="utf-8")
@@ -422,26 +469,6 @@ def cmd_regra(args) -> int:
             print(f"\nNada foi gravado. Para aplicar: python -m src regra aplicar --regras {args.regras} "
                   f"--proposta {destino} --aprovado-por \"<nome> ({qa})\" [--registrado-por \"<quem registra>\"]")
         return codigo
-
-    # aplicar
-    try:
-        proposta = comandos.ler_proposta(args.proposta)
-        res = comandos.aplicar(base.pasta, proposta, args.aprovado_por, ctx_val, hoje, args.registrado_por)
-    except comandos.ErroComando as err:
-        raise Parada(err.codigo, err.mensagem) from None
-    except (OSError, ValueError, KeyError) as err:
-        raise Parada(SAIDA_REGRAS, f"proposta ilegível: {err}") from None
-    if base.zip_origem is not None:
-        res["zip_novo"] = str(base.gravar_zip_novo(hoje))
-    if args.json:
-        _json({"comando": "regra aplicar", "ok": True, "codigo": SAIDA_OK, **res})
-    else:
-        print(f"Regra {res['id_regra']} gravada em {res['arquivo']} e registrada em {res['historico']} "
-              f"(aprovado por {res['aprovado_por']}, registrado por {res['registrado_por']}).")
-        if "zip_novo" in res:
-            print(f"Base em zip: gravei {res['zip_novo']}. Salve este arquivo na pasta compartilhada; ele substitui o anterior.")
-        print("Rode `python -m src fechar` de novo para o fechamento refletir a regra.")
-    return SAIDA_OK
 
 
 def cmd_empacotar(args) -> int:
@@ -482,6 +509,8 @@ def construir_parser() -> argparse.ArgumentParser:
     _comuns(p, competencia=True)
     p.add_argument("--sem-ia", action="store_true",
                    help="não consultar a IA para lançamentos sem regra, mesmo com ANTHROPIC_API_KEY")
+    p.add_argument("--anterior", type=Path,
+                   help="pasta de saída do mês anterior: relê carteira_pendente.csv e fatura o que tiver taxa agora")
     p = sub.add_parser("explicar", help="de onde vem um número: rastro, regra e taxa usadas")
     p.add_argument("id_saida")
     _comuns(p)
@@ -499,7 +528,7 @@ def construir_parser() -> argparse.ArgumentParser:
     pa = acao.add_parser("aplicar", help="grava a proposta validada e registra no histórico")
     pa.add_argument("--proposta", type=Path, required=True)
     pa.add_argument("--aprovado-por", required=True, help="nome de quem aprovou (quem pode: regras/aprovadores.csv)")
-    pa.add_argument("--registrado-por", help="quem registrou a regra, se não for quem aprovou (ex.: Helena registra taxa aprovada pelo Comercial)")
+    pa.add_argument("--registrado-por", help="quem registrou a regra, se não for quem aprovou (ver regras/aprovadores.csv)")
     _comuns(pa)
     p = sub.add_parser("empacotar-skill", help="gera o zip autocontido da skill em dist/")
     p.add_argument("--destino", type=Path, default=RAIZ / "dist")

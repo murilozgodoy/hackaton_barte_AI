@@ -30,12 +30,14 @@ def test_lista_de_pendencias(fech):
     p = fech.pendencias
     assert p.id_saida.tolist() == [f"PEN-{i:04d}" for i in range(1, len(p) + 1)]
     assert p.tipo.value_counts().to_dict() == {
-        "TARIFA_ZERO_COBRADA": 1, "DIVERGENCIA_TAXA": 3, "EXCESSO_SPREAD_CONTESTADO": 1,
-        "REPASSE_PONTE_DIVERGENTE": 1, "SPREAD_NEGATIVO": 4, "SEM_CONTRATO": 1, "SALDO_NEGATIVO_LOJISTA": 1,
+        "TARIFA_ZERO_COBRADA": 1, "DIVERGENCIA_TAXA": 3, "EXCESSO_SPREAD_CONTESTADO": 1, "CONTESTACAO_PONTE": 1,
+        "CONFERIR_REPASSE_PONTE": 1, "SPREAD_NEGATIVO": 4, "SEM_CONTRATO": 1, "SALDO_NEGATIVO_LOJISTA": 1,
         "EXTRATO_NAO_IDENTIFICADO": 1, "DEVOLUCAO": 1, "EM_TRANSITO": 1, "ALERTA_ANTECIPACAO": 1}
     assert p.quem_decide.notna().all() and (p.motivo.str.len() > 40).all()
-    assert p.quem_decide.value_counts().to_dict() == {"Helena (Financeiro)": 10, "Helena (Financeiro) + Comercial": 2,
+    assert p.quem_decide.value_counts().to_dict() == {"Helena (Financeiro)": 11, "Helena (Financeiro) + Comercial": 2,
                                                      "Comercial": 1, "Financeiro": 3}
+    # informativas (por regra, informativa=true): fora do "em jogo"
+    assert set(p[p.informativa].tipo) == {"EM_TRANSITO", "ALERTA_ANTECIPACAO"} and p.informativa.dtype == bool
 
 
 def test_alerta_antecipacao_so_para_a_atlas(fech):
@@ -46,11 +48,14 @@ def test_alerta_antecipacao_so_para_a_atlas(fech):
     assert len(a) == 1
     r = a.iloc[0]
     assert (r.cnpj, r.quem_decide, r.regra_id, r.linha_negocio) == (ATLAS_CNPJ, "Helena (Financeiro) + Comercial", "A-01", "CHECKOUT")
-    assert r.valor_brl == D("235943.10") and r.qtd_itens == 5          # tudo o que foi antecipado no mês
-    assert "R$ 179.592,82" in r.motivo and "R$ 55.357,50" in r.motivo and "2026-09-15" in r.motivo
-    assert "R$ 235.943,10" in r.motivo and "R$ 135.428,90" in r.motivo and "SEM_CONTRATO" in r.motivo
+    # D1: valor = antecipação acumulada no dia em que passou das vendas (as 4 antecipações de 15/09); informativa
+    assert r.valor_brl == D("179592.82") and r.qtd_itens == 4 and r.informativa
+    assert r.motivo.startswith("Em 2026-09-15, R$ 179.592,82 antecipados contra R$ 55.357,50 vendidos até a data. "
+                               "No mês, R$ 235.943,10 antecipados e R$ 108.712,14 revertidos (líquido R$ 127.230,96) "
+                               "contra R$ 135.428,90 vendidos.")
+    assert "Alerta de controle, não perda" in r.motivo and "SEM_CONTRATO" in r.motivo
     rastro = fech.rastro[fech.rastro.id_saida == r.id_saida]
-    assert len(rastro) == 5 and rastro.ref_origem.str.startswith("AN").all() and soma(rastro.valor) == D("235943.10")
+    assert len(rastro) == 4 and rastro.ref_origem.str.startswith("AN").all() and soma(rastro.valor) == D("179592.82")
 
 
 def test_rastro_fecha_para_toda_pendencia_com_valor(fech):
@@ -153,16 +158,37 @@ def test_recurso_sem_operacao_volta_a_ser_pendencia_se_houver_dono(dados, tmp_pa
     assert len(r) == 1 and r.iloc[0].ref_origem == "MRD2026090425" and r.iloc[0].valor_brl == D("18240.00") and f.integro
 
 
-def test_repasse_ponte_divergente(fech):
-    r = _por(fech, "REPASSE_PONTE_DIVERGENTE").iloc[0]
+def test_conferir_repasse_ponte(fech):
+    """A1 (Helena ao Lucca, 16/10 22h33): conferir o TED quando cair; não é perda, a contestação não foi aberta."""
+    assert _por(fech, "REPASSE_PONTE_DIVERGENTE").empty
+    r = _por(fech, "CONFERIR_REPASSE_PONTE").iloc[0]
     assert (r.valor_brl, r.quem_decide, r.regra_id) == (D("506.65"), "Helena (Financeiro)", "DP-11")
-    assert "NF-0021" in r.motivo and "+ R$ 917,03" in r.motivo and "- R$ 410,94" in r.motivo and "M-01" in r.motivo
-    assert "+ R$ 0,56 de arredondamento" in r.motivo and ";" not in r.motivo
+    assert r.motivo.startswith("Conferir o TED do parceiro de câmbio contra a nota NF-0021 (R$ 39.543,45). Se o parceiro pagar 50% "
+                               "do total que declarou (R$ 78.073,59 -> R$ 39.036,80), a diferença possível é R$ 506,65 (= ")
+    assert "+ R$ 917,03 de 4 operações excluídas (Spread negativo na remessa, regra E-03)" in r.motivo
+    assert "- R$ 410,94 de 1 operação repetida, contada uma vez" in r.motivo and "+ R$ 0,56 de arredondamento" in r.motivo
+    assert "Não é perda: a contestação ainda não foi aberta" in r.motivo and "06/10" in r.motivo
+    assert "credita só 50%" not in r.motivo and "Contestar" not in r.motivo and ";" not in r.motivo and not r.informativa
     rastro = fech.rastro[fech.rastro.id_saida == r.id_saida]
     assert len(rastro) == 6 and soma(rastro.valor) == D("506.65")
     ref_total = "linha 241 do relatório (SPREAD TOTAL R$:)"
     assert set(rastro.ref_origem) == {"PC-0926-0210", "PC-0926-0326", "PC-0926-0491", "PC-0926-0545", "PC-0926-0162", ref_total}
     assert rastro[rastro.ref_origem == ref_total].valor.iloc[0] == D("0.56") and r.ref_origem == ref_total
+
+
+def test_contestacao_ponte(fech):
+    """A2 (Helena ao Insper AI, 16/10 22h34): uma pendência de contestação com o valor e as operações: as 23 da
+    Mundo Aberto (excesso cheio), os 4 spreads negativos e a repetida, que entra no rastro com valor 0 (contada
+    uma vez no fechamento; vai na lista só para a Ponte corrigir o relatório), sem quebrar a checagem 1."""
+    r = _por(fech, "CONTESTACAO_PONTE").iloc[0]
+    assert (r.valor_brl, r.quem_decide, r.regra_id, r.qtd_itens, r.linha_negocio) == (D("3252.90"), "Helena (Financeiro)", "DP-13", 28, "REMESSA")
+    assert "R$ 1.418,85" in r.motivo and "R$ 1.834,05" in r.motivo and "PC-0926-0162" in r.motivo and "M-01" in r.motivo
+    rastro = fech.rastro[fech.rastro.id_saida == r.id_saida].set_index("ref_origem")
+    assert len(rastro) == 28 and soma(rastro.valor) == D("3252.90")
+    assert rastro.loc["PC-0926-0162", "valor"] == D("0.00")
+    negativos = rastro.loc[["PC-0926-0210", "PC-0926-0326", "PC-0926-0491", "PC-0926-0545"], "valor"]
+    assert soma(negativos) == D("1834.05") and (negativos > 0).all()
+    assert soma(rastro.drop(index=["PC-0926-0162", "PC-0926-0210", "PC-0926-0326", "PC-0926-0491", "PC-0926-0545"]).valor) == D("1418.85")
 
 
 def test_cnpj_da_ponte_sem_cadastro_entra_na_nota_com_pendencia_para_o_comercial(dados, config):
@@ -176,7 +202,7 @@ def test_cnpj_da_ponte_sem_cadastro_entra_na_nota_com_pendencia_para_o_comercial
     assert len(c) == 1 and c.iloc[0].quem_decide == "Comercial" and c.iloc[0].regra_id == "DP-12"
     assert c.iloc[0].valor_brl == D("131.01") and c.iloc[0].qtd_itens == 1 and "entrou na comissão" in c.iloc[0].motivo
     assert f.notas[f.notas.linha_negocio == "REMESSA"].valor_brl.iloc[0] == D("39543.45")
-    r = f.pendencias[f.pendencias.tipo == "REPASSE_PONTE_DIVERGENTE"].iloc[0]
+    r = f.pendencias[f.pendencias.tipo == "CONFERIR_REPASSE_PONTE"].iloc[0]
     assert r.valor_brl == D("506.65") and "sem cadastro" not in r.motivo and f.integro
 
 
@@ -191,8 +217,8 @@ def test_repasse_divergente_nao_chama_cadastro_de_arredondamento(dados, tmp_path
     ponte.loc[ponte.num_operacao == "PC-0926-0002", "cnpj"] = "99999999999999"
     ponte.attrs = dict(dados["ponte"].attrs)
     f = executar({**dados, "ponte": ponte}, cfg, "2026-09", usar_ia=False)
-    r = f.pendencias[f.pendencias.tipo == "REPASSE_PONTE_DIVERGENTE"].iloc[0]
-    assert "- R$ 131,01 de 1 operação(ões) de CNPJ sem cadastro" in r.motivo
+    r = f.pendencias[f.pendencias.tipo == "CONFERIR_REPASSE_PONTE"].iloc[0]
+    assert "- R$ 131,01 de 1 operação de CNPJ sem cadastro" in r.motivo
     assert "+ R$ 0,56 de arredondamento" in r.motivo or "+ R$ 0,55 de arredondamento" in r.motivo
     assert "NÃO explicados" not in r.motivo and f.integro
 
@@ -219,9 +245,12 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     res = json.loads((tmp_path / "resumo.json").read_text(encoding="utf-8"))
     assert res["status_integridade"] == "OK" and res["competencia"] == "2026-09"
     assert res["totais"]["comissao_checkout_brl"] == "207039.73" and res["totais"]["comissao_remessa_brl"] == "39543.45"
-    assert res["totais"]["pendencias"]["quantidade"] == 16   # sai RECURSO_SEM_OPERACAO, entra ALERTA_ANTECIPACAO
-    assert res["totais"]["pendencias"]["por_responsavel"]["Comercial"] == {"quantidade": 1, "valor_brl": "7876.05"}
-    assert res["totais"]["pendencias"]["por_responsavel"]["Financeiro"]["valor_brl"] == "319750.00"
+    assert res["totais"]["pendencias"]["quantidade"] == 17
+    assert res["totais"]["pendencias"]["por_responsavel"]["Comercial"] == {"quantidade": 1, "valor_brl": "7876.05", "informativas": 0}
+    # informativas (EM_TRANSITO, ALERTA_ANTECIPACAO) ficam fora do "em jogo"
+    assert res["totais"]["pendencias"]["por_responsavel"]["Financeiro"] == {"quantidade": 3, "valor_brl": "19750.00", "informativas": 1}
+    assert res["totais"]["pendencias"]["por_responsavel"]["Helena (Financeiro) + Comercial"] == {"quantidade": 2, "valor_brl": "15397.42", "informativas": 1}
+    assert res["totais"]["pendencias"]["informativas"] == 2 and res["totais"]["pendencias"]["em_jogo_brl"] == "52327.11"
     assert "M-05" in res["conciliacao"]["remessa_x_banco"]["observacao"] and "18.240,00" in res["conciliacao"]["remessa_x_banco"]["observacao"]
     assert res["arquivos"]["pendencias"] == "pendencias.csv"
     assert res["conciliacao"]["parceiro_cambio"]["efeitos_por_destino"]["EXCLUIDO"]["efeito"] == "917.03"
@@ -241,6 +270,7 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert "M-01" in rel and "5 dias úteis" in rel
     assert "RECURSO_SEM_OPERACAO" not in rel and "M-05" in rel and "mês seguinte" in rel
     assert "pendencias.csv" in rel and "saldo negativo sem nota" in rel and "R$ 5,50" in rel
+    assert "### Financeiro — 3 pendência(s), R$ 19.750,00 em jogo (1 informativa)" in rel and "REPASSE_PONTE_DIVERGENTE" not in rel
     assert "1.5%–1.5%" not in rel and "+ -R$" not in rel
 
 

@@ -12,8 +12,12 @@ chave=valor separado por " | " (ex.: banco=AURORA | contem=PIX ENVIADO | conta=<
 Alternativas de texto dentro de um valor usam " OU " (ex.: contem=PONTE AEREA OU PONTE AÉREA);
 listas usam vírgula (ex.: aceitos=APROVADO,APROVADO C/ RESSALVA). Números aceitam
 vírgula ou ponto decimal. Só regras com status ATIVA são executadas. MANUAL nunca é
-executada: só gera pendência com o_que_fazer e quem_decide. Colunas de texto livre
-(situacao, como_identificar, o_que_fazer...) não são interpretadas pelo código.
+executada: vira lembrete no relatório (e, com `assunto=`, texto da conciliação). ALERTA
+calcula um critério e gera pendência sem tirar nada da comissão. DONO_PENDENCIA aceita
+`subtipo=` (dono específico) e `informativa=true` (fora do "em jogo"). TAXA_EXCECAO aceita
+`divergencia=DEVOLUCAO_LOJISTA` (diferença fora de divergencias_taxa.csv). Pendências em
+PENDENCIAS_OPCIONAIS só existem com dono ativo. Quem aprova cada tipo: regras/aprovadores.csv.
+Colunas de texto livre (situacao, como_identificar, o_que_fazer...) não são interpretadas pelo código.
 
 Erro de configuração para o fechamento com mensagem em português indicando o
 arquivo, a linha, o id da regra, o problema e como corrigir.
@@ -64,13 +68,14 @@ TIPOS_PENDENCIA = {
     "DIVERGENCIA_TAXA", "TARIFA_ZERO_COBRADA", "SEM_CONTRATO", "SPREAD_NEGATIVO",
     "EXCESSO_SPREAD_CONTESTADO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO", "EXTRATO_NAO_IDENTIFICADO",
     "DEVOLUCAO", "EM_TRANSITO", "REVISAR_IA", "MANUAL", "FORA_COMPETENCIA", "COMPLIANCE",
-    "DUPLICATA_DIVERGENTE", "RECURSO_SEM_OPERACAO", "REPASSE_PONTE_DIVERGENTE", "ALERTA_ANTECIPACAO",
+    "DUPLICATA_DIVERGENTE", "RECURSO_SEM_OPERACAO", "CONFERIR_REPASSE_PONTE", "CONTESTACAO_PONTE",
+    "ALERTA_ANTECIPACAO",
 }
 # Pendências que o próprio motor gera (sem regra que as origine): precisam de DONO_PENDENCIA.
 PENDENCIAS_DO_MOTOR = {
     "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO",
     "EXTRATO_NAO_IDENTIFICADO", "EM_TRANSITO", "REVISAR_IA", "FORA_COMPETENCIA",
-    "DUPLICATA_DIVERGENTE", "REPASSE_PONTE_DIVERGENTE",
+    "DUPLICATA_DIVERGENTE", "CONFERIR_REPASSE_PONTE", "CONTESTACAO_PONTE",
 }
 # Pendências opcionais: o motor só as gera se houver DONO_PENDENCIA ativa (sem dono, a situação
 # é tratada por lembrete MANUAL). Ligar/desligar é dado (status da regra), não código.
@@ -99,8 +104,8 @@ ESQUEMA = {
                             {"status", "aceitos", "valor_pendencia", "agrupar", "subtipo"}),
     "CLASSIFICAR_CONTA": ({"banco", "contem", "conta", "prioridade"},
                           {"sinal", "gera_pendencia", "tipo_pendencia", "subtipo", "transitoria", "papel"}),
-    "DONO_PENDENCIA": ({"tipo_pendencia"}, {"subtipo"}),
-    "ALERTA": ({"fonte", "criterio", "tipo_pendencia"}, {"so_para", "subtipo"}),
+    "DONO_PENDENCIA": ({"tipo_pendencia"}, {"subtipo", "informativa"}),
+    "ALERTA": ({"fonte", "criterio", "tipo_pendencia"}, {"so_para", "subtipo", "informativa"}),
     "MANUAL": (set(), {"banco", "contem", "cnpj", "linha_negocio", "assunto"}),
 }
 
@@ -632,6 +637,12 @@ def _validar_params(regra: Regra, erro, avisos, onde, ctx: _Contexto):
         p["subtipo"] = normalizar(p["subtipo"]).replace(" ", "_")
         if not _RE_IDENT.fullmatch(p["subtipo"]):
             erro(f"subtipo '{p['subtipo']}' inválido", "use letras, números e _, ex.: EC_ORBE")
+    if tipo in ("DONO_PENDENCIA", "ALERTA"):
+        # informativa=true: a pendência aparece, mas fica fora do total "em jogo" (ex.: em trânsito, alerta)
+        try:
+            p["informativa"] = sim_nao(p.get("informativa", "false"))
+        except ValueError as e:
+            erro(f"informativa: {e}", "use true ou false")
 
     if tipo == "TAXA_EXCECAO":
         try:
