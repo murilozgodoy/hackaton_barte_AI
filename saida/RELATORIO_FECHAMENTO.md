@@ -16,7 +16,7 @@ Base de regras: 66 regras ativas, 25 lojistas no cadastro (planilha de taxas + c
 | REMESSA | 14 | R$ 39.543,45 | 1 nota, R$ 39.543,45 |
 | **Total** |  | **R$ 246.583,18** | **21 notas, R$ 246.588,68** |
 
-Divergências: 233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) + 118 de concessão comercial fora do contrato (R$ 15.397,42, devolução ao lojista por conta da Tarvo).
+Divergências: 115 transações, todas 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08); fora do arquivo, por regra, 118 transações de concessão comercial fora do contrato (R$ 15.396,77 cobrados de fato pela adquirente, devolução ao lojista por conta da Tarvo, só em pendência).
 
 ### Dinheiro em jogo, por causa
 
@@ -24,7 +24,7 @@ Cada pendência entra em uma linha só (nenhuma linha de origem conta duas vezes
 
 | Causa | Valor em jogo | O que é | Quem decide |
 |---|---|---|---|
-| Casa do Estudante Viagens Ltda (checkout) | R$ 15.397,42 | Concessão do Comercial fora do contrato, para segurar o cliente: a Orbe cobrou o que estava contratado e não há o que cobrar dela. A Tarvo abriu mão da receita, então a devolução ao lojista sai do nosso bolso (custo da Tarvo). TARIFA_ZERO_COBRADA em 118 linhas de origem | Helena (Financeiro) + Comercial |
+| Casa do Estudante Viagens Ltda (checkout) | R$ 15.396,77 | Concessão do Comercial fora do contrato, para segurar o cliente: a Orbe cobrou o que estava contratado e não há o que cobrar dela. A Tarvo abriu mão da receita, então a devolução ao lojista sai do nosso bolso (custo da Tarvo). TARIFA_ZERO_COBRADA em 118 linhas de origem | Helena (Financeiro) + Comercial |
 | Escola Bridge de Idiomas Ltda (checkout) | R$ 29,95 | Divergência de contrato: aditivo assinado com 2,19% a partir de 15/09 e a Orbe cobrou 2,59%. Contestar com a Orbe e ressarcir o lojista. O aviso à Orbe saiu atrasado (falha de processo nossa), mas o que decide é o contrato, não o aviso. DIVERGENCIA_TAXA em 5 linhas de origem | Helena (Financeiro) |
 | Rota Global Intercâmbio Ltda (checkout) | R$ 1.546,28 | Erro da Orbe: +0,50 p.p. no crédito desde 12/09 sem nenhuma mudança contratual. DIVERGENCIA_TAXA em 87 linhas de origem | Helena (Financeiro) |
 | Mundo Aberto (remessa) | R$ 1.418,85 | Divergência de contrato: spread de 1,20% negociado e registrado desde julho e a Ponte aplicou cerca de 1,50%. Contestar com a Ponte e ressarcir o lojista. A Ponte não foi avisada (falha de processo nossa), mas o que decide é o contrato, não o aviso. DIVERGENCIA_TAXA em 23 linhas de origem | Helena (Financeiro) |
@@ -35,11 +35,11 @@ Cada pendência entra em uma linha só (nenhuma linha de origem conta duas vezes
 | Lançamento de extrato sem identificação | R$ 7.350,00 | AURORA 2026-09-16: "PIX RECEBIDO 38686002000180 SEM IDENTIFICACAO" R$ 7.350,00, classificado em 1.1.09.002 (Créditos não identificados). EXTRATO_NAO_IDENTIFICADO em 1 linha de origem | Financeiro |
 | Repasse devolvido pelo banco | R$ 12.400,00 | AURORA 2026-09-23: "DEVOLUCAO PIX - MUNDO ABERTO INTERC" R$ 12.400,00, classificado em 2.1.01.001 (Repasses a lojistas a pagar). DEVOLUCAO em 1 linha de origem | Financeiro |
 
-**Total em jogo: R$ 48.364,75** (= soma das pendências não informativas, R$ 48.364,75).
+**Total em jogo: R$ 48.364,10** (= soma das pendências não informativas, R$ 48.364,10).
 
 ### Pendências por responsável
 
-- **Helena (Financeiro) + Comercial**: 2 pendência(s), R$ 15.397,42 em jogo (1 informativa): TARIFA_ZERO_COBRADA, ALERTA_ANTECIPACAO.
+- **Helena (Financeiro) + Comercial**: 2 pendência(s), R$ 15.396,77 em jogo (1 informativa): TARIFA_ZERO_COBRADA, ALERTA_ANTECIPACAO.
 - **Helena (Financeiro)**: 10 pendência(s), R$ 5.341,28 em jogo (1 já incluída em outra): DIVERGENCIA_TAXA, EXCESSO_SPREAD_CONTESTADO, CONFERIR_REPASSE_PONTE, SPREAD_NEGATIVO, SALDO_NEGATIVO_LOJISTA.
 - **Comercial**: 1 pendência(s), R$ 7.876,05 em jogo: SEM_CONTRATO.
 - **Financeiro**: 3 pendência(s), R$ 19.750,00 em jogo (1 informativa): EXTRATO_NAO_IDENTIFICADO, DEVOLUCAO, EM_TRANSITO.
@@ -55,8 +55,7 @@ Cada pendência entra em uma linha só (nenhuma linha de origem conta duas vezes
 
 ### Conhecimento capturado
 
-- Base de regras: 102 alterações registradas em `historico_alteracoes.csv` desde 2026-09-01 (77 criou, 22 alterou, 1 inativou, 2 removeu), em 78 regras/arquivos. Cada linha traz quem aprovou, quem registrou e a fonte (pessoa, canal, hora). Últimas:
-  - 2026-10-17 · P-12 · REMOVEU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta à Desbravadores 17/10 11h33 (“A Ponte manda o ajust
+- Base de regras: 103 alterações registradas em `historico_alteracoes.csv` desde 2026-09-01 (77 criou, 23 alterou, 1 inativou, 2 removeu), em 78 regras/arquivos. Cada linha traz quem aprovou, quem registrou e a fonte (pessoa, canal, hora). Últimas:
   - 2026-10-17 · J-01 · CRIOU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta à Desbravadores 17/10 11h33 (“A Ponte manda o ajust
   - 2026-10-17 · J-02 · CRIOU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Premissa do time MN AI
   - 2026-10-17 · E-03 · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“Coloquem os dois na pendência
@@ -64,6 +63,7 @@ Cada pendência entra em uma linha só (nenhuma linha de origem conta duas vezes
   - 2026-10-17 · X-01 · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
   - 2026-10-17 · causas_divergencia.csv · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
   - 2026-10-17 · comunicacoes.csv · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
+  - 2026-10-17 · X-01 · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, ao Southlands 17/10 11h38 (“A devolução da Casa fica separad
 - Pendências: sem `--anterior`, não dá para dizer quais são novas e quais são recorrentes.
 
 ---
@@ -78,7 +78,7 @@ Cada pendência entra em uma linha só (nenhuma linha de origem conta duas vezes
 | REMESSA | 14 | R$ 39.543,45 |
 | **Total** |  | **R$ 246.583,18** |
 
-Notas a emitir: 21, somando R$ 246.588,68. A diferença de R$ 5,50 para a comissão total é o saldo negativo sem nota (Casa do Estudante Viagens Ltda -R$ 5,50). Divergências: 233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) + 118 de concessão comercial fora do contrato (R$ 15.397,42, devolução ao lojista por conta da Tarvo). Pendências: 16.
+Notas a emitir: 21, somando R$ 246.588,68. A diferença de R$ 5,50 para a comissão total é o saldo negativo sem nota (Casa do Estudante Viagens Ltda -R$ 5,50). Divergências: 115 transações, todas 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08); fora do arquivo, por regra, 118 transações de concessão comercial fora do contrato (R$ 15.396,77 cobrados de fato pela adquirente, devolução ao lojista por conta da Tarvo, só em pendência). Pendências: 16.
 
 ## Notas a emitir
 
@@ -110,26 +110,25 @@ Sem nota: Casa do Estudante Viagens Ltda (00520815000100) fechou em -R$ 5,50 (ne
 
 ## Divergências de taxa (contratada × aplicada)
 
-233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) + 118 de concessão comercial fora do contrato (R$ 15.397,42, devolução ao lojista por conta da Tarvo). A coluna `natureza` de `divergencias_taxa.csv` separa as duas: CONTRATO é cobrança da contraparte (anexos em `comunicacoes/`); outra natureza é marcada pela regra TAXA_EXCECAO e fica fora de qualquer total a cobrar.
+115 transações, todas 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08); fora do arquivo, por regra, 118 transações de concessão comercial fora do contrato (R$ 15.396,77 cobrados de fato pela adquirente, devolução ao lojista por conta da Tarvo, só em pendência). A coluna `natureza` de `divergencias_taxa.csv` separa as duas: CONTRATO é cobrança da contraparte (anexos em `comunicacoes/`); outra natureza é marcada pela regra TAXA_EXCECAO e fica fora de qualquer total a cobrar.
 
 | Natureza | Linha | Lojista | Transações | Contratada × aplicada | Diferença |
 |---|---|---|---|---|---|
 | CONTRATO | CHECKOUT | Rota Global Intercâmbio Ltda | 87 | 2.49%–3.59% × 2.99%–4.09% | R$ 1.546,28 |
 | CONTRATO | REMESSA | Mundo Aberto | 23 | 1.2% × 1.5% | R$ 1.418,85 |
 | CONTRATO | CHECKOUT | Escola Bridge de Idiomas Ltda | 5 | 2.19% × 2.59% | R$ 29,95 |
-| DEVOLUCAO_LOJISTA | CHECKOUT | Casa do Estudante Viagens Ltda | 118 | 0% × 0.89%–3.79% | R$ 15.397,42 |
 
 Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticamente: cada caso é uma pendência para decisão.
 
-**Fora da cobrança da contraparte** (natureza DEVOLUCAO_LOJISTA, regra X-01): 118 transações de Casa do Estudante Viagens Ltda com condição especial contratada (0%) em que a adquirente aplicou 0.89%–3.79%, R$ 15.397,42 pela taxa. Observação da regra: concessão comercial fora do contrato (a Orbe cobrou o contratado). Devolução ao lojista por conta da Tarvo, não cobrar da Orbe. Ver pendência TARIFA_ZERO_COBRADA; as transações estão em `divergencias_taxa.csv` marcadas com essa natureza e não entram em `orbe_contestacao.csv`.
+**Fora de `divergencias_taxa.csv`, por regra** (X-01): 118 transações de Casa do Estudante Viagens Ltda com condição especial contratada (0%) em que a adquirente aplicou 0.89%–3.79%: R$ 15.396,77 cobrados de fato (a fórmula bruto × taxa daria R$ 15.397,42; R$ 0,65 de truncamento da adquirente que o lojista não pagou). Observação da regra: concessão comercial fora do contrato (a Orbe cobrou o contratado). Devolução ao lojista por conta da Tarvo, não cobrar da Orbe. Não é divergência de contrato: fica fora deste arquivo, de `orbe_contestacao.csv` e de qualquer cobrança da adquirente. O total e o detalhe por transação estão na pendência TARIFA_ZERO_COBRADA (rastro).
 
 ## Pendências por responsável
 
 "Em jogo" é a soma dos valores absolutos das pendências do responsável, sem as informativas (marcadas por regra, ex.: em trânsito e alertas) e sem as já incluídas em outra pendência: nenhuma linha de origem conta duas vezes.
 
-### Helena (Financeiro) + Comercial — 2 pendência(s), R$ 15.397,42 em jogo (1 informativa)
+### Helena (Financeiro) + Comercial — 2 pendência(s), R$ 15.396,77 em jogo (1 informativa)
 
-- **PEN-0001 · TARIFA_ZERO_COBRADA** (00520815000100, R$ 15.397,42): A adquirente cobrou efetivamente R$ 15.396,77 em 118 transações de checkout com condição especial (0% contratada x 0.89% a 3.79% aplicada pela adquirente): R$ 15.397,42 pela taxa, R$ 0,65 a menos que a divergência calculada porque a adquirente trunca centavos, o que não é divergência. As transações estão em divergencias_taxa.csv com natureza DEVOLUCAO_LOJISTA, fora da cobrança da adquirente, por regra (X-01): devolução ao lojista (concessão comercial fora do contrato (a Orbe cobrou o contratado). Devolução ao lojista por conta da Tarvo, não cobrar da Orbe). Taxa contratada = 0 no checkout (MDR e antecipação). Concessão do Comercial fora do contrato, para segurar o cliente: a Orbe cobrou o que estava contratado e não há o que cobrar da Orbe. Quem abriu mão da receita foi a Tarvo, então a devolução ao lojista sai do nosso bolso (custo da Tarvo). É diferente de uma divergência de contrato: sai em divergencias_taxa.csv marcada com natureza DEVOLUCAO_LOJISTA e a observação da regra, fora de qualquer total a cobrar da Orbe, e a devolução é decidida com o Comercial. A remessa da Casa segue normal
+- **PEN-0001 · TARIFA_ZERO_COBRADA** (00520815000100, R$ 15.396,77): A adquirente cobrou efetivamente R$ 15.396,77 em 118 transações de checkout com condição especial (0% contratada x 0.89% a 3.79% aplicada pela adquirente). Devolução ao lojista do que foi efetivamente cobrado: a fórmula bruto × taxa daria R$ 15.397,42 (R$ 0,65 de truncamento da adquirente que o lojista não pagou). As transações ficam fora de divergencias_taxa.csv e de qualquer cobrança da adquirente, por regra (X-01), com o detalhe por transação no rastro desta pendência (concessão comercial fora do contrato (a Orbe cobrou o contratado). Devolução ao lojista por conta da Tarvo, não cobrar da Orbe). Taxa contratada = 0 no checkout (MDR e antecipação). Concessão do Comercial fora do contrato, para segurar o cliente: a Orbe cobrou o que estava contratado e não há o que cobrar da Orbe. Quem abriu mão da receita foi a Tarvo, então a devolução ao lojista sai do nosso bolso (custo da Tarvo). Não é divergência de contrato: fica FORA de divergencias_taxa.csv e de orbe_contestacao.csv, só na pendência TARIFA_ZERO_COBRADA, com o total e o detalhe por transação, pelo que a Orbe cobrou de fato (o que foi cobrado, devolve-se), decidida com o Comercial. A remessa da Casa segue normal
 - **PEN-0012 · ALERTA_ANTECIPACAO** (informativa) (39566044000119, R$ 179.592,82): Em 2026-09-15, R$ 179.592,82 antecipados contra R$ 55.357,50 vendidos até a data. No mês, R$ 235.943,10 antecipados e R$ 108.712,14 revertidos (líquido R$ 127.230,96) contra R$ 135.428,90 vendidos. ATLAS IDIOMAS: lojista SEM_CONTRATO no cadastro. Alerta de controle, não perda: a antecipação deve ser sobre o que o lojista já vendeu. Conferir com a adquirente a agenda de recebíveis do lojista e, se for lojista sem contrato, tratar junto com o Comercial. Nada sai da comissão por este alerta
 
 ### Helena (Financeiro) — 10 pendência(s), R$ 5.341,28 em jogo
@@ -178,11 +177,11 @@ Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticam
 
 - ✅ 4. transações em comissão de checkout = transações no rastro COM-CHK: 1886 transações
 - ✅ 1. soma do rastro = valor reportado (comissoes_por_lojista.csv): 35 ids conferidos
-- ✅ 1. soma do rastro = valor reportado (divergencias_taxa.csv): 233 ids conferidos
+- ✅ 1. soma do rastro = valor reportado (divergencias_taxa.csv): 115 ids conferidos
 - ✅ 1. soma do rastro = valor reportado (notas_a_emitir.csv): 21 ids conferidos
 - ✅ 1. soma do rastro = valor reportado (lancamentos_classificados.csv): 184 ids conferidos
 - ✅ 1. soma do rastro = valor reportado (pendencias.csv): 16 ids conferidos
-- ✅ 1. todo id do rastro existe nas saídas: 489 ids no rastro
+- ✅ 1. todo id do rastro existe nas saídas: 371 ids no rastro
 - ✅ 2. comissões de checkout com saldo > 0 = notas CHECKOUT: 20 lojistas somam 207045.23; 20 notas somam 207045.23
 - ✅ 3. nota REMESSA = soma da comissão de remessa: comissão 39543.45; 1 nota(s) somam 39543.45
 - ✅ 4. toda linha da Orbe tem exatamente um destino: 1943 linhas -> COMISSAO 1886, EXCLUIDO 57

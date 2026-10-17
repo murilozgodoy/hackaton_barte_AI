@@ -16,7 +16,8 @@ executada: vira lembrete no relatório (e, com `assunto=`, texto da conciliaçã
 calcula um critério e gera pendência sem tirar nada da comissão. DONO_PENDENCIA aceita
 `subtipo=` (dono específico) e `informativa=true` (fora do "em jogo"). TAXA_EXCECAO aceita
 `divergencia=DEVOLUCAO_LOJISTA` (a diferença sai em divergencias_taxa.csv com essa natureza e a `observacao=`
-da regra, fora da cobrança da contraparte). Pendências em
+da regra, fora da cobrança da contraparte) e `destino=PENDENCIA` (a diferença fica FORA de divergencias_taxa.csv
+e só vira a pendência `tipo_pendencia=`, pelo que a contraparte cobrou de fato, com rastro por transação). Pendências em
 PENDENCIAS_OPCIONAIS só existem com dono ativo. Quem aprova cada tipo: regras/aprovadores.csv.
 Colunas de texto livre (situacao, como_identificar, o_que_fazer...) não são interpretadas pelo código.
 
@@ -99,6 +100,10 @@ AGRUPAR = {"cnpj", "ec", "linha", "tudo"}
 # natureza da diferença entre taxa contratada e aplicada numa TAXA_EXCECAO (parâmetro `divergencia`)
 NATUREZA_CONTRATO = "CONTRATO"            # contratada ≠ aplicada: cobrança da contraparte (adquirente ou parceiro)
 NATUREZAS_DIVERGENCIA = {NATUREZA_CONTRATO, "DEVOLUCAO_LOJISTA"}   # DEVOLUCAO_LOJISTA: no CSV, marcada; fora da cobrança
+# onde a diferença de uma TAXA_EXCECAO sai (parâmetro `destino`): DIVERGENCIA = divergencias_taxa.csv (+ pendência);
+# PENDENCIA = só pendência (fora do CSV e de qualquer cobrança da contraparte), pelo que foi cobrado de fato
+DESTINO_DIVERGENCIA = "DIVERGENCIA"
+DESTINOS_EXCECAO = {DESTINO_DIVERGENCIA, "PENDENCIA"}
 CHAVES_DUPLICADO = {"ponte": {"num_operacao"}, "orbe": {"id_transacao"}}
 # papel de um lançamento na conciliação entre fontes (CLASSIFICAR_CONTA, opcional)
 PAPEIS = {"recebimento_adquirente", "repasse_lojista", "recurso_remessa", "liquidacao_remessa"}
@@ -107,7 +112,7 @@ _RE_IDENT = re.compile(r"[A-Z][A-Z0-9_]*")
 # chaves obrigatórias e opcionais de `parametros`, por tipo
 ESQUEMA = {
     "TAXA_EXCECAO": ({"cnpj", "linha_negocio", "produto", "taxa_pct"},
-                     {"tipo_pendencia", "subtipo", "divergencia", "observacao"}),
+                     {"tipo_pendencia", "subtipo", "divergencia", "observacao", "destino"}),
     "IGNORAR_DUPLICADO": ({"fonte", "chave"}, set()),
     "EXCLUIR_E_PENDENCIA": ({"fonte", "criterio", "tipo_pendencia"},
                             {"status", "aceitos", "valor_pendencia", "agrupar", "subtipo", "prioridade"}),
@@ -695,7 +700,13 @@ def _validar_params(regra: Regra, erro, avisos, onde, ctx: _Contexto):
             erro(f"divergencia '{p['divergencia']}' inválida", f"use {' ou '.join(sorted(NATUREZAS_DIVERGENCIA))}")
         elif p["divergencia"] != NATUREZA_CONTRATO and "tipo_pendencia" not in p:
             erro(f"divergencia={p['divergencia']} sem tipo_pendencia",
-                 "informe tipo_pendencia=... para a diferença virar pendência (ela fica fora de divergencias_taxa.csv)")
+                 "informe tipo_pendencia=... para a diferença virar pendência (ela fica fora da cobrança da contraparte)")
+        p["destino"] = normalizar(p.get("destino", DESTINO_DIVERGENCIA))
+        if p["destino"] not in DESTINOS_EXCECAO:
+            erro(f"destino '{p['destino']}' inválido", f"use {' ou '.join(sorted(DESTINOS_EXCECAO))}")
+        elif p["destino"] != DESTINO_DIVERGENCIA and "tipo_pendencia" not in p:
+            erro(f"destino={p['destino']} sem tipo_pendencia",
+                 "informe tipo_pendencia=... (com destino=PENDENCIA a diferença só existe como pendência)")
 
     elif tipo == "IGNORAR_DUPLICADO":
         fonte = p["fonte"].lower()

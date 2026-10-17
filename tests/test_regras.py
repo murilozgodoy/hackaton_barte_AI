@@ -293,3 +293,15 @@ def test_todos_os_lancamentos_do_mes_tem_regra(config, dados):
         sem_regra = [(r.ref_origem, r.descricao) for r in df.itertuples()
                      if config.classificar(r.banco, r.descricao, r.valor, r.data.date()).regra is None]
         assert sem_regra == [], sem_regra
+
+
+def test_destino_da_excecao_so_pendencia_ou_divergencia(regras_tmp, dados, bancos):
+    """TAXA_EXCECAO destino=PENDENCIA (a diferença fica fora de divergencias_taxa.csv, só pendência) precisa de
+    tipo_pendencia; valor fora de DIVERGENCIA/PENDENCIA é erro de configuração."""
+    _trocar(regras_tmp, "regras_negocio.csv", "destino=PENDENCIA", "destino=ARQUIVO")
+    msg = _erros(regras_tmp, dados, bancos)
+    assert "X-01" in msg and "destino 'ARQUIVO' inválido" in msg and "DIVERGENCIA ou PENDENCIA" in msg
+    _trocar(regras_tmp, "regras_negocio.csv", "destino=ARQUIVO", "destino=PENDENCIA")
+    _trocar(regras_tmp, "regras_negocio.csv", " | tipo_pendencia=TARIFA_ZERO_COBRADA", "")
+    msg = _erros(regras_tmp, dados, bancos)
+    assert "destino=PENDENCIA sem tipo_pendencia" in msg

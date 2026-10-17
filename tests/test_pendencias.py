@@ -72,15 +72,17 @@ def test_rastro_fecha_para_toda_pendencia_com_valor(fech):
 
 def test_casa_do_estudante_tarifa_zero(fech):
     r = _por(fech, "TARIFA_ZERO_COBRADA").iloc[0]
-    assert (r.cnpj, r.valor_brl, r.qtd_itens, r.regra_id) == (CASA, D("15397.42"), 118, "X-01")
+    assert (r.cnpj, r.valor_brl, r.qtd_itens, r.regra_id) == (CASA, D("15396.77"), 118, "X-01")   # o que foi cobrado, devolve-se
     assert r.quem_decide == "Helena (Financeiro) + Comercial"
-    assert "cobrou efetivamente R$ 15.396,77" in r.motivo and "R$ 0,65 a menos" in r.motivo and "trunca centavos" in r.motivo
+    assert "cobrou efetivamente R$ 15.396,77" in r.motivo and "a fórmula bruto × taxa daria R$ 15.397,42" in r.motivo
+    assert "R$ 0,65 de truncamento da adquirente que o lojista não pagou" in r.motivo
     assert "devolução ao lojista" in r.motivo and "não há o que cobrar da Orbe" in r.motivo
-    assert "natureza DEVOLUCAO_LOJISTA, fora da cobrança da adquirente" in r.motivo and "concessão comercial fora do contrato" in r.motivo
+    assert "ficam fora de divergencias_taxa.csv e de qualquer cobrança da adquirente" in r.motivo and "concessão comercial fora do contrato" in r.motivo
     assert "custo da Tarvo" in r.motivo   # F16: quem abriu mão da receita foi a Tarvo
-    assert len(fech.rastro[fech.rastro.id_saida == r.id_saida]) == 118
-    casa = fech.divergencias[fech.divergencias.cnpj == CASA]
-    assert len(casa) == 118 and set(casa.natureza) == {"DEVOLUCAO_LOJISTA"} and CASA not in set(fech.divergencias_contrato.cnpj)
+    rastro = fech.rastro[fech.rastro.id_saida == r.id_saida]
+    assert len(rastro) == 118 and soma(rastro.valor) == D("15396.77")
+    assert CASA not in set(fech.divergencias.cnpj) and len(fech.divergencias) == 115   # separada das divergências
+    assert len(fech.so_pendencia) == 118 and set(fech.so_pendencia.cnpj) == {CASA}
 
 
 def test_divergencias_rota_bridge_mundo_aberto(fech):
@@ -283,9 +285,9 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert pr["Comercial"] == {"quantidade": 1, "valor_brl": "7876.05", "informativas": 0, "incluidas_em_outra": 0}
     # informativas (EM_TRANSITO, ALERTA_ANTECIPACAO) e a metade do excesso (já na divergência) ficam fora do "em jogo"
     assert pr["Financeiro"] == {"quantidade": 3, "valor_brl": "19750.00", "informativas": 1, "incluidas_em_outra": 0}
-    assert pr["Helena (Financeiro) + Comercial"] == {"quantidade": 2, "valor_brl": "15397.42", "informativas": 1, "incluidas_em_outra": 0}
+    assert pr["Helena (Financeiro) + Comercial"] == {"quantidade": 2, "valor_brl": "15396.77", "informativas": 1, "incluidas_em_outra": 0}
     assert pr["Helena (Financeiro)"] == {"quantidade": 10, "valor_brl": "5341.28", "informativas": 0, "incluidas_em_outra": 1}
-    assert res["totais"]["pendencias"]["informativas"] == 2 and res["totais"]["pendencias"]["em_jogo_brl"] == "48364.75"
+    assert res["totais"]["pendencias"]["informativas"] == 2 and res["totais"]["pendencias"]["em_jogo_brl"] == "48364.10"
     assert res["conciliacao"]["parceiro_cambio"]["data_repasse"] == "2026-10-06"
     assert "M-05" in res["conciliacao"]["remessa_x_banco"]["observacao"] and "18.240,00" in res["conciliacao"]["remessa_x_banco"]["observacao"]
     assert res["arquivos"]["pendencias"] == "pendencias.csv"
@@ -299,15 +301,17 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     rel = (tmp_path / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
     assert rel.startswith("# Fechamento Tarvo — competência 09/2026") and "Integridade: OK" in rel
     assert "R$ 207.039,73" in rel and "Ponte Câmbio S.A." in rel and "### Comercial" in rel
-    assert "Fora da cobrança da contraparte" in rel and "118 transações" in rel and "R$ 15.397,42" in rel
-    assert ("233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) + 118 de concessão "
-            "comercial fora do contrato (R$ 15.397,42, devolução ao lojista por conta da Tarvo)") in rel
-    assert "| DEVOLUCAO_LOJISTA | CHECKOUT | Casa do Estudante Viagens Ltda | 118 |" in rel
+    assert "Fora de `divergencias_taxa.csv`, por regra** (X-01): 118 transações" in rel and "R$ 15.396,77 cobrados de fato" in rel
+    assert "a fórmula bruto × taxa daria R$ 15.397,42; R$ 0,65 de truncamento" in rel
+    assert ("115 transações, todas 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08); fora do arquivo, "
+            "por regra, 118 transações de concessão comercial fora do contrato (R$ 15.396,77 cobrados de fato pela adquirente, "
+            "devolução ao lojista por conta da Tarvo, só em pendência)") in rel
+    assert "| DEVOLUCAO_LOJISTA |" not in rel and "R$ 15.397,42, devolução" not in rel
     assert res["totais"]["divergencias"]["checkout"] == {"linhas": 92, "valor_brl": "1576.23"}
-    assert res["totais"]["divergencias"]["devolucao_lojista"] == {"linhas": 118, "valor_brl": "15397.42"}
-    assert res["totais"]["divergencias"]["linhas"] == 233 and res["totais"]["divergencias"]["contrato"] == {"linhas": 115, "valor_brl": "2995.08"}
-    assert res["totais"]["divergencias"]["por_natureza"] == {"DEVOLUCAO_LOJISTA": {"linhas": 118, "valor_brl": "15397.42"},
-                                                            "CONTRATO": {"linhas": 115, "valor_brl": "2995.08"}}
+    assert res["totais"]["divergencias"]["devolucao_lojista"] == {"linhas": 0, "valor_brl": "0.00"}
+    assert res["totais"]["divergencias"]["so_pendencia"] == {"linhas": 118, "valor_brl": "15396.77", "pela_taxa_brl": "15397.42"}
+    assert res["totais"]["divergencias"]["linhas"] == 115 and res["totais"]["divergencias"]["contrato"] == {"linhas": 115, "valor_brl": "2995.08"}
+    assert res["totais"]["divergencias"]["por_natureza"] == {"CONTRATO": {"linhas": 115, "valor_brl": "2995.08"}}
     assert "não se comparam" in rel and "agenda de recebíveis" in rel and "3.707" not in rel and "repassou" not in rel.lower()
     assert "M-01" in rel and "5 dias úteis" in rel
     assert "RECURSO_SEM_OPERACAO" not in rel and "M-05" in rel and "mês seguinte" in rel

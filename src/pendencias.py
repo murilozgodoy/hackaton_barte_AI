@@ -86,9 +86,10 @@ def _nomes(serie) -> str:
 def calcular(competencia_ref: date, chk_linhas, rem_linhas, divergencias, sem_nota, chk_rastro, lancamentos,
              em_transito, conciliacao: dict, notas, config: Config,
              taxas: pd.DataFrame | None = None, contestacao_anterior: dict | None = None,
-             rem_rastro: pd.DataFrame | None = None) -> ResultadoPendencias:
+             rem_rastro: pd.DataFrame | None = None, so_pendencia: pd.DataFrame | None = None) -> ResultadoPendencias:
     c = _Coletor(config, competencia_ref)
     _divergencias(c, divergencias, chk_linhas, rem_linhas)
+    _so_pendencia(c, so_pendencia, chk_linhas)
     _ajustes_parceiro(c, rem_linhas, contestacao_anterior or {})
     _nao_interpretadas(c, rem_linhas)
     _excesso_contestado(c, rem_linhas)
@@ -176,6 +177,31 @@ def _divergencias(c: _Coletor, div: pd.DataFrame, chk: pd.DataFrame, rem: pd.Dat
         c.add(tipo, cnpj, total, f"{motivo}. {regra.o_que_fazer}", regra,
               _rastro(g, "diferenca_brl", "regra_id", "taxa_contratada_pct"),
               linha_negocio=linha, cnpj=cnpj, lojista=g["lojista"].iloc[0], qtd_itens=len(g))
+
+
+def _so_pendencia(c: _Coletor, so_pend: pd.DataFrame | None, chk: pd.DataFrame) -> None:
+    """Transações que a regra TAXA_EXCECAO manda só para a pendência (destino=PENDENCIA): fora de
+    divergencias_taxa.csv. Uma pendência por (lojista, tipo), pelo que a adquirente cobrou DE FATO
+    (`cobrado_brl`, rastro por transação), não pela fórmula bruto × taxa."""
+    if so_pend is None or not len(so_pend):
+        return
+    for (cnpj, tipo), g in so_pend.groupby(["cnpj", "tipo_pendencia"], sort=False):
+        regra = c.config.regra(g["regra_id"].iloc[0])
+        cobrado, pela_taxa = soma(g["cobrado_brl"]), soma(g["diferenca_brl"])
+        trunc = pela_taxa - cobrado
+        taxas = f"{_pct(g['taxa_contratada_pct'])} contratada x {_pct(g['taxa_aplicada_pct'])} aplicada pela adquirente"
+        natureza = str(g["natureza"].iloc[0])
+        obs = str(g["observacao"].iloc[0]) if g["observacao"].notna().any() else ""
+        formula = (f"a fórmula bruto × taxa daria {brl(pela_taxa)} ({brl(abs(trunc))} de truncamento da adquirente que o "
+                   f"lojista {'não pagou' if trunc > 0 else 'pagou a mais'})") if trunc != 0 else f"a fórmula bruto × taxa dá o mesmo valor"
+        motivo = (f"A adquirente cobrou efetivamente {brl(cobrado)} em {len(g)} transações de checkout com condição "
+                  f"especial ({taxas}). {NATUREZAS_TEXTO.get(natureza, natureza.lower().replace('_', ' ')).capitalize()} "
+                  f"do que foi efetivamente cobrado: {formula}. As transações ficam fora de divergencias_taxa.csv e de "
+                  f"qualquer cobrança da adquirente, por regra ({regra.id}), com o detalhe por transação no rastro desta "
+                  f"pendência" + (f" ({obs})" if obs else ""))
+        c.add(tipo, cnpj, cobrado, f"{motivo}. {regra.o_que_fazer}", regra,
+              _rastro(g, "cobrado_brl", "regra_id", "taxa_contratada_pct"),
+              linha_negocio="CHECKOUT", cnpj=cnpj, lojista=g["lojista"].iloc[0], qtd_itens=len(g))
 
 
 def _excesso_contestado(c: _Coletor, rem: pd.DataFrame) -> None:

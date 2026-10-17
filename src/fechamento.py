@@ -34,6 +34,9 @@ class Fechamento:
     meta_ponte: dict = field(default_factory=dict)   # remetente, data do e-mail, data de repasse, prazo
     checagens: list[Checagem] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
+    # transações com diferença de taxa que a regra TAXA_EXCECAO manda só para a pendência (destino=PENDENCIA):
+    # fora de divergencias_taxa.csv e de qualquer cobrança; o detalhe por transação está no rastro da pendência
+    so_pendencia: pd.DataFrame = field(default_factory=lambda: pd.DataFrame(columns=divergencias.COLUNAS_SO_PENDENCIA))
 
     @property
     def integro(self) -> bool:
@@ -89,7 +92,7 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
                                 config.parametro("participacao_spread", ref), config.parametro("arredondamento", ref))
     pend = pendencias.calcular(ref, chk.linhas, rem.linhas, div, sem_nota, chk.rastro, ext.lancamentos,
                                ext.em_transito, conc, nf, config, taxas=dados["taxas"], contestacao_anterior=contestacao_anterior,
-                               rem_rastro=rem.rastro)
+                               rem_rastro=rem.rastro, so_pendencia=dv.so_pendencia)
 
     colunas_com = ["id_saida", "cnpj", "lojista", "linha_negocio", "comissao_brl"]
     comissoes = pd.concat([chk.comissoes, rem.comissoes], ignore_index=True)
@@ -129,7 +132,7 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
     meta_ponte = {k: dados["ponte"].attrs.get(k) for k in ("remetente", "assunto", "data_envio", "data_repasse", "prazo_dias_uteis")}
     return Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, nf, sem_nota,
                       ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, cart, n_cart, dados["taxas"],
-                      meta_ponte, checagens, list(config.avisos) + ext.avisos + avisos_extra)
+                      meta_ponte, checagens, list(config.avisos) + ext.avisos + avisos_extra, dv.so_pendencia)
 
 
 def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None,

@@ -366,8 +366,14 @@ def _efeito(regra: Regra, lancamentos: pd.DataFrame | None) -> list[str]:
                           + ", ".join(f"{r.ref_origem} ({r.conta_codigo or 'sem conta'} hoje)" for r in casa.head(8).itertuples()))
         return efeito
     if regra.tipo == "TAXA_EXCECAO":
-        natureza = ("vira divergência de contrato (divergencias_taxa.csv)" if p.get("divergencia", "CONTRATO") == "CONTRATO"
-                    else f"fica fora de divergencias_taxa.csv e vira pendência {p.get('tipo_pendencia')} ({p['divergencia'].lower().replace('_', ' ')})")
+        if p.get("destino", "DIVERGENCIA") != "DIVERGENCIA":
+            natureza = (f"fica fora de divergencias_taxa.csv e vira só a pendência {p.get('tipo_pendencia')} "
+                        f"({p.get('divergencia', 'CONTRATO').lower().replace('_', ' ')}), pelo que foi cobrado de fato")
+        elif p.get("divergencia", "CONTRATO") == "CONTRATO":
+            natureza = "vira divergência de contrato (divergencias_taxa.csv)"
+        else:
+            natureza = (f"sai em divergencias_taxa.csv marcado como {p['divergencia'].lower().replace('_', ' ')}, fora da "
+                        f"cobrança, e vira pendência {p.get('tipo_pendencia')}")
         return [f"lojista {p['cnpj']}: taxa {p['taxa_pct']}% em {p['linha_negocio']} para "
                 f"{'todos os produtos' if p['produto'] == {'TODOS'} else ', '.join(sorted(p['produto']))}, "
                 f"de {regra.vigencia_de} até {regra.vigencia_ate or 'sem fim'}; o que for cobrado diferente {natureza}"]

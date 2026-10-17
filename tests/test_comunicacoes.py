@@ -85,7 +85,7 @@ def test_comercial(saida):
     md = (saida / "comunicacoes" / "comercial.md").read_text(encoding="utf-8")
     assert "SEM_CONTRATO" in md and "R$ 7.876,05" in md and "NÃO é receita da Tarvo" in md
     assert "ALERTA_ANTECIPACAO" in md and "(informativa)" in md and "R$ 179.592,82" in md
-    assert "TARIFA_ZERO_COBRADA" in md and "R$ 15.397,42" in md and "devolução ao lojista" in md
+    assert "TARIFA_ZERO_COBRADA" in md and "R$ 15.396,77" in md and "devolução ao lojista" in md   # o que foi cobrado, devolve-se
     assert md.count("- **PEN-") == 3
 
 

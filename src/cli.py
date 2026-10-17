@@ -220,6 +220,9 @@ def imprimir_fechamento(f: Fechamento) -> None:
     for (_cnpj, natureza), g in f.divergencias_fora_contrato.groupby(["cnpj", "natureza"], sort=False):
         print(f"  {natureza} (regra {g['regra_id'].iloc[0]}) fica fora da cobrança da contraparte: "
               f"{str(g['lojista'].iloc[0])[:40]}, {len(g)} linhas, {brl(soma(g['diferenca_brl']))} pela taxa")
+    for (_cnpj, tipo), g in f.so_pendencia.groupby(["cnpj", "tipo_pendencia"], sort=False):
+        print(f"  fora de divergencias_taxa.csv, por regra {g['regra_id'].iloc[0]}: {str(g['lojista'].iloc[0])[:40]}, "
+              f"{len(g)} linhas, {brl(soma(g['cobrado_brl']))} cobrados de fato, só na pendência {tipo}")
 
     print("\nNotas a emitir:")
     for r in f.notas.itertuples(index=False):

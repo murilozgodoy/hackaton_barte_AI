@@ -8,30 +8,40 @@ REMESSA: já calculada por operação em remessa.py (valor cheio); aqui só entr
 Natureza da diferença (coluna `natureza`): CONTRATO (contratada ≠ aplicada: cobrança da
 contraparte) ou a que a regra TAXA_EXCECAO declarar em `divergencia=` (ex.: DEVOLUCAO_LOJISTA,
 quando a condição especial não chegou à adquirente e a diferença é devolução ao lojista, não
-cobrança da adquirente). Toda transação divergente sai em divergencias_taxa.csv, com a natureza
-e a `observacao` que a regra declarar; só as de natureza CONTRATO entram na cobrança da
-contraparte (saida/comunicacoes/*_contestacao.csv). A pendência de cada grupo tem rastro por transação.
+cobrança da adquirente). Com `destino=DIVERGENCIA` (padrão) a transação divergente sai em
+divergencias_taxa.csv, com a natureza e a `observacao` que a regra declarar; só as de natureza
+CONTRATO entram na cobrança da contraparte (saida/comunicacoes/*_contestacao.csv). Com
+`destino=PENDENCIA` a transação fica FORA de divergencias_taxa.csv e só vira pendência
+(`tipo_pendencia` da regra), pelo que a adquirente cobrou de fato além da condição especial
+(`cobrado_brl` = valor_taxa da adquirente − comissão pela condição), com rastro por transação.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
 
 from .dinheiro import arredondar, pct
-from .regras import NATUREZA_CONTRATO, Config
+from .regras import DESTINO_DIVERGENCIA, NATUREZA_CONTRATO, Config
 
 PREFIXO_ID = "DIV-"
 COLUNAS = ["id_saida", "cnpj", "linha_negocio", "ref_origem", "taxa_contratada_pct", "taxa_aplicada_pct",
            "diferenca_brl", "lojista", "data", "produto", "valor_base_brl", "diferenca_pp", "arquivo_origem",
            "regra_id", "tipo_pendencia", "natureza", "observacao"]
+# transações que a regra manda só para a pendência (destino=PENDENCIA): sem id_saida, com o cobrado de fato
+COLUNAS_SO_PENDENCIA = COLUNAS[1:] + ["cobrado_brl"]
 COLUNAS_RASTRO = ["id_saida", "arquivo_origem", "ref_origem", "valor", "regra_id", "taxa_pct"]
+
+
+def _vazio_so_pendencia() -> pd.DataFrame:
+    return pd.DataFrame(columns=COLUNAS_SO_PENDENCIA)
 
 
 @dataclass
 class ResultadoDivergencias:
     divergencias: pd.DataFrame   # todas as naturezas, com id_saida: é o divergencias_taxa.csv
     rastro: pd.DataFrame         # id_saida -> transação
+    so_pendencia: pd.DataFrame = field(default_factory=_vazio_so_pendencia)   # destino=PENDENCIA: fora do CSV
 
 
 def contrato(div: pd.DataFrame) -> pd.DataFrame:
@@ -65,6 +75,9 @@ def calcular(checkout_linhas: pd.DataFrame, remessa_linhas: pd.DataFrame, config
                                else "DIVERGENCIA_TAXA"),
             "natureza": regra_excecao.params.get("divergencia", NATUREZA_CONTRATO) if excecao else NATUREZA_CONTRATO,
             "observacao": (regra_excecao.params.get("observacao") or None) if excecao else None,
+            "destino": regra_excecao.params.get("destino", DESTINO_DIVERGENCIA) if excecao else DESTINO_DIVERGENCIA,
+            # o que a adquirente cobrou de fato além da condição contratada (sem fórmula: valor_taxa dela − comissão)
+            "cobrado_brl": r.valor_taxa_orbe - r.comissao_brl,
         })
 
     rem = remessa_linhas[(remessa_linhas["destino"] == "COMISSAO") & remessa_linhas["diferenca_brl"].notna()]
@@ -76,14 +89,19 @@ def calcular(checkout_linhas: pd.DataFrame, remessa_linhas: pd.DataFrame, config
             "produto": f"spread {r.moeda}", "valor_base_brl": r.valor_brl, "diferenca_pp": r.diferenca_pp,
             "arquivo_origem": r.arquivo_origem, "regra_id": r.spread_contratado_origem,
             "tipo_pendencia": "DIVERGENCIA_TAXA", "natureza": NATUREZA_CONTRATO, "observacao": None,
+            "destino": DESTINO_DIVERGENCIA, "cobrado_brl": r.diferenca_brl,
         })
 
     if not registros:
         return ResultadoDivergencias(pd.DataFrame(columns=COLUNAS), pd.DataFrame(columns=COLUNAS_RASTRO))
-    df = pd.DataFrame(registros).sort_values(["linha_negocio", "cnpj", "data", "ref_origem"]).reset_index(drop=True)
+    todas = pd.DataFrame(registros).sort_values(["linha_negocio", "cnpj", "data", "ref_origem"]).reset_index(drop=True)
+    so_pend = todas[todas["destino"] != DESTINO_DIVERGENCIA].reset_index(drop=True)[COLUNAS_SO_PENDENCIA]
+    df = todas[todas["destino"] == DESTINO_DIVERGENCIA].reset_index(drop=True)
+    if df.empty:
+        return ResultadoDivergencias(pd.DataFrame(columns=COLUNAS), pd.DataFrame(columns=COLUNAS_RASTRO), so_pend)
     df.insert(0, "id_saida", [f"{PREFIXO_ID}{i:04d}" for i in range(1, len(df) + 1)])
     rastro = pd.DataFrame({
         "id_saida": df["id_saida"], "arquivo_origem": df["arquivo_origem"], "ref_origem": df["ref_origem"],
         "valor": df["diferenca_brl"], "regra_id": df["regra_id"], "taxa_pct": df["taxa_contratada_pct"],
     })
-    return ResultadoDivergencias(df[COLUNAS], rastro[COLUNAS_RASTRO])
+    return ResultadoDivergencias(df[COLUNAS], rastro[COLUNAS_RASTRO], so_pend)

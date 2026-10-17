@@ -20,7 +20,7 @@
       "valor_total_brl": "246588.68"
     },
     "divergencias": {
-      "linhas": 233,
+      "linhas": 115,
       "contrato": {
         "linhas": 115,
         "valor_brl": "2995.08"
@@ -34,29 +34,30 @@
         "valor_brl": "1418.85"
       },
       "devolucao_lojista": {
-        "linhas": 118,
-        "valor_brl": "15397.42"
+        "linhas": 0,
+        "valor_brl": "0.00"
       },
       "por_natureza": {
-        "DEVOLUCAO_LOJISTA": {
-          "linhas": 118,
-          "valor_brl": "15397.42"
-        },
         "CONTRATO": {
           "linhas": 115,
           "valor_brl": "2995.08"
         }
+      },
+      "so_pendencia": {
+        "linhas": 118,
+        "valor_brl": "15396.77",
+        "pela_taxa_brl": "15397.42"
       }
     },
     "pendencias": {
       "quantidade": 16,
       "informativas": 2,
-      "em_jogo_brl": "48364.75",
+      "em_jogo_brl": "48364.10",
       "nota": "valor_brl por responsável e por tipo é a soma dos valores absolutos (valor em jogo), sem as pendências informativas nem as já incluídas em outra (incluida_em): nenhuma linha de origem conta duas vezes",
       "por_responsavel": {
         "Helena (Financeiro) + Comercial": {
           "quantidade": 2,
-          "valor_brl": "15397.42",
+          "valor_brl": "15396.77",
           "informativas": 1,
           "incluidas_em_outra": 0
         },
@@ -82,7 +83,7 @@
       "por_tipo": {
         "TARIFA_ZERO_COBRADA": {
           "quantidade": 1,
-          "valor_brl": "15397.42",
+          "valor_brl": "15396.77",
           "informativas": 0,
           "incluidas_em_outra": 0
         },
@@ -267,7 +268,7 @@
     {
       "nome": "1. soma do rastro = valor reportado (divergencias_taxa.csv)",
       "ok": true,
-      "detalhe": "233 ids conferidos"
+      "detalhe": "115 ids conferidos"
     },
     {
       "nome": "1. soma do rastro = valor reportado (notas_a_emitir.csv)",
@@ -287,7 +288,7 @@
     {
       "nome": "1. todo id do rastro existe nas saídas",
       "ok": true,
-      "detalhe": "489 ids no rastro"
+      "detalhe": "371 ids no rastro"
     },
     {
       "nome": "2. comissões de checkout com saldo > 0 = notas CHECKOUT",

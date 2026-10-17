@@ -224,10 +224,10 @@ def test_tolerancia_de_checkout_editavel(dados, tmp_path):
     cfg = carregar_config(regras, dados["taxas"], dados["plano_contas"], {"AURORA", "MERIDIANO"})
     f = executar(dados, cfg, "2026-09", usar_ia=False)
     chk = f.divergencias_contrato[f.divergencias_contrato.linha_negocio == "CHECKOUT"]
-    # Rota (+0,50 p.p., na borda) e Bridge (+0,40) somem; Casa (2,69 x 0) fica, com natureza DEVOLUCAO_LOJISTA
-    # (X-01 divergencia=DEVOLUCAO_LOJISTA): no CSV, marcada, fora da cobrança; pendência com as 118 transações no rastro
-    assert chk.empty and set(f.divergencias_fora_contrato.cnpj) == {CASA} and len(f.divergencias_fora_contrato) == 118
-    assert set(f.divergencias.cnpj) == {CASA, "17217888000111"}   # só a Casa e a remessa da Mundo Aberto
+    # Rota (+0,50 p.p., na borda) e Bridge (+0,40) somem; Casa (2,69 x 0) continua fora do CSV e só na pendência
+    # (X-01 destino=PENDENCIA), com as 118 transações no rastro
+    assert chk.empty and f.divergencias_fora_contrato.empty and set(f.so_pendencia.cnpj) == {CASA} and len(f.so_pendencia) == 118
+    assert set(f.divergencias.cnpj) == {"17217888000111"}   # só a remessa da Mundo Aberto
     assert f.integro
 
 

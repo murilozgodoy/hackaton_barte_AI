@@ -61,12 +61,16 @@ decide, até alguém transformar a situação em regra automática.
 **Acordo comercial (X-01).** A Casa do Estudante não paga tarifa no checkout de
 01/09 a 31/12/2026.
 `tipo` = TAXA_EXCECAO · `vigencia_de` = 2026-09-01 · `vigencia_ate` = 2026-12-31
-`parametros` = `cnpj=00520815000100 | linha_negocio=CHECKOUT | produto=TODOS | taxa_pct=0 | tipo_pendencia=TARIFA_ZERO_COBRADA | divergencia=DEVOLUCAO_LOJISTA`
+`parametros` = `cnpj=00520815000100 | linha_negocio=CHECKOUT | produto=TODOS | taxa_pct=0 | tipo_pendencia=TARIFA_ZERO_COBRADA | divergencia=DEVOLUCAO_LOJISTA | destino=PENDENCIA`
 Tudo o que a Orbe cobrar nesse período vira a pendência TARIFA_ZERO_COBRADA para quem está
-em `quem_decide`, com o valor e o rastro de cada transação. `divergencia=DEVOLUCAO_LOJISTA`
-diz que não é divergência de contrato com a Orbe (ela cobrou certo pelo que sabia): as
-transações ficam **fora** de `divergencias_taxa.csv`. Sem esse parâmetro (ou com
-`divergencia=CONTRATO`), elas entram em `divergencias_taxa.csv` como qualquer divergência.
+em `quem_decide`, pelo que a Orbe **cobrou de fato** (soma do valor_taxa dela, não a fórmula
+bruto × taxa), com o rastro de cada transação. `divergencia=DEVOLUCAO_LOJISTA` diz que não é
+divergência de contrato com a Orbe (ela cobrou o que estava contratado): é devolução ao
+lojista por conta da Tarvo. `destino=PENDENCIA` diz que as transações ficam **fora** de
+`divergencias_taxa.csv` e de `orbe_contestacao.csv`: só existem na pendência (total + detalhe
+por transação). Com `destino=DIVERGENCIA` (padrão) elas entram em `divergencias_taxa.csv`
+marcadas com a natureza e a `observacao=` da regra, ainda fora da cobrança da Orbe; sem
+`divergencia=` (ou com `divergencia=CONTRATO`), entram como qualquer divergência de contrato.
 
 **Lançamento de extrato (C-03).** O PIX para a Contabilidade Exata não é repasse a lojista.
 `tipo` = CLASSIFICAR_CONTA
