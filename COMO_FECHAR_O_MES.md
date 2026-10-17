@@ -1,6 +1,6 @@
 # Como fechar o mês (sem assistente de IA)
 
-Roteiro para a analista, usando só o terminal. Tempo esperado: minutos, não dias. Os comandos são
+Roteiro para a analista, usando só o terminal. O motor fecha em segundos; o tempo restante do fechamento é o das decisões das pendências. Os comandos são
 os mesmos do README e da skill.
 
 ## Uma vez (instalação)
