@@ -444,6 +444,35 @@ def carregar_config(dir_regras: Path, taxas: pd.DataFrame, plano_contas: pd.Data
     return Config(cadastro, regras, avisos, _ultima_alteracao(dir_regras / "historico_alteracoes.csv", avisos))
 
 
+SEM_APROVADOR = {"", "—", "-", "–"}
+ACOES_QUE_ENCERRAM = {"REMOVEU", "INATIVOU"}
+
+
+def aprovacao_da_base(dir_regras: Path, config: Config) -> tuple[list[str], list[str]]:
+    """(sem aprovador, premissas) entre as regras ATIVAS e os demais itens da base registrados no histórico (arquivos
+    como causas_divergencia.csv, linhas do complemento), pela linha MAIS RECENTE de cada id em historico_alteracoes.csv:
+    `aprovado_por` vazio ou "—" (gravado fora de `regra aplicar`) = sem aprovador; começando por "PREMISSA" = premissa
+    do time, sem aprovação do financeiro. Uma linha de histórico pode citar vários ids separados por vírgula."""
+    caminho = Path(dir_regras) / "historico_alteracoes.csv"
+    ultima: dict[str, dict] = {}
+    if caminho.exists():
+        for _, r in ler_csv_regras(caminho, ["data", "quem", "id_regra", "acao"]):
+            for i in (x.strip() for x in r["id_regra"].split(",")):
+                if i:
+                    ultima[i] = r
+    ids_regras = {r.id for r in config.todas}
+    alvos = [r.id for r in config.regras]
+    alvos += [i for i, r in ultima.items() if i not in ids_regras and r["acao"].strip().upper() not in ACOES_QUE_ENCERRAM]
+    sem, premissas = [], []
+    for i in alvos:
+        aprovado = (ultima.get(i) or {}).get("aprovado_por", "").strip()
+        if aprovado in SEM_APROVADOR:
+            sem.append(i)
+        elif aprovado.upper().startswith("PREMISSA"):
+            premissas.append(i)
+    return sem, premissas
+
+
 def _ultima_alteracao(caminho: Path, avisos: list[str]) -> date | None:
     """Data mais recente registrada em historico_alteracoes.csv (para o relatório dizer que base usou)."""
     if not caminho.exists():

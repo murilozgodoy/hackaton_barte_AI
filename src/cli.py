@@ -27,7 +27,7 @@ from .fontes import NAO_RECONHECIDOS, carregar_config_fontes, localizar, nome_ar
 from .leitores import carregar_todas
 from .leitores.comum import ErroLeitura
 from .notas import competencia_texto, primeiro_dia
-from .regras import Config, ErroConfig, _Contexto, carregar_config
+from .regras import Config, ErroConfig, _Contexto, aprovacao_da_base, carregar_config
 from . import relatorio
 from .relatorio import valor_em_jogo
 from .validacao import Checagem, avisos_dos_leitores, checar_competencia_extratos, validar_leitores
@@ -175,6 +175,14 @@ def avisos_execucao(base: BaseRegras, config: Config) -> list[str]:
         avisos.append(f"base de regras: {como} a base inicial da skill ({NOME_REGRAS_INICIAIS}/), não uma pasta ou zip "
                       "do financeiro. Se houver base mais nova (regras aprovadas depois do empacotamento), rode de novo "
                       "com --regras <pasta ou zip>")
+    sem, premissas = aprovacao_da_base(base.pasta, config)
+    if sem:
+        avisos.append(f"base de regras: {len(sem)} item(ns) ativo(s) sem aprovador em historico_alteracoes.csv (gravados fora "
+                      f"de `regra aplicar`): {', '.join(sem)}. Confirme com quem aprova cada tipo (regras/aprovadores.csv) "
+                      "e registre o aprovador; até lá, o fechamento usa a regra como está")
+    if premissas:
+        avisos.append(f"base de regras: premissas em uso, sem aprovação do financeiro ({len(premissas)}): "
+                      f"{', '.join(premissas)}. O motivo de cada uma está em HIPOTESES.md")
     ultima = config.historico_ultima_alteracao
     avisos.append(f"base de regras: última alteração registrada em historico_alteracoes.csv em {ultima}" if ultima else
                   "base de regras: historico_alteracoes.csv sem data de alteração; não dá para saber de quando é a base")

@@ -47,3 +47,48 @@ def test_base_do_repositorio_nao_avisa_base_inicial(pasta_dados, tmp_path, capsy
     res, topo = _resumo_e_topo(tmp_path / "s")
     assert not any("base inicial" in a for a in res["avisos"])
     assert "## Avisos desta execução" in topo
+
+
+def _base_com_historico(tmp_path: Path, aprovador_por_id: dict[str, str]) -> Path:
+    """Cópia de regras/ com o histórico reescrito: uma linha CRIOU por regra ativa, com o aprovador dado (padrão: Helena)."""
+    import csv
+    regras = tmp_path / "regras"
+    shutil.copytree(RAIZ / "regras", regras)
+    ids = [r["id"] for r in csv.DictReader(open(regras / "regras_negocio.csv", encoding="utf-8-sig"), delimiter=";")
+           if r["status"] == "ATIVA"]
+    cab = "data;quem;id_regra;acao;antes;depois;motivo;fonte;aprovado_por;registrado_por"
+    linhas = [f"2026-10-17;teste;{i};CRIOU;;;;;{aprovador_por_id.get(i, 'Helena (Financeiro), Slack 17/10 09h49')};"
+              for i in ids]
+    (regras / "historico_alteracoes.csv").write_text("\n".join([cab] + linhas) + "\n", encoding="utf-8")
+    return regras
+
+
+def _avisos_validar(pasta_dados, regras: Path, capsys) -> list[str]:
+    assert main(["validar", "--entrada", str(pasta_dados), "--regras", str(regras), "--json"]) == 0
+    return json.loads(capsys.readouterr().out)["regras"]["avisos"]
+
+
+def test_regra_ativa_sem_aprovador_vira_aviso_e_com_aprovador_nao(pasta_dados, tmp_path, capsys):
+    regras = _base_com_historico(tmp_path, {"J-01": "—", "E-03": "", "J-02": "PREMISSA MN AI (sem aprovação do financeiro)"})
+    avisos = _avisos_validar(pasta_dados, regras, capsys)
+    sem = next(a for a in avisos if "sem aprovador" in a)
+    assert "2 item(ns)" in sem and "J-01" in sem and "E-03" in sem and "X-01" not in sem and "J-02" not in sem
+    prem = next(a for a in avisos if "premissas em uso" in a)
+    assert "J-02" in prem and "J-01" not in prem
+
+
+def test_base_toda_aprovada_nao_avisa(pasta_dados, tmp_path, capsys):
+    avisos = _avisos_validar(pasta_dados, _base_com_historico(tmp_path, {}), capsys)
+    assert not any("sem aprovador" in a or "premissas em uso" in a for a in avisos)
+
+
+def test_ultima_linha_do_historico_decide_e_vale_para_varios_ids(pasta_dados, tmp_path, capsys):
+    """Premissa depois confirmada pela Helena deixa de ser premissa; linha com "C-01, C-02" vale para os dois ids."""
+    regras = _base_com_historico(tmp_path, {"P-05": "PREMISSA MN AI (sem aprovação do financeiro)"})
+    with open(regras / "historico_alteracoes.csv", "a", encoding="utf-8") as f:
+        f.write("2026-10-17;teste;P-05;ALTEROU;;;;;Helena (Financeiro), Slack ~22h;\n")
+        f.write("2026-10-17;teste;C-01, C-02;ALTEROU;;;;;—;\n")
+    avisos = _avisos_validar(pasta_dados, regras, capsys)
+    assert not any("premissas em uso" in a for a in avisos)
+    sem = next(a for a in avisos if "sem aprovador" in a)
+    assert "C-01, C-02" in sem and "P-05" not in sem

@@ -337,6 +337,7 @@
     }
   ],
   "avisos": [
+    "base de regras: 76 item(ns) ativo(s) sem aprovador em historico_alteracoes.csv (gravados fora de `regra aplicar`): P-01, P-02, P-03, P-04, P-05, P-06, P-07, P-08, P-09, P-10, X-01, D-01, E-01, E-02, E-03, E-04, C-01, C-02, C-03, C-04, C-05, C-06, C-07, C-08, C-09, C-10, C-11, C-12, C-13, C-14, C-15, C-16, C-17, C-18, C-19, C-20, C-21, C-22, C-23, C-24, C-25, C-26, DP-01, DP-02, DP-03, DP-04, DP-05, DP-06, DP-07, DP-08, DP-09, M-01, M-02, M-03, DP-11, M-04, M-05, P-11, DP-12, A-01, M-06, DP-13, DP-14, DP-15, DP-16, DP-17, J-01, J-02, complemento:07752116000126, complemento:78576234000179, complemento:66564512000199, complemento:39566044000119, complemento:22348118000148, aprovadores.csv, comunicacoes.csv, causas_divergencia.csv. Confirme com quem aprova cada tipo (regras/aprovadores.csv) e registre o aprovador; até lá, o fechamento usa a regra como está",
     "base de regras: última alteração registrada em historico_alteracoes.csv em 2026-10-17"
   ],
   "arquivos": {
