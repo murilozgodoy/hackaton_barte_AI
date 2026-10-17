@@ -1,0 +1,15 @@
+# ambiente e caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+
+# data pack do mês (zip) e sua extração automática: nunca vão para o git
+Tarvo_Data_Pack_*.zip
+data/
+
+# arquivos internos do agente (não são entregáveis)
+.claude/
+.Codex/
+notas_agente/

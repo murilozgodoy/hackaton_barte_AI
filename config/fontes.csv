@@ -1,0 +1,8 @@
+fonte;padrao_arquivo;aba;rotulo;descricao
+pacote;Tarvo_Data_Pack_*.zip;;;Pacote mensal (zip) com todas as fontes, extraído automaticamente para data/
+orbe;01_orbe_*.csv;;;Relatório de comissões da adquirente Orbe (uma linha por transação)
+taxas;02_tabela_taxas*.xlsx;Taxas vigentes;;Planilha de taxas contratadas mantida pelo financeiro (só a aba indicada é lida)
+ponte;03_email_ponte*.eml;Operações;;E-mail da Ponte Câmbio com o relatório mensal em anexo (aba indicada)
+plano_contas;04_plano_de_contas*.csv;;;Plano de contas exportado do ERP Fênix
+aurora;05a_extrato_banco_aurora*.csv;;AURORA;Extrato CSV da conta principal (Banco Aurora)
+meridiano;05b_extrato_banco_meridiano*.ofx;;MERIDIANO;Extrato OFX da conta de remessas (Banco Meridiano)
