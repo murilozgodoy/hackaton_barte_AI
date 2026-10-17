@@ -68,7 +68,8 @@ def test_alternativas_normaliza_e_separa_por_ou():
 def test_cadastro_planilha_mais_complemento(config):
     cad = config.cadastro.set_index("cnpj")
     assert len(cad) == 25
-    assert cad["origem"].value_counts().to_dict() == {"planilha": 21, "planilha + complemento": 3, "complemento": 1}
+    assert cad["origem"].value_counts().to_dict() == {"planilha": 20, "planilha + complemento": 4, "complemento": 1}
+    assert cad.loc["22348118000148", "status"] == "INATIVO"    # Globo Trotter: só o complemento diz isso
     assert cad.loc[KIWI, "ec_orbe"] == "1038867654" and cad.loc[KIWI, "nome"] == "Kiwi Experience"
     assert cad.loc["22224579000109", "ec_orbe"] == "1075624862"  # Bridge: 2 linhas, 1 EC
     assert cad.loc["22224579000109", "linhas_planilha"] == [6, 7]

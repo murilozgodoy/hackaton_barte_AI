@@ -149,6 +149,22 @@ def normalizar_cnpj(valor) -> str | None:
     return digitos.zfill(14)
 
 
+def normalizar_ec(valor) -> str | None:
+    """Código de estabelecimento como texto só de dígitos (o Excel pode gravar 1086291869.0)."""
+    if valor is None:
+        return None
+    if isinstance(valor, float):
+        if not valor.is_integer():
+            raise ErroLeitura(f"EC inválido: {valor!r}")
+        valor = int(valor)
+    s = re.sub(r"\.0+$", "", str(valor).strip())
+    if not s:
+        return None
+    if not s.isdigit():
+        raise ErroLeitura(f"EC deve ter só dígitos: {valor!r}")
+    return s
+
+
 _RE_DATA_BR = re.compile(r"(\d{2})/(\d{2})/(\d{4})")
 
 

@@ -7,6 +7,7 @@ __pycache__/
 
 # data pack do mês (zip) e sua extração automática: nunca vão para o git
 Tarvo_Data_Pack_*.zip
+Tarvo_Data_Pack_*/
 data/
 
 # instruções originais do case (não são necessárias para rodar)

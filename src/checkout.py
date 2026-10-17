@@ -56,10 +56,11 @@ class TabelaTaxas:
         d = pd.Timestamp(data)
         if produto == PRODUTO_PARCELADO and parcelas is None:
             return None, "", "SEM_PARCELAS"
-        candidatas = []
+        candidatas, fora_da_faixa = [], False
         for r in self._grupos.get((cnpj, produto), []):
             if produto == PRODUTO_PARCELADO and not (
                     pd.notna(r.parcelas_de) and r.parcelas_de <= parcelas <= r.parcelas_ate):
+                fora_da_faixa = True
                 continue
             if pd.notna(r.vigencia_de) and d < r.vigencia_de:
                 continue
@@ -67,7 +68,7 @@ class TabelaTaxas:
                 continue
             candidatas.append(r)
         if not candidatas:
-            return None, "", "SEM_LINHA"
+            return None, "", ("FORA_FAIXA" if fora_da_faixa else "SEM_LINHA")
         if len(candidatas) > 1:
             return None, ", ".join(c.ref_origem for c in candidatas), "AMBIGUA"
         r = candidatas[0]
@@ -140,6 +141,7 @@ def _motivo_sem_taxa(situacao: str, produto: str, parcelas, data, ref: str) -> s
     alvo = f"{produto}{f' {parcelas}x' if parcelas else ''} em {data}"
     return {
         "SEM_LINHA": f"nenhuma taxa contratada vigente para {alvo} na planilha de taxas",
+        "FORA_FAIXA": f"quantidade de parcelas fora das faixas da planilha ({alvo})",
         "SEM_PARCELAS": f"linha parcelada sem quantidade de parcelas ({alvo})",
         "AMBIGUA": f"mais de uma taxa vigente para {alvo} na planilha ({ref})",
         "VAZIA": f"célula de taxa em branco para {alvo} na planilha ({ref})",
@@ -162,8 +164,8 @@ def _agrupar_por_lojista(linhas: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFra
             "qtd_transacoes": len(g), "valor_bruto_total": soma(g["valor_bruto"]),
             "taxa_cobrada_orbe_brl": soma(g["valor_taxa_orbe"]),
         })
-    comissoes = pd.DataFrame(grupos)
-    comissoes = comissoes.sort_values(["lojista", "cnpj"], key=lambda s: s.astype(str).str.upper()).reset_index(drop=True)
+    # ordem por CNPJ: o id_saida não muda se um lojista for renomeado na planilha
+    comissoes = pd.DataFrame(grupos).sort_values("cnpj").reset_index(drop=True)
     comissoes.insert(0, "id_saida", [f"{PREFIXO_ID}{i:04d}" for i in range(1, len(comissoes) + 1)])
     comissoes = comissoes[colunas_com]
 

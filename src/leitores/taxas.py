@@ -17,7 +17,7 @@ import pandas as pd
 from openpyxl.utils import get_column_letter
 
 from .comum import (
-    ErroLeitura, normalizar, normalizar_cnpj, parse_vigencia, taxa_pct_de_celula,
+    ErroLeitura, normalizar, normalizar_cnpj, normalizar_ec, parse_vigencia, taxa_pct_de_celula,
 )
 
 _RE_PARCELADO = re.compile(r"^CRED(ITO)?\.? *(PARCELADO)? *(\d+) *- *(\d+) *X$")
@@ -85,12 +85,15 @@ def ler_taxas(caminho: Path, aba: str) -> pd.DataFrame:
             linhas_ignoradas.append({"linha": n_excel, "conteudo": texto, "motivo": "sem CNPJ"})
             continue
         vig_de, vig_ate = parse_vigencia(get("vigencia_texto"))
-        ec = get("ec_orbe")
+        try:
+            ec = normalizar_ec(get("ec_orbe"))
+        except ErroLeitura as e:
+            raise ErroLeitura(f"{caminho.name}/{ws.title} linha {n_excel}: {e}") from None
         base = {
             "linha_planilha": n_excel,
             "lojista_planilha": (str(get("lojista_planilha")).strip() if get("lojista_planilha") else None),
             "cnpj": cnpj,
-            "ec_orbe": str(ec).strip() if ec not in (None, "") else None,
+            "ec_orbe": ec,
             "vigencia_texto": get("vigencia_texto"),
             "vigencia_de": vig_de,
             "vigencia_ate": vig_ate,

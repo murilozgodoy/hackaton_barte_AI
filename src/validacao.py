@@ -1,7 +1,8 @@
 """Checagens de integridade que rodam em toda execução.
 
 ERRO interrompe o fechamento (número não confiável). AVISO aparece no resumo
-mas não impede a saída. Nada aqui depende do mês: só invariantes dos arquivos.
+mas não impede a saída. Nada aqui depende do mês: só invariantes dos arquivos e
+das saídas. Numeração das checagens de saída conforme a especificação (1 a 6).
 """
 from __future__ import annotations
 
@@ -21,6 +22,9 @@ class Checagem:
     detalhe: str
     nivel: str = "ERRO"  # ERRO | AVISO | INFO
 
+    def __post_init__(self):
+        self.ok = bool(self.ok)  # numpy.bool_ viraria "True" no JSON
+
 
 def _soma(serie) -> Decimal:
     return sum((v for v in serie if v is not None), Decimal("0"))
@@ -29,6 +33,12 @@ def _soma(serie) -> Decimal:
 def _hu(v: Decimal) -> Decimal:
     return v.quantize(CENTAVO, rounding=ROUND_HALF_UP)
 
+
+def _eh_valor(v) -> bool:
+    return v is not None and (isinstance(v, Decimal) or not pd.isna(v))
+
+
+# --------------------------------------------------------------------------- saídas (1 a 6)
 
 def checar_rastro(saidas: dict[str, tuple[pd.DataFrame, str]], rastro: pd.DataFrame) -> list[Checagem]:
     """Checagem 1: a soma do rastro por id_saida é igual ao valor reportado, para todo id com valor.
@@ -43,7 +53,7 @@ def checar_rastro(saidas: dict[str, tuple[pd.DataFrame, str]], rastro: pd.DataFr
         nao_batem, sem_rastro, conferidos = [], [], 0
         for id_saida, valor in zip(df["id_saida"], df[coluna]):
             ids_saida.add(id_saida)
-            if valor is None or (not isinstance(valor, Decimal) and pd.isna(valor)):
+            if not _eh_valor(valor):
                 continue  # linha sem valor (ex.: pendência informativa) não precisa de rastro
             if id_saida not in somas.index:
                 sem_rastro.append(id_saida)
@@ -60,6 +70,92 @@ def checar_rastro(saidas: dict[str, tuple[pd.DataFrame, str]], rastro: pd.DataFr
                       f"{len(somas)} ids no rastro" if not orfaos else f"órfãos: {orfaos[:5]}"))
     return c
 
+
+def checar_notas(com_chk: pd.DataFrame, com_rem: pd.DataFrame, notas: pd.DataFrame) -> list[Checagem]:
+    """Checagens 2 e 3: notas de checkout = comissões com saldo > 0; nota de remessa = total da remessa."""
+    positivas = _soma(v for v in com_chk["comissao_brl"] if v > 0) if len(com_chk) else Decimal("0")
+    nf_chk = notas[notas["linha_negocio"] == "CHECKOUT"] if len(notas) else notas
+    soma_nf_chk = _soma(nf_chk["valor_brl"]) if len(nf_chk) else Decimal("0")
+    n_pos = int((com_chk["comissao_brl"] > 0).sum()) if len(com_chk) else 0
+    c = [Checagem("integridade", "2. comissões de checkout com saldo > 0 = notas CHECKOUT",
+                  positivas == soma_nf_chk and n_pos == len(nf_chk),
+                  f"{n_pos} lojistas somam {positivas}; {len(nf_chk)} notas somam {soma_nf_chk}")]
+    total_rem = _soma(com_rem["comissao_brl"]) if len(com_rem) else Decimal("0")
+    nf_rem = notas[notas["linha_negocio"] == "REMESSA"] if len(notas) else notas
+    soma_nf_rem = _soma(nf_rem["valor_brl"]) if len(nf_rem) else Decimal("0")
+    ok = (soma_nf_rem == total_rem and len(nf_rem) <= 1) if total_rem > 0 else len(nf_rem) == 0
+    c.append(Checagem("integridade", "3. nota REMESSA = soma da comissão de remessa", ok,
+                      f"comissão {total_rem}; {len(nf_rem)} nota(s) somam {soma_nf_rem}"))
+    return c
+
+
+def checar_destinos(orbe_linhas: pd.DataFrame, n_orbe: int, ponte_linhas: pd.DataFrame, n_ponte: int
+                    ) -> list[Checagem]:
+    """Checagem 4: toda linha da Orbe e toda operação única da Ponte em exatamente um destino."""
+    c = []
+    dest_orbe = orbe_linhas["destino"].value_counts().to_dict()
+    ok = len(orbe_linhas) == n_orbe and orbe_linhas["destino"].notna().all() and orbe_linhas["ref_origem"].is_unique
+    c.append(Checagem("integridade", "4. toda linha da Orbe tem exatamente um destino", ok,
+                      f"{n_orbe} linhas -> " + ", ".join(f"{k} {v}" for k, v in dest_orbe.items())))
+    c.append(Checagem("integridade", "4. há linhas da Orbe na competência fechada",
+                      dest_orbe.get("COMISSAO", 0) + dest_orbe.get("EXCLUIDO", 0) > 0,
+                      "nenhuma linha da Orbe entrou no mês: confira --competencia e o arquivo"
+                      if dest_orbe.get("COMISSAO", 0) + dest_orbe.get("EXCLUIDO", 0) == 0 else "ok"))
+    por_op = ponte_linhas.groupby("num_operacao")["destino"].apply(
+        lambda s: tuple(sorted(set(s) - {"DUPLICATA_IGNORADA"})))
+    ruins = [op for op, d in por_op.items() if len(d) != 1]
+    dest_ponte = ponte_linhas["destino"].value_counts().to_dict()
+    ok = len(ponte_linhas) == n_ponte and ponte_linhas["destino"].notna().all() and not ruins
+    c.append(Checagem("integridade", "4. toda operação única da Ponte tem exatamente um destino", ok,
+                      f"{n_ponte} linhas, {len(por_op)} operações únicas -> "
+                      + ", ".join(f"{k} {v}" for k, v in dest_ponte.items())
+                      + (f"; operações com destino ambíguo: {ruins[:5]}" if ruins else "")))
+    return c
+
+
+def checar_lancamentos(lancamentos: pd.DataFrame, extratos: list[pd.DataFrame]) -> list[Checagem]:
+    """Checagem 5: todo lançamento dos extratos aparece em lancamentos_classificados (e só uma vez)."""
+    c = []
+    for df in extratos:
+        banco = df["banco"].iloc[0] if len(df) else "?"
+        esperados = set(df["ref_origem"])
+        presentes = set(lancamentos.loc[lancamentos["banco"] == banco, "ref_origem"])
+        faltam, sobram = sorted(esperados - presentes), sorted(presentes - esperados)
+        repetidos = int(lancamentos.loc[lancamentos["banco"] == banco, "ref_origem"].duplicated().sum())
+        ok = not faltam and not sobram and repetidos == 0
+        c.append(Checagem("integridade", f"5. todo lançamento do {banco} está classificado", ok,
+                          f"{len(esperados)} lançamentos" if ok else
+                          f"faltam {faltam[:5]}, sobram {sobram[:5]}, repetidos {repetidos}"))
+    sem_conta = lancamentos[(lancamentos["metodo"] == "REGRA") & (lancamentos["conta_codigo"] == "")]
+    c.append(Checagem("integridade", "5. lançamento classificado por REGRA tem conta", len(sem_conta) == 0,
+                      f"{len(sem_conta)} sem conta"))
+    return c
+
+
+def checar_saldo_extratos(extratos: list[pd.DataFrame]) -> list[Checagem]:
+    """Checagem 6: onde o extrato traz saldo (Aurora), ele fecha linha a linha e no total."""
+    c = []
+    for df in extratos:
+        ant, fim = df.attrs.get("saldo_anterior"), df.attrs.get("saldo_final")
+        if not ant or "saldo" not in df.columns:
+            continue
+        banco = df["banco"].iloc[0] if len(df) else "?"
+        soma = _soma(df["valor"])
+        fecha_total = fim is None or ant["valor"] + soma == fim["valor"]
+        corrente, quebras = ant["valor"], []
+        for ref, v, s in zip(df["ref_origem"], df["valor"], df["saldo"]):
+            corrente += v
+            if s is not None and corrente != s:
+                quebras.append(ref)
+                corrente = s
+        c.append(Checagem("integridade", f"6. saldo do {banco} fecha linha a linha", fecha_total and not quebras,
+                          f"{ant['valor']} + {soma} = {ant['valor'] + soma}"
+                          + (f"; extrato diz {fim['valor']}" if fim else "")
+                          + (f"; {len(quebras)} quebras {quebras[:5]}" if quebras else "")))
+    return c
+
+
+# --------------------------------------------------------------------------- leitores
 
 def validar_leitores(d: dict[str, pd.DataFrame]) -> list[Checagem]:
     c: list[Checagem] = []

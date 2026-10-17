@@ -2,6 +2,8 @@
 
 CSV com ';', ponto decimal, datas AAAA-MM-DD, CNPJ só dígitos, UTF-8. As colunas
 obrigatórias vêm primeiro, na ordem do regulamento; colunas extras seguem depois.
+Dinheiro sai com 2 casas e já deve chegar arredondado (arredondar aqui esconderia
+um erro de cálculo); taxas em % saem com pelo menos 2 casas e sem zeros à direita.
 """
 from __future__ import annotations
 
@@ -24,8 +26,25 @@ COLUNAS_OBRIGATORIAS = {
     "pendencias.csv": ["id_saida", "tipo", "ref_origem", "valor_brl", "motivo", "quem_decide"],
     "rastro.csv": ["id_saida", "arquivo_origem", "ref_origem", "valor"],
 }
-# colunas Decimal que NÃO são dinheiro (não ganham 2 casas fixas)
-_NAO_MONETARIAS = ("_pct", "taxa_pct", "confianca", "spread")
+# colunas Decimal que não são dinheiro
+COLUNAS_PCT_SUFIXOS = ("_pct", "_pp")
+COLUNAS_PCT = {"taxa_pct", "participacao"}
+COLUNAS_LIVRES = {"confianca"}
+
+
+def formatar_pct(valor: Decimal) -> str:
+    """Percentual com pelo menos 2 casas e até 6, sem zeros à direita: 2.69, 2.10, 1.501, 1.4984."""
+    texto = f"{valor.quantize(Decimal('0.000001')):f}"
+    inteiro, dec = texto.split(".")
+    dec = dec.rstrip("0")
+    return f"{inteiro}.{dec.ljust(2, '0')}"
+
+
+def formatar_dinheiro(valor: Decimal, coluna: str) -> str:
+    if valor != valor.quantize(CENTAVO):
+        raise ValueError(f"coluna {coluna}: valor {valor} não está arredondado ao centavo")
+    v = valor.quantize(CENTAVO)
+    return "0.00" if v == 0 else f"{v:f}"
 
 
 def formatar_celula(valor, coluna: str) -> str:
@@ -34,10 +53,11 @@ def formatar_celula(valor, coluna: str) -> str:
     if isinstance(valor, float) and pd.isna(valor):
         return ""
     if isinstance(valor, Decimal):
-        if coluna.endswith(_NAO_MONETARIAS[0]) or coluna in _NAO_MONETARIAS:
-            return f"{valor.quantize(Decimal('0.000001')).normalize():f}"
-        v = valor.quantize(CENTAVO)
-        return "0.00" if v == 0 else f"{v:f}"
+        if coluna in COLUNAS_LIVRES:
+            return f"{valor.normalize():f}"
+        if coluna.endswith(COLUNAS_PCT_SUFIXOS) or coluna in COLUNAS_PCT:
+            return formatar_pct(valor)
+        return formatar_dinheiro(valor, coluna)
     if isinstance(valor, (pd.Timestamp, datetime, date)):
         return pd.Timestamp(valor).strftime("%Y-%m-%d")
     if isinstance(valor, bool):

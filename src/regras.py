@@ -30,7 +30,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .leitores.comum import ErroLeitura, ler_texto, normalizar
+from .leitores.comum import ErroLeitura, ler_texto, normalizar, normalizar_ec
 
 SEPARADOR_PARAMETROS = "|"
 SEPARADOR_ALTERNATIVAS = " OU "
@@ -69,7 +69,8 @@ PENDENCIAS_DO_MOTOR = {
     "EXTRATO_NAO_IDENTIFICADO", "EM_TRANSITO", "REVISAR_IA", "FORA_COMPETENCIA",
     "DUPLICATA_DIVERGENTE",
 }
-CRITERIOS = {"orbe": {"status_cadastro"}, "ponte": {"spread_negativo", "status_compliance_fora"}}
+CRITERIOS = {"orbe": {"status_cadastro"},
+             "ponte": {"status_cadastro", "spread_negativo", "status_compliance_fora"}}
 VALOR_PENDENCIA = {"orbe": {"valor_taxa", "valor_bruto"}, "ponte": {"spread_brl", "valor_brl"}}
 AGRUPAR = {"cnpj", "ec", "linha", "tudo"}
 CHAVES_DUPLICADO = {"ponte": {"num_operacao"}, "orbe": {"id_transacao"}}
@@ -268,7 +269,10 @@ class Config:
 
     # cadastro
     def lojista_por_ec(self, ec: str):
-        return self._por_ec.get(str(ec).strip())
+        try:
+            return self._por_ec.get(normalizar_ec(ec))
+        except ErroLeitura:
+            return None
 
     def lojista_por_cnpj(self, cnpj: str):
         return self._por_cnpj.get(cnpj)
@@ -276,6 +280,9 @@ class Config:
     # regras
     def por_tipo(self, tipo: str) -> list[Regra]:
         return [r for r in self.regras if r.tipo == tipo]
+
+    def regra(self, id_regra: str) -> Regra | None:
+        return next((r for r in self.todas if r.id == id_regra), None)
 
     def regra_parametro(self, nome: str, em: date) -> Regra:
         r = next((r for r in self.por_tipo("PARAMETRO") if nome in r.params and r.vigente_em(em)), None)
@@ -378,9 +385,10 @@ def montar_cadastro(taxas: pd.DataFrame, caminho_complemento: Path, erros: list[
         onde = f"{caminho_complemento.name} linha {n}"
         try:
             cnpj = cnpj_config(c["cnpj"], avisos, onde)
-            ec = c["ec_orbe"] or None
-            if ec and not ec.isdigit():
-                raise ValueError(f"EC '{ec}' deve ter só dígitos")
+            try:
+                ec = normalizar_ec(c["ec_orbe"])
+            except ErroLeitura as e:
+                raise ValueError(str(e)) from None
             status = normalizar(c["status"])
             if status not in STATUS_CADASTRO:
                 raise ValueError(f"status '{c['status']}' inválido (use {', '.join(sorted(STATUS_CADASTRO))})")

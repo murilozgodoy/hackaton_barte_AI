@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,7 +15,7 @@ from pathlib import Path
 import pandas as pd
 
 from .dinheiro import brl, soma
-from .fechamento import escrever, executar
+from .fechamento import Fechamento, escrever, executar, totais
 from .fontes import carregar_config_fontes, localizar, preparar_entrada
 from .leitores import carregar_todas
 from .leitores.comum import ErroLeitura
@@ -24,6 +25,7 @@ from .validacao import Checagem, validar_leitores
 RAIZ = Path(__file__).resolve().parents[1]
 COMANDOS = ("validar", "fechar")
 SAIDA_OK, SAIDA_ENTRADA, SAIDA_REGRAS, SAIDA_INTEGRIDADE, SAIDA_ID = 0, 1, 2, 3, 4
+_RE_COMPETENCIA = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 class Parada(Exception):
@@ -50,6 +52,8 @@ def inferir_competencia(dados) -> str:
 
 def carregar_contexto(args) -> Contexto:
     """Lê entradas, roda as checagens dos leitores e carrega a base de regras."""
+    if args.competencia and not _RE_COMPETENCIA.match(args.competencia):
+        raise Parada(SAIDA_ENTRADA, f"--competencia '{args.competencia}' inválida: use AAAA-MM (ex.: 2026-10)")
     try:
         fontes = carregar_config_fontes(args.regras)
         pasta = preparar_entrada(args.entrada, RAIZ, RAIZ / "data", fontes)
@@ -88,7 +92,7 @@ def resumo_contexto(ctx: Contexto) -> dict:
         "checagens": [{"fonte": c.fonte, "nome": c.nome, "ok": c.ok, "nivel": c.nivel, "detalhe": c.detalhe}
                       for c in ctx.checagens],
         "regras": {"lojistas": int(len(cad)),
-                   "lojistas_por_origem": cad["origem"].value_counts().to_dict(),
+                   "lojistas_por_origem": {k: int(v) for k, v in cad["origem"].value_counts().items()},
                    "ativas_por_tipo": {k: int(v) for k, v in por_tipo.items()},
                    "nao_ativas": [r.id for r in ctx.config.todas if r.status != "ATIVA"],
                    "avisos": list(ctx.config.avisos)},
@@ -116,6 +120,71 @@ def imprimir_contexto(ctx: Contexto) -> None:
         print(f"  [aviso] {aviso}")
 
 
+def _tabela_comissoes(df: pd.DataFrame, titulo: str, col_qtd: str, rotulo_qtd: str) -> None:
+    print(f"\n{titulo}:")
+    print(f"  {'id_saida':<13}{'lojista':<42}{'cnpj':<16}{rotulo_qtd:>10}  {'comissão':>16}")
+    for r in df.itertuples(index=False):
+        print(f"  {r.id_saida:<13}{str(r.lojista)[:40]:<42}{r.cnpj:<16}{int(getattr(r, col_qtd)):>10}  "
+              f"{brl(r.comissao_brl):>16}")
+    print(f"  {'TOTAL':<13}{'':<42}{'':<16}{int(df[col_qtd].sum()):>10}  {brl(soma(df['comissao_brl'])):>16}")
+
+
+def imprimir_fechamento(f: Fechamento) -> None:
+    _tabela_comissoes(f.comissoes_checkout, f"Comissão de CHECKOUT por lojista ({f.competencia})",
+                      "qtd_transacoes", "transações")
+    print("  Destino das linhas da Orbe: " + ", ".join(f"{k} {v}" for k, v in f.destinos_orbe.items()))
+    _tabela_comissoes(f.comissoes_remessa, f"Comissão de REMESSA por lojista ({f.competencia})",
+                      "qtd_operacoes", "operações")
+    print("  Destino das linhas da Ponte: " + ", ".join(f"{k} {v}" for k, v in f.destinos_ponte.items()))
+
+    print("\nDivergências de taxa (contratada x aplicada), por lojista:")
+    if f.divergencias.empty:
+        print("  nenhuma")
+    for (linha, _cnpj), g in f.divergencias.groupby(["linha_negocio", "cnpj"], sort=False):
+        print(f"  {linha:<9}{str(g['lojista'].iloc[0])[:40]:<42}{len(g):>5} linhas  {brl(soma(g['diferenca_brl'])):>16}")
+
+    print("\nNotas a emitir:")
+    for r in f.notas.itertuples(index=False):
+        print(f"  {r.id_saida:<9}{r.linha_negocio:<9}{str(r.tomador)[:40]:<42}{r.tomador_cnpj:<16}{brl(r.valor_brl):>16}")
+    print(f"  {'TOTAL':<9}{'':<9}{'':<42}{'':<16}{brl(soma(f.notas['valor_brl'])):>16}")
+    for r in f.sem_nota.itertuples(index=False):
+        print(f"  sem nota: {r.lojista} ({r.cnpj}) com comissão {brl(r.comissao_brl)} (zero ou negativa)")
+
+    met = f.lancamentos["metodo"].value_counts().to_dict()
+    print("\nLançamentos classificados: " + ", ".join(f"{k} {v}" for k, v in met.items())
+          + f" (total {len(f.lancamentos)})")
+    pend = f.lancamentos[f.lancamentos["tipo_pendencia"].notna()]
+    for r in pend.itertuples(index=False):
+        print(f"  [{r.tipo_pendencia}] {r.banco} {r.ref_origem} {r.data.date()} {brl(r.valor)} {r.descricao}")
+    for r in f.em_transito.itertuples(index=False):
+        print(f"  [EM_TRANSITO] {r.banco} {r.ref_origem} {r.data.date()} {brl(r.valor)} {r.descricao}: {r.motivo}")
+
+    print("\nChecagens de integridade:")
+    for c in f.checagens:
+        print(f"  [{'ok' if c.ok else 'ERRO':<5}] {c.nome} - {c.detalhe}")
+    for aviso in f.avisos:
+        print(f"  [aviso] {aviso}")
+
+
+def imprimir_conciliacao(f: Fechamento) -> None:
+    c = f.conciliacao
+    print("\nConciliação entre fontes (informativo, não gera pendência):")
+    o = c["orbe"]
+    print(f"  Orbe: bruto {brl(o['valor_bruto_total'])}, taxa cobrada {brl(o['valor_taxa_total'])}, "
+          f"líquido aos lojistas {brl(o['valor_liquido_total'])}")
+    for tipo, v in o["valor_liquido_por_tipo"].items():
+        print(f"    líquido {tipo:<22} {brl(v):>18}")
+    print("  Extratos por conta contábil (créditos / débitos):")
+    for r in c["extratos_por_conta"]:
+        print(f"    {r['banco']:<10}{r['conta_codigo']:<12}{str(r['conta_descricao'])[:44]:<46}{r['qtd']:>4}  "
+              f"{brl(r['creditos']):>18}  {brl(r['debitos']):>18}")
+    p = c["ponte"]
+    print(f"  Ponte: spread total declarado {brl(p['spread_total_declarado'])} (com duplicata e negativos); "
+          f"operações únicas {brl(p['spread_operacoes_unicas'])}")
+    print(f"    repasse pelo total declarado x participação = {brl(p['repasse_pelo_total_declarado'])}; "
+          f"comissão calculada = {brl(p['comissao_calculada'])}; diferença = {brl(p['diferenca'])}")
+
+
 def cmd_validar(args) -> int:
     ctx = carregar_contexto(args)
     if args.json:
@@ -129,32 +198,24 @@ def cmd_validar(args) -> int:
 
 def cmd_fechar(args) -> int:
     ctx = carregar_contexto(args)
-    fech = executar(ctx.dados, ctx.config, ctx.competencia)
+    fech = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=not args.sem_ia)
     arquivos = escrever(fech, args.saida)
     codigo = SAIDA_OK if fech.integro else SAIDA_INTEGRIDADE
     if args.json:
         print(json.dumps({
             "comando": "fechar", "ok": fech.integro, "codigo": codigo,
             "status_integridade": "OK" if fech.integro else "FALHA",
-            **resumo_contexto(ctx),
-            "totais": {"comissao_checkout_brl": str(soma(fech.comissoes["comissao_brl"]))},
-            "orbe_destinos": fech.destinos_orbe,
+            **resumo_contexto(ctx), "totais": totais(fech),
+            "orbe_destinos": {k: int(v) for k, v in fech.destinos_orbe.items()},
+            "ponte_destinos": {k: int(v) for k, v in fech.destinos_ponte.items()},
             "integridade": [{"nome": c.nome, "ok": c.ok, "detalhe": c.detalhe} for c in fech.checagens],
-            "arquivos": {k: str(v) for k, v in arquivos.items()},
+            "avisos": fech.avisos, "arquivos": {k: str(v) for k, v in arquivos.items()},
         }, ensure_ascii=False, indent=2, default=str))
         return codigo
 
     imprimir_contexto(ctx)
-    print(f"\nComissão de CHECKOUT por lojista ({ctx.competencia}):")
-    print(f"  {'id_saida':<13}{'lojista':<42}{'cnpj':<16}{'transações':>10}  {'comissão':>16}")
-    for r in fech.comissoes.itertuples(index=False):
-        print(f"  {r.id_saida:<13}{str(r.lojista)[:40]:<42}{r.cnpj:<16}{r.qtd_transacoes:>10}  {brl(r.comissao_brl):>16}")
-    print(f"  {'TOTAL':<13}{'':<42}{'':<16}{int(fech.comissoes['qtd_transacoes'].sum()):>10}  "
-          f"{brl(soma(fech.comissoes['comissao_brl'])):>16}")
-    print("\nDestino das linhas da Orbe: " + ", ".join(f"{k} {v}" for k, v in fech.destinos_orbe.items()))
-    print("\nChecagens de integridade:")
-    for c in fech.checagens:
-        print(f"  [{'ok' if c.ok else 'ERRO':<5}] {c.nome} - {c.detalhe}")
+    imprimir_fechamento(fech)
+    imprimir_conciliacao(fech)
     print("\nArquivos gravados: " + ", ".join(str(p) for p in arquivos.values()))
     if not fech.integro:
         print("\nINTEGRIDADE FALHOU: os números acima não podem ser apresentados como válidos.", file=sys.stderr)
@@ -172,6 +233,8 @@ def construir_parser() -> argparse.ArgumentParser:
                        help="pasta da base de regras do financeiro (padrão: regras/)")
         p.add_argument("--saida", type=Path, default=RAIZ / "saida")
         p.add_argument("--competencia", help="AAAA-MM; se omitido, é inferida dos dados")
+        p.add_argument("--sem-ia", action="store_true",
+                       help="não consultar a IA para lançamentos sem regra, mesmo com ANTHROPIC_API_KEY")
         p.add_argument("--json", action="store_true", help="saída em JSON (para agentes)")
     return ap
 
