@@ -155,3 +155,41 @@ def test_sem_repeticao_tira_a_frase_repetida():
     a = "A Orbe cobrou o que estava contratado e não há o que cobrar dela."
     assert sem_repeticao(f"Concessão fora do contrato. {a} Fim.", ja_dito=a) == "Concessão fora do contrato. Fim."
     assert repeticoes(f"{a} {a}") and not repeticoes(a)
+
+
+# ---------------------------------------------------------------- Causa 5: o motor agrupa por natureza, a skill só mostra
+
+def test_por_natureza_bate_com_os_arquivos_e_nao_tem_total_geral(tmp_path, capsys):
+    import csv
+    from decimal import Decimal as D
+    assert main(["fechar", "--saida", str(tmp_path / "s"), "--sem-ia", "--json"]) == 0
+    s = tmp_path / "s"
+    t = json.loads((s / "resumo.json").read_text(encoding="utf-8"))["totais"]
+    pn = t["por_natureza"]
+    assert set(pn) == {"FATURAR", "COBRAR_ORBE", "CONTESTAR_PONTE", "DEVOLVER_LOJISTA", "NAO_FATURAR", "ACOMPANHAR"}
+    assert not any(k.lower().startswith("total") for k in pn)
+    linhas = {}
+    for nome in ("notas_a_emitir.csv", "pendencias.csv"):
+        linhas.update({r["id_saida"]: r for r in csv.DictReader(open(s / nome, encoding="utf-8"), delimiter=";")})
+    for nat, d in pn.items():
+        assert all(linhas[i]["natureza"] == nat for i in d["ids"] if i.startswith("PEN-"))
+        assert sum(abs(D(linhas[i]["valor_brl"])) for i in d["ids"]) == D(d["valor_brl"]) and len(d["ids"]) == d["quantidade"]
+    assert pn["FATURAR"]["valor_brl"] == t["notas"]["valor_total_brl"] and pn["FATURAR"]["arquivo_origem"] == "notas_a_emitir.csv"
+    # mesmas exclusões do por_responsavel: as naturezas de pendência somam o em jogo
+    assert sum(D(d["valor_brl"]) for n, d in pn.items() if n != "FATURAR") == D(t["pendencias"]["em_jogo_brl"])
+    fora = [x for d in pn.values() for x in d.get("fora_da_soma", [])]
+    assert any("informativa" in x for x in fora) and any("incluída em" in x for x in fora)
+
+
+def test_tipo_sem_natureza_vira_aviso_e_natureza_fora_da_lista_e_erro(pasta_dados, tmp_path, capsys):
+    regras = tmp_path / "regras"
+    shutil.copytree(RAIZ / "regras", regras)
+    p = regras / "regras_negocio.csv"
+    t = p.read_text(encoding="utf-8-sig")
+    p.write_text(t.replace("tipo_pendencia=EM_TRANSITO | informativa=true | natureza=ACOMPANHAR",
+                           "tipo_pendencia=EM_TRANSITO | informativa=true"), encoding="utf-8")
+    avisos = _avisos_validar(pasta_dados, regras, capsys)
+    assert any("sem natureza" in a and "EM_TRANSITO (DP-06)" in a for a in avisos)
+    p.write_text(t.replace("natureza=ACOMPANHAR", "natureza=GUARDAR", 1), encoding="utf-8")
+    assert main(["validar", "--entrada", str(pasta_dados), "--regras", str(regras), "--json"]) == 2
+    assert "natureza 'GUARDAR' desconhecida" in capsys.readouterr().out

@@ -57,6 +57,95 @@
         "pela_taxa_brl": "15397.42"
       }
     },
+    "por_natureza": {
+      "FATURAR": {
+        "quantidade": 21,
+        "valor_brl": "243284.29",
+        "ids": [
+          "NF-0001",
+          "NF-0002",
+          "NF-0003",
+          "NF-0004",
+          "NF-0005",
+          "NF-0006",
+          "NF-0007",
+          "NF-0008",
+          "NF-0009",
+          "NF-0010",
+          "NF-0011",
+          "NF-0012",
+          "NF-0013",
+          "NF-0014",
+          "NF-0015",
+          "NF-0016",
+          "NF-0017",
+          "NF-0018",
+          "NF-0019",
+          "NF-0020",
+          "NF-0021"
+        ],
+        "arquivo_origem": "notas_a_emitir.csv"
+      },
+      "COBRAR_ORBE": {
+        "quantidade": 2,
+        "valor_brl": "1576.23",
+        "ids": [
+          "PEN-0002",
+          "PEN-0003"
+        ],
+        "arquivo_origem": "pendencias.csv",
+        "fora_da_soma": []
+      },
+      "CONTESTAR_PONTE": {
+        "quantidade": 5,
+        "valor_brl": "3252.90",
+        "ids": [
+          "PEN-0004",
+          "PEN-0007",
+          "PEN-0008",
+          "PEN-0009",
+          "PEN-0010"
+        ],
+        "arquivo_origem": "pendencias.csv",
+        "fora_da_soma": [
+          "PEN-0005 (incluída em DIVERGENCIA_TAXA)"
+        ]
+      },
+      "DEVOLVER_LOJISTA": {
+        "quantidade": 1,
+        "valor_brl": "15396.77",
+        "ids": [
+          "PEN-0001"
+        ],
+        "arquivo_origem": "pendencias.csv",
+        "fora_da_soma": []
+      },
+      "NAO_FATURAR": {
+        "quantidade": 2,
+        "valor_brl": "7881.55",
+        "ids": [
+          "PEN-0011",
+          "PEN-0013"
+        ],
+        "arquivo_origem": "pendencias.csv",
+        "fora_da_soma": []
+      },
+      "ACOMPANHAR": {
+        "quantidade": 3,
+        "valor_brl": "20256.65",
+        "ids": [
+          "PEN-0006",
+          "PEN-0014",
+          "PEN-0015"
+        ],
+        "arquivo_origem": "pendencias.csv",
+        "fora_da_soma": [
+          "PEN-0012 (informativa)",
+          "PEN-0016 (informativa)"
+        ]
+      }
+    },
+    "por_natureza_nota": "uma entrada por natureza (o que fazer com o dinheiro); valor_brl = soma dos valores absolutos dos ids listados no arquivo_origem, sem informativas nem incluídas em outra (fora_da_soma). Naturezas diferentes nunca se somam: não há total geral",
     "pendencias": {
       "quantidade": 16,
       "informativas": 2,
@@ -353,10 +442,15 @@
       "nome": "2. notas − comissão total = − comissões sem nota",
       "ok": true,
       "detalhe": "notas − comissão = 5.50; comissões sem nota somam -5.50"
+    },
+    {
+      "nome": "7. por natureza: soma dos ids listados = valor publicado",
+      "ok": true,
+      "detalhe": "6 naturezas conferidas"
     }
   ],
   "avisos": [
-    "base de regras: premissas em uso, sem aprovação do financeiro (33): P-03, P-10, E-02, E-04, C-01, C-02, C-03, C-04, C-05, C-13, C-17, C-19, C-20, C-22, C-23, C-24, C-25, C-26, DP-02, DP-05, DP-07, DP-08, DP-09, M-01, M-02, DP-11, P-13, A-01, DP-15, DP-16, DP-17, J-02, complemento:22348118000148. O motivo de cada uma está em HIPOTESES.md",
+    "base de regras: premissas em uso, sem aprovação do financeiro (34): P-03, P-10, E-02, E-04, C-01, C-02, C-03, C-04, C-05, C-13, C-17, C-19, C-20, C-22, C-23, C-24, C-25, C-26, DP-02, DP-05, DP-07, DP-08, DP-09, M-01, M-02, DP-11, P-13, A-01, DP-15, DP-16, DP-17, J-02, complemento:22348118000148, naturezas_das_pendencias. O motivo de cada uma está em HIPOTESES.md",
     "base de regras: última alteração registrada em historico_alteracoes.csv em 2026-10-17"
   ],
   "arquivos": {

@@ -16,7 +16,7 @@ def test_resumo_recusa_valor_nao_arredondado():
 
 
 def test_dono_de_pendencia_vencido_para_no_validar_com_codigo_2(dados, tmp_path, capsys):
-    regras = regras_copia(tmp_path, [("tipo_pendencia=CONFERIR_REPASSE_PONTE;", "tipo_pendencia=CONFERIR_REPASSE_PONTE;")])
+    regras = regras_copia(tmp_path, [("tipo_pendencia=CONFERIR_REPASSE_PONTE | natureza=ACOMPANHAR;", "tipo_pendencia=CONFERIR_REPASSE_PONTE | natureza=ACOMPANHAR;")])
     p = regras / "regras_negocio.csv"
     t = p.read_text(encoding="utf-8")
     linha = next(l for l in t.splitlines() if l.startswith("DP-11;"))

@@ -122,7 +122,7 @@ def test_cli_fechar_imprime_resumo_final_em_portugues(dados, tmp_path, capsys):
     assert "Lançamentos classificados: 184" in bloco
     assert "Pendências: 16 (2 informativas), por responsável:" in bloco and "em jogo, por responsável" not in bloco and "Financeiro: 3 pendência(s), R$ 19.750,00 em jogo (1 informativa)" in bloco
     assert "Helena (Financeiro): 10 pendência(s), R$ 5.341,28 em jogo (1 já incluída em outra)" in bloco
-    assert "Checagens de integridade: 6 de 6 ok" in bloco
+    assert "Checagens de integridade: 7 de 7 ok" in bloco
     assert str(tmp_path) in bloco
     assert linhas[-1].strip().endswith("RELATORIO_FECHAMENTO.md")
 

@@ -8,7 +8,7 @@ Base de regras: 69 regras ativas, 25 lojistas no cadastro (planilha de taxas + c
 
 ## Avisos desta execução
 
-- base de regras: premissas em uso, sem aprovação do financeiro (33): P-03, P-10, E-02, E-04, C-01, C-02, C-03, C-04, C-05, C-13, C-17, C-19, C-20, C-22, C-23, C-24, C-25, C-26, DP-02, DP-05, DP-07, DP-08, DP-09, M-01, M-02, DP-11, P-13, A-01, DP-15, DP-16, DP-17, J-02, complemento:22348118000148. O motivo de cada uma está em HIPOTESES.md
+- base de regras: premissas em uso, sem aprovação do financeiro (34): P-03, P-10, E-02, E-04, C-01, C-02, C-03, C-04, C-05, C-13, C-17, C-19, C-20, C-22, C-23, C-24, C-25, C-26, DP-02, DP-05, DP-07, DP-08, DP-09, M-01, M-02, DP-11, P-13, A-01, DP-15, DP-16, DP-17, J-02, complemento:22348118000148, naturezas_das_pendencias. O motivo de cada uma está em HIPOTESES.md
 - base de regras: última alteração registrada em historico_alteracoes.csv em 2026-10-17
 
 ## Página 1 — o que o CFO precisa saber
@@ -38,9 +38,9 @@ O que fazer com cada dinheiro. Naturezas diferentes nunca são somadas (faturar,
 |  | c: corrigir o relatório: PC-0926-0162 aparece mais de uma vez (contada uma vez no fechamento). Rascunho: comunicacoes/ponte.md | R$ 0,00 | Helena (Financeiro) |
 | Devolver ao lojista por conta da Tarvo | Casa do Estudante Viagens Ltda: Concessão do Comercial fora do contrato, para segurar o cliente: a Orbe cobrou o que estava contratado e não há o que cobrar dela. A Tarvo abriu mão da receita, então a devolução ao lojista sai do nosso bolso (custo da Tarvo) (118 transações, o que a adquirente cobrou de fato) | R$ 15.396,77 | Helena (Financeiro) + Comercial |
 | Não faturar até decidir | ATLAS IDIOMAS: Sem contrato assinado: taxa a confirmar pelo Comercial (vale desde 10/09 quando confirmar); R$ 7.876,05 cobrados pela adquirente em 57 transações, R$ 262.138,61 brutos na carteira pendente | R$ 7.876,05 | Comercial |
-|  | Alerta antecipacao: ATLAS IDIOMAS: Em 2026-09-15, R$ 179.592,82 antecipados contra R$ 55.357,50 vendidos até a data | R$ 179.592,82 (informativa) | Helena (Financeiro) + Comercial |
 |  | Comissão negativa no mês (sem nota): Casa do Estudante Viagens Ltda: A comissão de checkout de Casa do Estudante Viagens Ltda em 119 transações fechou em -R$ 5,50 (estornos ou reversões maiores que as vendas do mês) | R$ 5,50 | Helena (Financeiro) |
 | Só acompanhar | TED do parceiro de câmbio a conferir contra a nota de remessa: Conferir o TED do parceiro de câmbio previsto para 2026-10-06 (data do e-mail do parceiro) contra a nota NF-0021 (R$ 39.543,45) | até R$ 506,65 | Helena (Financeiro) |
+|  | Alerta antecipacao: ATLAS IDIOMAS: Em 2026-09-15, R$ 179.592,82 antecipados contra R$ 55.357,50 vendidos até a data | R$ 179.592,82 (informativa) | Helena (Financeiro) + Comercial |
 |  | Lançamento de extrato sem identificação: AURORA 2026-09-16: "PIX RECEBIDO 38686002000180 SEM IDENTIFICACAO" R$ 7.350,00, classificado em 1.1.09.002 (Créditos não identificados) | R$ 7.350,00 | Financeiro |
 |  | Repasse devolvido pelo banco: AURORA 2026-09-23: "DEVOLUCAO PIX - MUNDO ABERTO INTERC" R$ 12.400,00, classificado em 2.1.01.001 (Repasses a lojistas a pagar) | R$ 12.400,00 | Financeiro |
 |  | Em transito: AURORA 2026-09-30: "TRANSF ENTRE CONTAS P/ BCO MERIDIANO AG 0091 CC 90233-5" -R$ 300.000,00, em 1.1.09.001 (Transferências entre contas próprias): saiu do AUROR… | R$ 300.000,00 (informativa) | Financeiro |
@@ -63,8 +63,7 @@ O que fazer com cada dinheiro. Naturezas diferentes nunca são somadas (faturar,
 
 ### Conhecimento capturado
 
-- Base de regras: 107 alterações registradas em `historico_alteracoes.csv` desde 2026-09-01 (80 criou, 24 alterou, 1 inativou, 2 removeu), em 82 regras/arquivos. Cada linha traz quem aprovou, quem registrou e a fonte (pessoa, canal, hora). Últimas:
-  - 2026-10-17 · X-01 · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h37 (resposta ao Theo) — X-01 é TAXA_EXCECAO: a Helena relata a concessão do Comercial, sem aprovação nominal do Comercial no Slack, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
+- Base de regras: 108 alterações registradas em `historico_alteracoes.csv` desde 2026-09-01 (81 criou, 24 alterou, 1 inativou, 2 removeu), em 83 regras/arquivos. Cada linha traz quem aprovou, quem registrou e a fonte (pessoa, canal, hora). Últimas:
   - 2026-10-17 · causas_divergencia.csv · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h37 (resposta ao Theo), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
   - 2026-10-17 · comunicacoes.csv · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h37 (resposta ao Theo), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
   - 2026-10-17 · X-01 · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h38 (ao Southlands) e 11h49 (à Datarmos) — X-01 é TAXA_EXCECAO: a Helena relata a concessão do Comercial, sem aprovação nominal do Comercial no Slack, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, ao Southlands 17/10 11h38 (“A devolução da Casa fica separad
@@ -72,6 +71,7 @@ O que fazer com cada dinheiro. Naturezas diferentes nunca são somadas (faturar,
   - 2026-10-17 · DP-17 · CRIOU · aprovado por PREMISSA MN AI (sem aprovação do financeiro), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Premissa do time MN AI, decisão de 17/10 (HIPOTESES.md, [PREMISSA])
   - 2026-10-17 · M-01, M-02 · ALTEROU · aprovado por PREMISSA MN AI (sem aprovação do financeiro), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Decisão do usuário (Nader Taha), 17/10, sobre o teste da skill no Claude.ai
   - 2026-10-17 · P-13 · CRIOU · aprovado por PREMISSA MN AI (sem aprovação do financeiro), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Decisão do usuário (Nader Taha), 17/10, sobre o teste da skill no Claude.ai
+  - 2026-10-17 · naturezas_das_pendencias · CRIOU · aprovado por PREMISSA MN AI (sem aprovação do financeiro), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Decisão do usuário (Nader Taha), 17/10, sobre o teste da skill no Claude.ai
 - Pendências: sem `--anterior`, não dá para dizer quais são novas e quais são recorrentes.
 
 ---
@@ -200,5 +200,6 @@ Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticam
 - ✅ 5. lançamento classificado por REGRA tem conta: 0 sem conta
 - ✅ 6. saldo do AURORA fecha linha a linha: 612334.81 + -2532423.41 = -1920088.60; extrato diz -1920088.60
 - ✅ 2. notas − comissão total = − comissões sem nota: notas − comissão = 5.50; comissões sem nota somam -5.50
+- ✅ 7. por natureza: soma dos ids listados = valor publicado: 6 naturezas conferidas
 
 Arquivos: `comissoes_por_lojista.csv`, `divergencias_taxa.csv`, `notas_a_emitir.csv`, `lancamentos_classificados.csv`, `pendencias.csv`, `rastro.csv`, `carteira_pendente.csv`, `comunicacoes`, `comunicacoes/orbe_contestacao.csv`, `comunicacoes/orbe.md`, `comunicacoes/ponte_contestacao.csv`, `comunicacoes/ponte.md`, `comunicacoes/comercial.md`, `comunicacoes/avisos_nova_condicao.md`.

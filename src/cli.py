@@ -27,7 +27,7 @@ from .fontes import NAO_RECONHECIDOS, carregar_config_fontes, localizar, nome_ar
 from .leitores import carregar_todas
 from .leitores.comum import ErroLeitura
 from .notas import competencia_texto, primeiro_dia
-from .regras import Config, ErroConfig, _Contexto, aprovacao_da_base, carregar_config
+from .regras import Config, ErroConfig, _Contexto, aprovacao_da_base, carregar_config, tipos_sem_natureza
 from . import relatorio
 from .relatorio import valor_em_jogo
 from .validacao import Checagem, avisos_dos_leitores, checar_competencia_extratos, validar_leitores
@@ -183,6 +183,10 @@ def avisos_execucao(base: BaseRegras, config: Config) -> list[str]:
     if premissas:
         avisos.append(f"base de regras: premissas em uso, sem aprovação do financeiro ({len(premissas)}): "
                       f"{', '.join(premissas)}. O motivo de cada uma está em HIPOTESES.md")
+    sem_nat = tipos_sem_natureza(config)
+    if sem_nat:
+        avisos.append(f"base de regras: tipo(s) de pendência sem natureza (parâmetro natureza= da regra): {', '.join(sem_nat)}. "
+                      "Essas pendências ficam em SEM_NATUREZA em totais.por_natureza até a regra dizer a natureza")
     ultima = config.historico_ultima_alteracao
     avisos.append(f"base de regras: última alteração registrada em historico_alteracoes.csv em {ultima}" if ultima else
                   "base de regras: historico_alteracoes.csv sem data de alteração; não dá para saber de quando é a base")

@@ -115,18 +115,23 @@ _RE_IDENT = re.compile(r"[A-Z][A-Z0-9_]*")
 PRAZOS = {"contestacao_parceiro": "data de envio do e-mail do parceiro + dias úteis informados no e-mail",
           "repasse_parceiro": "data de repasse informada no corpo do e-mail do parceiro"}
 
+# o que se faz com o dinheiro de cada pendência (lista fechada), no parâmetro natureza= da regra que dá dono à pendência;
+# natureza_checkout= / natureza_remessa= valem só para aquela linha de negócio. FATURAR é o das notas a emitir.
+NATUREZAS_PENDENCIA = ("FATURAR", "COBRAR_ORBE", "CONTESTAR_PONTE", "DEVOLVER_LOJISTA", "NAO_FATURAR", "ACOMPANHAR")
+CHAVES_NATUREZA = {"natureza", "natureza_checkout", "natureza_remessa"}
+
 # chaves obrigatórias e opcionais de `parametros`, por tipo
 ESQUEMA = {
     "TAXA_EXCECAO": ({"cnpj", "linha_negocio", "produto", "taxa_pct"},
-                     {"tipo_pendencia", "subtipo", "divergencia", "observacao", "destino"}),
+                     {"tipo_pendencia", "subtipo", "divergencia", "observacao", "destino"} | CHAVES_NATUREZA),
     "IGNORAR_DUPLICADO": ({"fonte", "chave"}, set()),
     "EXCLUIR_E_PENDENCIA": ({"fonte", "criterio", "tipo_pendencia"},
-                            {"status", "aceitos", "valor_pendencia", "agrupar", "subtipo", "prioridade"}),
-    "AJUSTE_PARCEIRO": ({"fonte", "criterio", "contem", "tipo_pendencia"}, {"prioridade", "subtipo"}),
+                            {"status", "aceitos", "valor_pendencia", "agrupar", "subtipo", "prioridade"} | CHAVES_NATUREZA),
+    "AJUSTE_PARCEIRO": ({"fonte", "criterio", "contem", "tipo_pendencia"}, {"prioridade", "subtipo"} | CHAVES_NATUREZA),
     "CLASSIFICAR_CONTA": ({"banco", "contem", "conta", "prioridade"},
-                          {"sinal", "gera_pendencia", "tipo_pendencia", "subtipo", "transitoria", "papel"}),
-    "DONO_PENDENCIA": ({"tipo_pendencia"}, {"subtipo", "informativa", "incluida_em"}),
-    "ALERTA": ({"fonte", "criterio", "tipo_pendencia"}, {"so_para", "subtipo", "informativa"}),
+                          {"sinal", "gera_pendencia", "tipo_pendencia", "subtipo", "transitoria", "papel"} | CHAVES_NATUREZA),
+    "DONO_PENDENCIA": ({"tipo_pendencia"}, {"subtipo", "informativa", "incluida_em"} | CHAVES_NATUREZA),
+    "ALERTA": ({"fonte", "criterio", "tipo_pendencia"}, {"so_para", "subtipo", "informativa"} | CHAVES_NATUREZA),
     "MANUAL": (set(), {"banco", "contem", "cnpj", "linha_negocio", "assunto", "prazo"}),
 }
 
@@ -453,6 +458,18 @@ SEM_APROVADOR = {"", "—", "-", "–"}
 ACOES_QUE_ENCERRAM = {"REMOVEU", "INATIVOU"}
 
 
+def natureza_da_regra(regra: Regra, linha_negocio: str | None) -> str:
+    """Natureza da pendência pela regra que lhe dá dono: natureza_<linha>= vence natureza=; vazio se a regra não diz."""
+    p = regra.params or {}
+    return p.get(f"natureza_{(linha_negocio or '').lower()}") or p.get("natureza") or ""
+
+
+def tipos_sem_natureza(config: Config) -> list[str]:
+    """Regras ativas que dão dono a um tipo de pendência sem dizer a natureza (para o aviso do validar)."""
+    return [f"{r.params['tipo_pendencia']}{'/' + r.params['subtipo'] if r.params.get('subtipo') else ''} ({r.id})"
+            for r in config.regras if r.params.get("tipo_pendencia") and not (CHAVES_NATUREZA & r.params.keys())]
+
+
 def aprovacao_da_base(dir_regras: Path, config: Config) -> tuple[list[str], list[str]]:
     """(sem aprovador, premissas) entre as regras ATIVAS e os demais itens da base registrados no histórico (arquivos
     como causas_divergencia.csv, linhas do complemento), pela linha MAIS RECENTE de cada id em historico_alteracoes.csv:
@@ -690,6 +707,11 @@ def _validar_params(regra: Regra, erro, avisos, onde, ctx: _Contexto):
         if p["tipo_pendencia"] not in TIPOS_PENDENCIA:
             erro(f"tipo_pendencia '{p['tipo_pendencia']}' desconhecido",
                  f"use um destes: {', '.join(sorted(TIPOS_PENDENCIA))}")
+    for chave in CHAVES_NATUREZA & p.keys():
+        p[chave] = normalizar(p[chave]).replace(" ", "_")
+        if p[chave] not in NATUREZAS_PENDENCIA or p[chave] == "FATURAR":
+            erro(f"{chave} '{p[chave]}' desconhecida",
+                 f"use uma destas: {', '.join(n for n in NATUREZAS_PENDENCIA if n != 'FATURAR')} (FATURAR é das notas)")
     if "subtipo" in p:
         p["subtipo"] = normalizar(p["subtipo"]).replace(" ", "_")
         if not _RE_IDENT.fullmatch(p["subtipo"]):

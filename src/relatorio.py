@@ -17,6 +17,7 @@ from pathlib import Path
 import pandas as pd
 
 from .dinheiro import CENTAVO, ZERO, brl, soma
+from .regras import NATUREZAS_PENDENCIA
 from .notas import competencia_texto, primeiro_dia
 from .saida import gravar_texto
 
@@ -168,6 +169,10 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
             **_total_e_diferenca(f),
             "notas": {"quantidade": int(len(f.notas)), "valor_total_brl": _s(soma(f.notas["valor_brl"]))},
             "divergencias": resumo_divergencias(f),
+            "por_natureza": por_natureza(f),
+            "por_natureza_nota": "uma entrada por natureza (o que fazer com o dinheiro); valor_brl = soma dos valores "
+                                 "absolutos dos ids listados no arquivo_origem, sem informativas nem incluídas em outra "
+                                 "(fora_da_soma). Naturezas diferentes nunca se somam: não há total geral",
             "pendencias": {
                 "quantidade": int(len(f.pendencias)),
                 "informativas": int(f.pendencias["informativa"].astype(bool).sum()) if len(f.pendencias) else 0,
@@ -283,18 +288,52 @@ def _chave_pendencia(r) -> tuple:
     return (r.tipo, r.subtipo or "", r.cnpj or str(r.ref_origem))
 
 
-# apresentação (não é regra de negócio): o que se faz com o dinheiro de cada tipo de pendência. DIVERGENCIA_TAXA
-# depende da linha de negócio (checkout = adquirente, remessa = parceiro de câmbio); tipos fora da lista = só acompanhar
-NATUREZA_POR_TIPO = {
-    "SPREAD_NEGATIVO": "PARCEIRO", "DUPLICATA_DIVERGENTE": "PARCEIRO", "LINHA_NAO_INTERPRETADA": "PARCEIRO",
-    "COMPLIANCE": "PARCEIRO", "CONFERIR_AJUSTE_PONTE": "PARCEIRO",
-    "TARIFA_ZERO_COBRADA": "DEVOLVER",
-    "SEM_CONTRATO": "NAO_FATURAR", "ALERTA_ANTECIPACAO": "NAO_FATURAR", "CADASTRO": "NAO_FATURAR",
-    "SALDO_NEGATIVO_LOJISTA": "NAO_FATURAR", "DADO_INSUFICIENTE": "NAO_FATURAR", "FORA_COMPETENCIA": "NAO_FATURAR",
-}
-NATUREZAS = [("ADQUIRENTE", "Cobrar da adquirente"), ("PARCEIRO", "Contestar com o parceiro de câmbio"),
-             ("DEVOLVER", "Devolver ao lojista por conta da Tarvo"), ("NAO_FATURAR", "Não faturar até decidir"),
-             ("ACOMPANHAR", "Só acompanhar")]
+# rótulo de cada natureza (a natureza de cada pendência vem do parâmetro natureza= da regra que lhe dá dono)
+SEM_NATUREZA = "SEM_NATUREZA"
+NATUREZAS = [("COBRAR_ORBE", "Cobrar da adquirente"), ("CONTESTAR_PONTE", "Contestar com o parceiro de câmbio"),
+             ("DEVOLVER_LOJISTA", "Devolver ao lojista por conta da Tarvo"), ("NAO_FATURAR", "Não faturar até decidir"),
+             ("ACOMPANHAR", "Só acompanhar"), (SEM_NATUREZA, "Sem natureza na regra")]
+
+
+def por_natureza(f) -> dict:
+    """totais.por_natureza: {natureza: {quantidade, valor_brl, ids, arquivo_origem}}. FATURAR vem de notas_a_emitir.csv;
+    as demais, de pendencias.csv pela coluna natureza, com as mesmas exclusões do por_responsavel (sem informativas e
+    sem as já incluídas em outra, listadas em fora_da_soma). valor_brl = soma dos valores absolutos dos ids listados.
+    Naturezas diferentes nunca se somam: não há total geral."""
+    out = {"FATURAR": {"quantidade": int(len(f.notas)), "valor_brl": _s(soma(f.notas["valor_brl"])),
+                       "ids": list(f.notas["id_saida"]), "arquivo_origem": "notas_a_emitir.csv"}}
+    pend = f.pendencias
+    nat = pend["natureza"].fillna("").replace("", SEM_NATUREZA) if len(pend) else pd.Series(dtype=str)
+    for chave in [n for n in NATUREZAS_PENDENCIA if n != "FATURAR"] + ([SEM_NATUREZA] if (nat == SEM_NATUREZA).any() else []):
+        g = pend[nat == chave] if len(pend) else pend
+        conta = _na_soma(g)
+        fora = g[~g["id_saida"].isin(conta["id_saida"])] if len(g) else g
+        out[chave] = {"quantidade": int(len(conta)), "valor_brl": _s(valor_em_jogo(g)) if len(g) else "0.00",
+                      "ids": list(conta["id_saida"]), "arquivo_origem": "pendencias.csv",
+                      "fora_da_soma": [f"{r.id_saida} ({'informativa' if r.informativa else 'incluída em ' + str(r.incluida_em)})"
+                                       for r in fora.itertuples(index=False)]}
+    return out
+
+
+def _na_soma(g: pd.DataFrame) -> pd.DataFrame:
+    """As pendências que entram no valor em jogo: sem informativas e sem as já incluídas em outra."""
+    if not len(g):
+        return g
+    return g[~g["informativa"].astype(bool) & (g["incluida_em"].isna() | (g["incluida_em"] == ""))]
+
+
+def checar_por_natureza(f):
+    """Integridade: para cada natureza, a soma (valor absoluto) dos ids listados nos arquivos de origem = valor_brl."""
+    from .validacao import Checagem
+    erros = []
+    for chave, d in por_natureza(f).items():
+        origem = f.notas if d["arquivo_origem"] == "notas_a_emitir.csv" else f.pendencias
+        sel = origem[origem["id_saida"].isin(d["ids"])]
+        total = soma(abs(v) for v in sel["valor_brl"] if v is not None)
+        if len(sel) != len(d["ids"]) or len(sel) != d["quantidade"] or total != Decimal(d["valor_brl"]):
+            erros.append(f"{chave}: ids somam {total}, publicado {d['valor_brl']}")
+    return Checagem("integridade", "7. por natureza: soma dos ids listados = valor publicado", not erros,
+                    "; ".join(erros) if erros else f"{len(por_natureza(f))} naturezas conferidas")
 
 
 def _primeira_frase(texto, limite: int = 160) -> str:
@@ -314,11 +353,7 @@ def dinheiro_por_natureza(f, causas: dict, config=None) -> list[dict]:
     ativas = pend[pend["incluida_em"].isna() | (pend["incluida_em"] == "")] if len(pend) else pend
     grupos: dict = {}
     for r in ativas.itertuples(index=False):
-        if r.tipo == "DIVERGENCIA_TAXA":
-            nat = "ADQUIRENTE" if r.linha_negocio == "CHECKOUT" else "PARCEIRO"
-        else:
-            nat = NATUREZA_POR_TIPO.get(r.tipo, "ACOMPANHAR")
-        grupos.setdefault((nat, r.tipo, r.linha_negocio or ""), []).append(r)
+        grupos.setdefault((r.natureza or SEM_NATUREZA, r.tipo, r.linha_negocio or ""), []).append(r)
     lc = lista_contestacao(f.ponte_linhas) if len(f.ponte_linhas) else pd.DataFrame(columns=["natureza", "ref_origem"])
     repetidas = lc[lc["natureza"] == "REPETIDA"] if len(lc) else lc
     for nat_key, rotulo in NATUREZAS:
@@ -361,7 +396,7 @@ def dinheiro_por_natureza(f, causas: dict, config=None) -> list[dict]:
                     f"{r.lojista + ': ' if r.lojista else ''}{_primeira_frase(r.motivo)}" for r in rs[:3]) + ("; …" if len(rs) > 3 else "")
             out.append({"natureza": rotulo if primeira else "", "o_que": o_que, "valor": valor, "quem": quem})
             primeira = False
-        if nat_key == "PARCEIRO" and len(repetidas):
+        if nat_key == "CONTESTAR_PONTE" and len(repetidas):
             # quem decide vem da regra que mandou contar a repetida uma vez (IGNORAR_DUPLICADO), nunca do código
             regra_dup = config.regra_duplicado("ponte", primeiro_dia(f.competencia)) if config is not None else None
             out.append({"natureza": rotulo if primeira else "",

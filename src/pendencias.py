@@ -15,7 +15,7 @@ import pandas as pd
 
 from .dinheiro import ZERO, arredondar, brl, soma
 from .textos import sem_repeticao
-from .regras import NATUREZA_CONTRATO, Config, Regra
+from .regras import NATUREZA_CONTRATO, Config, Regra, natureza_da_regra
 from .remessa import DESTINOS_COMISSAO
 
 PREFIXO_ID = "PEN-"
@@ -23,8 +23,10 @@ COLUNAS = ["id_saida", "tipo", "ref_origem", "valor_brl", "motivo", "quem_decide
            "cnpj", "lojista", "qtd_itens", "regra_id", "o_que_fazer", "informativa", "incluida_em",
            # só nas pendências de remessa com spread contratado conhecido (ex.: SPREAD_NEGATIVO): o que aconteceu
            # (spread do relatório) e o que se pede ao parceiro (spread contratado, diferença e a metade da Tarvo)
-           "spread_relatorio_brl", "spread_contratado_brl", "diferenca_contrato_brl", "metade_tarvo_contrato_brl"]
-COLUNAS_EXTRAS = COLUNAS[15:]
+           "spread_relatorio_brl", "spread_contratado_brl", "diferenca_contrato_brl", "metade_tarvo_contrato_brl",
+           # o que se faz com o dinheiro (parâmetro natureza= da regra que dá dono à pendência): base de totais.por_natureza
+           "natureza"]
+COLUNAS_EXTRAS = COLUNAS[15:19]
 COLUNAS_RASTRO = ["id_saida", "arquivo_origem", "ref_origem", "valor", "regra_id", "taxa_pct"]
 # ordem de apresentação: o que mexe com dinheiro e nota primeiro, informativas depois
 ORDEM_TIPOS = ["TARIFA_ZERO_COBRADA", "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO",
@@ -61,6 +63,7 @@ class _Coletor:
             "informativa": bool(regra.params.get("informativa", False)),   # fora do "em jogo" (regra diz)
             "incluida_em": regra.params.get("incluida_em"),                 # valor já dentro de outra pendência
             **{c: (extras or {}).get(c) for c in COLUNAS_EXTRAS},
+            "natureza": natureza_da_regra(regra, linha_negocio),
             "_rastro": rastro,
         })
 

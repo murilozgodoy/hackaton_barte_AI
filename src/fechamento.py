@@ -133,7 +133,7 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
     f = Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, nf, sem_nota,
                    ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, cart, n_cart, dados["taxas"],
                    meta_ponte, checagens, list(config.avisos) + ext.avisos + avisos_extra, dv.so_pendencia)
-    f.checagens.append(relatorio.checar_diferenca_notas(f))
+    f.checagens += [relatorio.checar_diferenca_notas(f), relatorio.checar_por_natureza(f)]
     return f
 
 
