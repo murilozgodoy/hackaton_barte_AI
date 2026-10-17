@@ -27,6 +27,9 @@ def empacotar(raiz: Path, destino: Path) -> Path:
     shutil.copytree(raiz / "src", pasta_tmp / "scripts" / "src", ignore=IGNORAR)
     shutil.copytree(raiz / "regras", pasta_tmp / "assets" / "regras_iniciais", ignore=IGNORAR)
     shutil.copy(raiz / "requirements.txt", pasta_tmp / "scripts" / "requirements.txt")
+    # o roteiro sem IA (a skill manda ler quando não há execução de código) e as instruções para agentes
+    for nome in ("COMO_FECHAR_O_MES.md", "AGENTS.md"):
+        shutil.copy(raiz / nome, pasta_tmp / nome)
     zip_path = destino / f"{NOME_SKILL}.zip"
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         for p in sorted(pasta_tmp.rglob("*")):

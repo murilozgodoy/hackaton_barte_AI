@@ -197,3 +197,23 @@ def test_regra_de_fechamento_so_a_helena_aprova(saida, tmp_path, capsys):
     assert main(["regra", "aplicar", "--regras", str(regras), "--proposta", str(proposta), "--aprovado-por", "Diego (Comercial)"]) == 2
     assert "não pode aprovar" in capsys.readouterr().err
     assert main(["regra", "aplicar", "--regras", str(regras), "--proposta", str(proposta), "--aprovado-por", "Helena (Financeiro)"]) == 0
+
+
+def test_empacotar_skill_inclui_roteiro_sem_ia_e_agents(tmp_path, capsys):
+    """A skill manda ler COMO_FECHAR_O_MES.md quando não há execução de código: o zip precisa trazê-lo (e o AGENTS.md).
+    O zip extraído numa pasta qualquer roda o motor com a base de regras inicial."""
+    import subprocess
+    import sys
+    assert main(["empacotar-skill", "--destino", str(tmp_path / "dist")]) == 0
+    zip_path = tmp_path / "dist" / "fechamento-tarvo.zip"
+    with zipfile.ZipFile(zip_path) as z:
+        nomes = z.namelist()
+        assert "fechamento-tarvo/COMO_FECHAR_O_MES.md" in nomes and "fechamento-tarvo/AGENTS.md" in nomes
+        z.extractall(tmp_path / "extraido")
+    raiz = tmp_path / "extraido" / "fechamento-tarvo"
+    assert (raiz / "COMO_FECHAR_O_MES.md").read_bytes() == (RAIZ / "COMO_FECHAR_O_MES.md").read_bytes()
+    zip_mes = next(RAIZ.glob("Tarvo_Data_Pack_*.zip"))
+    r = subprocess.run([sys.executable, "-m", "src", "validar", "--entrada", str(zip_mes), "--regras",
+                        str(raiz / "assets" / "regras_iniciais"), "--json"], cwd=raiz / "scripts", capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout)["ok"] is True
