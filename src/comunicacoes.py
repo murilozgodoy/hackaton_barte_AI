@@ -121,11 +121,21 @@ def gerar(f, config, dir_regras: Path, pasta_saida: Path, competencia_txt: str, 
             linhas.append(f"- **Pedido {pedido} — corrigir o relatório: {ops} aparece{'m' if len(g) > 1 else ''} mais de uma vez.** "
                           f"Contada{'s' if len(g) > 1 else ''} uma vez no nosso fechamento (valor 0 neste pedido).")
         else:
-            impacto = soma(arredondar(-v * participacao, modo) for v in g["valor_brl"])
             obs = ", ".join(sorted({str(o) for o in f.ponte_linhas.loc[f.ponte_linhas["ref_origem"].isin(g["ref_origem"]), "observacao"] if o}))
-            linhas.append(f"- **Pedido {pedido} — {len(g)} operações com {natureza.replace('_', ' ').lower()}, fora da nossa comissão e "
-                          f"da nota: {brl(soma(g['valor_brl']))} no relatório, impacto de {brl(impacto)} na metade da Tarvo.** "
-                          f"{g['motivo'].iloc[0]}" + (f" ({obs})" if obs else "") + f": não aceitas. Operações: {ops}.")
+            cabeca = (f"- **Pedido {pedido} — {len(g)} operações com {natureza.replace('_', ' ').lower()}, fora da nossa comissão e "
+                      f"da nota.** {g['motivo'].iloc[0]}" + (f" ({obs})" if obs else "") + ": não aceitas; ")
+            if g["spread_contratado_brl"].notna().all():
+                rel, contr = soma(g["spread_relatorio_brl"]), soma(g["spread_contratado_brl"])
+                dif, metade = soma(g["diferenca_contrato_brl"]), soma(g["metade_tarvo_contrato_brl"])
+                linhas.append(cabeca + f"o que aconteceu: {brl(rel)} de spread no relatório; o que pedimos à Ponte (a trava deveria "
+                              f"ter sido honrada): {brl(abs(dif))}, a diferença até o spread contratado de {brl(contr)} "
+                              f"({_faixa(g['taxa_contratada_pct'])} x PTAX x Valor ME), dos quais {brl(metade)} seriam a metade da Tarvo. "
+                              f"As colunas spread_relatorio_brl e spread_contratado_brl do anexo trazem os dois valores por operação. "
+                              f"Operações: {ops}.")
+            else:
+                impacto = soma(arredondar(-v * participacao, modo) for v in g["valor_brl"])
+                linhas.append(cabeca + f"{brl(soma(g['valor_brl']))} no relatório, impacto de {brl(impacto)} na metade da Tarvo. "
+                              f"Operações: {ops}.")
     prazo = _prazo(config, meta, f)
     linhas += ["", prazo, "", textos["PONTE"]["fechamento"], ""]
     out["ponte_md"] = _gravar(pasta / "ponte.md", linhas)
@@ -191,7 +201,9 @@ def _prazo(config, meta: dict, f) -> str:
 def _avisos(f, config, causas: dict) -> list[dict]:
     """Uma entrada por (lojista, linha de negócio) com divergência (de contrato ou fora dele): a condição contratada
     não foi aplicada desde o primeiro dia. Vigência: da TAXA_EXCECAO ou da linha da planilha de taxas."""
-    todas = f.divergencias   # todas as naturezas: a condição não aplicada vira aviso mesmo quando é devolução ao lojista
+    # só divergências de contrato: uma concessão fora do contrato (natureza DEVOLUCAO_LOJISTA) não é condição que a
+    # contraparte devesse aplicar, então não gera aviso (Helena ao Theo, 17/10 11h37)
+    todas = f.divergencias_contrato
     out = []
     for (cnpj, linha), g in todas.groupby(["cnpj", "linha_negocio"], sort=False):
         origem = str(g["regra_id"].iloc[0])

@@ -88,7 +88,8 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
     conc = conciliacao.calcular(dados, rem.linhas, rem.comissoes, ext.lancamentos,
                                 config.parametro("participacao_spread", ref), config.parametro("arredondamento", ref))
     pend = pendencias.calcular(ref, chk.linhas, rem.linhas, div, sem_nota, chk.rastro, ext.lancamentos,
-                               ext.em_transito, conc, nf, config, taxas=dados["taxas"], contestacao_anterior=contestacao_anterior)
+                               ext.em_transito, conc, nf, config, taxas=dados["taxas"], contestacao_anterior=contestacao_anterior,
+                               rem_rastro=rem.rastro)
 
     colunas_com = ["id_saida", "cnpj", "lojista", "linha_negocio", "comissao_brl"]
     comissoes = pd.concat([chk.comissoes, rem.comissoes], ignore_index=True)

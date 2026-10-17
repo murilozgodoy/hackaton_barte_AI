@@ -7,6 +7,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -25,7 +26,8 @@ ARQUIVOS_COM_ID = {
     "notas_a_emitir.csv": "valor_brl", "lancamentos_classificados.csv": "valor", "pendencias.csv": "valor_brl",
 }
 PREFIXOS = {"PARAMETRO": "P", "TAXA_EXCECAO": "X", "IGNORAR_DUPLICADO": "D", "EXCLUIR_E_PENDENCIA": "E",
-            "CLASSIFICAR_CONTA": "C", "DONO_PENDENCIA": "DP", "ALERTA": "A", "MANUAL": "M"}
+            "AJUSTE_PARCEIRO": "J", "CLASSIFICAR_CONTA": "C", "DONO_PENDENCIA": "DP", "ALERTA": "A", "MANUAL": "M"}
+_RE_ID_REGRA = re.compile(r"^[A-Z]+-\d+")
 COLUNAS_APROVADORES = ["tipo", "quem_aprova", "quem_registra", "informado_por", "data"]
 COLUNAS_HISTORICO = ["data", "quem", "id_regra", "acao", "antes", "depois", "motivo", "fonte", "aprovado_por", "registrado_por"]
 
@@ -81,7 +83,8 @@ def explicar(id_saida: str, pasta_saida: Path, regras: dict[str, dict] | None = 
     valor = _dec(achado["linha"].get(achado["coluna_valor"], ""))
     envolvidas = {}
     for rid in {l.get("regra_id", "") for l in linhas} | {achado["linha"].get("regra_id", "")}:
-        chave = rid.split(":")[0] if rid else ""
+        m = _RE_ID_REGRA.match(rid or "")
+        chave = m.group(0) if m else ""   # "P-01 (ajuste ref PC-...)" e "X-01" apontam para a regra; "planilha:..." não
         if regras and chave in regras:
             envolvidas[chave] = regras[chave]
     origem = _origens(linhas, dados) if dados else {}
@@ -382,6 +385,12 @@ def _efeito(regra: Regra, lancamentos: pd.DataFrame | None) -> list[str]:
                 f"{p['tipo_pendencia']} para {regra.quem_decide}; nada sai da comissão"]
     if regra.tipo == "IGNORAR_DUPLICADO":
         return [f"linhas repetidas da fonte {p['fonte']} pela chave {p['chave']} contam uma vez"]
+    if regra.tipo == "AJUSTE_PARCEIRO":
+        como = ("cuja observação traz um dos trechos seguido do Nº da operação original" if p["criterio"] == "observacao_ref"
+                else "cuja observação contém um dos trechos")
+        return [f"linhas da fonte {p['fonte']} {como} ({' OU '.join(p['contem_alternativas'])}) viram AJUSTE_PONTE: entram na "
+                f"comissão do mês pela participação sobre o Spread R$ (com sinal) e geram a pendência {p['tipo_pendencia']} para "
+                f"{regra.quem_decide}; prioridade {p['prioridade']} entre as regras de destino (menor vence)"]
     return [f"lembrete para {regra.quem_decide} em todo fechamento: {regra.o_que_fazer}"]
 
 

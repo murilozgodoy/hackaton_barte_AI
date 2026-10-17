@@ -41,7 +41,7 @@ def calcular(com_chk: pd.DataFrame, com_rem: pd.DataFrame, rastro_chk: pd.DataFr
     discr_chk = config.parametro("discriminacao_checkout", ref).replace("{competencia}", texto)
     for r in com_chk.itertuples(index=False):
         if r.comissao_brl <= ZERO:
-            sem_nota.append(r)
+            sem_nota.append(r._asdict())
             continue
         notas.append({"tomador_cnpj": r.cnpj, "tomador": r.lojista, "linha_negocio": "CHECKOUT",
                       "valor_brl": r.comissao_brl, "discriminacao": discr_chk, "id_comissao": r.id_saida,
@@ -57,6 +57,13 @@ def calcular(com_chk: pd.DataFrame, com_rem: pd.DataFrame, rastro_chk: pd.DataFr
                       "id_comissao": ", ".join(com_rem["id_saida"]), "qtd_itens": int(com_rem["qtd_operacoes"].sum()),
                       "competencia": competencia})
         rastros.append(rastro_rem)
+    elif len(com_rem):
+        # participação do mês zerada ou negativa (ajustes do parceiro): sem nota única, vira pendência (não há nota
+        # complementar nem valor negativo em nota)
+        sem_nota.append({"id_saida": ", ".join(com_rem["id_saida"]), "cnpj": config.parametro("nota_remessa_tomador_cnpj", ref),
+                         "lojista": config.parametro("nota_remessa_tomador_nome", ref), "linha_negocio": "REMESSA",
+                         "comissao_brl": total_rem, "ec_orbe": None, "qtd_transacoes": int(com_rem["qtd_operacoes"].sum()),
+                         "valor_bruto_total": None, "taxa_cobrada_orbe_brl": None})
 
     if not notas:
         return pd.DataFrame(columns=COLUNAS), pd.DataFrame(columns=COLUNAS_RASTRO), pd.DataFrame(sem_nota)

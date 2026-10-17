@@ -39,7 +39,7 @@ from .leitores.comum import ErroLeitura, ler_texto, normalizar, normalizar_ec
 
 SEPARADOR_PARAMETROS = "|"
 SEPARADOR_ALTERNATIVAS = " OU "
-TIPOS = ("PARAMETRO", "TAXA_EXCECAO", "IGNORAR_DUPLICADO", "EXCLUIR_E_PENDENCIA",
+TIPOS = ("PARAMETRO", "TAXA_EXCECAO", "IGNORAR_DUPLICADO", "EXCLUIR_E_PENDENCIA", "AJUSTE_PARCEIRO",
          "CLASSIFICAR_CONTA", "DONO_PENDENCIA", "ALERTA", "MANUAL")
 STATUS_REGRA = {"ATIVA", "PROPOSTA", "INATIVA"}
 STATUS_CADASTRO = {"ATIVO", "SEM_CONTRATO", "INATIVO"}
@@ -64,9 +64,6 @@ PARAMETROS = {
     # operação do parceiro de câmbio cujo CNPJ não está na planilha nem no complemento:
     # COMISSAO = entra na comissão e na nota (o parceiro paga) com pendência CADASTRO/CNPJ_PONTE; EXCLUIR = fica fora
     "remessa_cnpj_sem_cadastro": ("escolha", {"COMISSAO", "EXCLUIR"}),
-    # trechos (separados por " OU ") que, na observação de uma linha do relatório do parceiro de câmbio, marcam um
-    # ajuste (crédito ou débito) de mês anterior: a linha entra na comissão pelo valor (AJUSTE_PONTE) e vira pendência
-    "ajuste_parceiro_contem": ("texto", None),
 }
 TIPOS_PENDENCIA = {
     "DIVERGENCIA_TAXA", "TARIFA_ZERO_COBRADA", "SEM_CONTRATO", "SPREAD_NEGATIVO",
@@ -86,6 +83,13 @@ PENDENCIAS_DO_MOTOR = {
 PENDENCIAS_OPCIONAIS = {"RECURSO_SEM_OPERACAO"}
 CRITERIOS = {"orbe": {"status_cadastro"},
              "ponte": {"status_cadastro", "spread_negativo", "status_compliance_fora"}}
+# AJUSTE_PARCEIRO: linha do relatório do parceiro que é ajuste de mês anterior (entra na comissão pelo valor, vira
+# pendência). observacao_ref: a observação traz um dos trechos de `contem` seguido do Nº da operação original
+# ("AJUSTE REF PC-..."); observacao_contem: só o trecho, sem operação original. As regras de destino (EXCLUIR_E_PENDENCIA
+# e AJUSTE_PARCEIRO) são avaliadas em ordem de `prioridade` (menor vence): o ajuste, de spread negativo, precisa vir
+# antes da exclusão por spread negativo.
+CRITERIOS_AJUSTE = {"ponte": {"observacao_ref", "observacao_contem"}}
+PRIORIDADE_PADRAO = 50
 # ALERTA: o motor calcula o critério e a regra diz para quem e para quais lojistas (nada sai da comissão)
 CRITERIOS_ALERTA = {"orbe": {"antecipacao_acima_das_vendas"}}
 # so_para: status do cadastro ou PRIMEIRO_MES (sem venda anterior ao mês nem taxa vigente antes dele)
@@ -106,7 +110,8 @@ ESQUEMA = {
                      {"tipo_pendencia", "subtipo", "divergencia", "observacao"}),
     "IGNORAR_DUPLICADO": ({"fonte", "chave"}, set()),
     "EXCLUIR_E_PENDENCIA": ({"fonte", "criterio", "tipo_pendencia"},
-                            {"status", "aceitos", "valor_pendencia", "agrupar", "subtipo"}),
+                            {"status", "aceitos", "valor_pendencia", "agrupar", "subtipo", "prioridade"}),
+    "AJUSTE_PARCEIRO": ({"fonte", "criterio", "contem", "tipo_pendencia"}, {"prioridade", "subtipo"}),
     "CLASSIFICAR_CONTA": ({"banco", "contem", "conta", "prioridade"},
                           {"sinal", "gera_pendencia", "tipo_pendencia", "subtipo", "transitoria", "papel"}),
     "DONO_PENDENCIA": ({"tipo_pendencia"}, {"subtipo", "informativa", "incluida_em"}),
@@ -333,6 +338,13 @@ class Config:
     def regras_exclusao(self, fonte: str, em: date) -> list[Regra]:
         return [r for r in self.por_tipo("EXCLUIR_E_PENDENCIA")
                 if r.params["fonte"] == fonte and r.vigente_em(em)]
+
+    def regras_destino(self, fonte: str, em: date) -> list[Regra]:
+        """EXCLUIR_E_PENDENCIA e AJUSTE_PARCEIRO da fonte, vigentes, em ordem de prioridade (menor primeiro; empate
+        pela ordem no arquivo). A primeira que casar decide o destino da linha."""
+        regras = [r for r in self.regras if r.tipo in ("EXCLUIR_E_PENDENCIA", "AJUSTE_PARCEIRO")
+                  and r.params["fonte"] == fonte and r.vigente_em(em)]
+        return sorted(regras, key=lambda r: (r.params.get("prioridade", PRIORIDADE_PADRAO), r.linha))
 
     def regra_duplicado(self, fonte: str, em: date) -> Regra | None:
         return next((r for r in self.por_tipo("IGNORAR_DUPLICADO")
@@ -718,6 +730,22 @@ def _validar_params(regra: Regra, erro, avisos, onde, ctx: _Contexto):
         p["agrupar"] = p.get("agrupar", "cnpj").lower()
         if p["agrupar"] not in AGRUPAR:
             erro(f"agrupar '{p['agrupar']}' inválido", f"use {', '.join(sorted(AGRUPAR))}")
+        _validar_prioridade(p, erro)
+
+    elif tipo == "AJUSTE_PARCEIRO":
+        fonte, criterio = p["fonte"].lower(), p["criterio"].lower()
+        if fonte not in CRITERIOS_AJUSTE:
+            return erro(f"fonte '{p['fonte']}' inválida", f"use {' ou '.join(CRITERIOS_AJUSTE)}")
+        if criterio not in CRITERIOS_AJUSTE[fonte]:
+            return erro(f"critério '{p['criterio']}' não existe para {fonte}",
+                        f"use um destes: {', '.join(sorted(CRITERIOS_AJUSTE[fonte]))}")
+        p["fonte"], p["criterio"] = fonte, criterio
+        p["contem_alternativas"] = alternativas(p["contem"])
+        if not p["contem_alternativas"] or any(len(a) < 3 for a in p["contem_alternativas"]):
+            erro(f"contem '{p['contem']}' vazio ou curto demais", "use trechos de pelo menos 3 letras, separados por ' OU '")
+        _validar_prioridade(p, erro)
+        if not regra.quem_decide:
+            erro("AJUSTE_PARCEIRO sem quem_decide", "preencha a coluna quem_decide")
 
     elif tipo == "CLASSIFICAR_CONTA":
         _validar_banco_contem(p, erro, ctx.bancos)
@@ -791,6 +819,16 @@ def _validar_params(regra: Regra, erro, avisos, onde, ctx: _Contexto):
                 erro(f"assunto '{p['assunto']}' inválido", "use letras minúsculas e _, ex.: conciliacao_adquirente")
 
 
+def _validar_prioridade(p: dict, erro) -> None:
+    """prioridade opcional das regras de destino (EXCLUIR_E_PENDENCIA, AJUSTE_PARCEIRO): inteiro 1..99, menor vence."""
+    try:
+        p["prioridade"] = int(str(p.get("prioridade", PRIORIDADE_PADRAO)).strip())
+        if not 1 <= p["prioridade"] <= 99:
+            raise ValueError
+    except ValueError:
+        erro(f"prioridade '{p.get('prioridade')}' inválida", "use um inteiro de 1 a 99 (menor vence; omitida = 50)")
+
+
 def _validar_banco_contem(p: dict, erro, bancos: set[str]):
     p["banco"] = normalizar(p["banco"])
     if p["banco"] not in bancos | {"TODOS"}:
@@ -826,6 +864,8 @@ def _chave_conflito(r: Regra):
         return ("DONO_PENDENCIA", p["tipo_pendencia"], p.get("subtipo"))
     if r.tipo == "ALERTA":
         return ("ALERTA", p["fonte"], p["criterio"])
+    if r.tipo == "AJUSTE_PARCEIRO":
+        return ("AJUSTE_PARCEIRO", p["fonte"], p["criterio"])
     return None
 
 

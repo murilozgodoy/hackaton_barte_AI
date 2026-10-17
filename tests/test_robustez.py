@@ -306,26 +306,28 @@ def test_parcelado_acima_do_maximo_da_planilha_vira_pendencia_da_helena(cfg):
 
 # ---------------------------------------------------------------- T6 (Helena à Turma do Barulho 17/10 10h44): ajuste da Ponte no relatório do mês seguinte
 
-def _com_ajustes(dados):
-    """Setembro mais 1 crédito e 1 débito de ajuste do parceiro (datas de agosto): o crédito pela observação (P-12),
-    o débito pelo Nº Operação da contestação anterior (--anterior)."""
-    from tests.sintetico import operacao_ponte
+def _com_ajustes(dados, extra=None):
+    """Setembro mais ajustes do parceiro no formato da Helena (F17: linha nova, Nº próprio, Spread R$ com sinal, observação
+    "AJUSTE REF <operação original>"), datados de agosto para provar que o ajuste entra no mês em que aparece. O crédito
+    cita uma operação que não está na contestação anterior; o débito cita a PC-0926-0011 (pedido a). A terceira linha
+    só tem a palavra (J-02, segurança)."""
     ponte = dados["ponte"].copy()
     base = ponte.iloc[0].to_dict()
-    credito = {**base, "num_operacao": "PC-0826-0901", "ref_origem": "PC-0826-0901", "linha_planilha": 900,
-               "data_contratacao": pd.Timestamp("2026-08-20"), "data_liquidacao": pd.Timestamp("2026-08-21"),
-               "observacao": "AJUSTE - spread negativo revisto (contestação do mês anterior)", "spread_brl": D("687.52"),
-               "spread_frac": D("0.01"), "spread_pct": D("1.00"), "cnpj": "95739378000118", "cliente": "PONTE AÉREA ESTUDANTIL"}
-    debito = {**base, "num_operacao": "PC-0826-0902", "ref_origem": "PC-0826-0902", "linha_planilha": 901,
-              "data_contratacao": pd.Timestamp("2026-08-25"), "data_liquidacao": pd.Timestamp("2026-08-26"),
-              "observacao": None, "spread_brl": D("-29.56"), "spread_frac": D("-0.001"), "spread_pct": D("-0.10"),
-              "cnpj": "17217888000111", "cliente": "MUNDO ABERTO INTERCÂ"}
-    novo = pd.concat([ponte, pd.DataFrame([credito, debito])], ignore_index=True)
+    def linha(num, planilha, data, obs, spread, frac, cnpj, cliente):
+        return {**base, "num_operacao": num, "ref_origem": num, "linha_planilha": planilha,
+                "data_contratacao": pd.Timestamp(data), "data_liquidacao": pd.Timestamp(data), "observacao": obs,
+                "spread_brl": D(spread), "spread_frac": D(frac), "spread_pct": D(frac) * 100, "cnpj": cnpj, "cliente": cliente}
+    novas = [linha("PC-0826-0901", 900, "2026-08-20", "AJUSTE REF PC-0926-0210", "687.52", "0.01", "95739378000118", "PONTE AÉREA ESTUDANTIL"),
+             linha("PC-0826-0902", 901, "2026-08-25", "AJUSTE REF PC-0926-0011", "-29.56", "-0.001", "17217888000111", "MUNDO ABERTO INTERCÂ"),
+             linha("PC-0826-0903", 902, "2026-08-26", "Estorno de operação do mês anterior", "-10.00", "-0.001", "17217888000111", "MUNDO ABERTO INTERCÂ")]
+    if extra:
+        novas += extra
+    novo = pd.concat([ponte, pd.DataFrame(novas)], ignore_index=True)
     novo.attrs = dict(dados["ponte"].attrs)
     total = dict(novo.attrs["spread_total_declarado"])
-    total["valor"] = total["valor"] + D("687.52") - D("29.56")
+    total["valor"] = total["valor"] + sum((n["spread_brl"] for n in novas), D("0"))
     novo.attrs["spread_total_declarado"] = total
-    anterior = {"PC-0826-0902": {"natureza": "EXCESSO_SPREAD", "pedido": "a", "competencia": "2026-08"}}
+    anterior = {"PC-0926-0011": {"natureza": "EXCESSO_SPREAD", "pedido": "a", "competencia": "2026-08"}}
     return {**dados, "ponte": novo}, anterior
 
 
@@ -333,28 +335,62 @@ def test_ajuste_do_parceiro_entra_na_comissao_do_mes_e_vira_pendencia_informativ
     base = executar(dados, config, "2026-09", usar_ia=False)
     com_aj, anterior = _com_ajustes(dados)
     f = executar(com_aj, config, "2026-09", usar_ia=False, contestacao_anterior=anterior)
-    assert f.integro and f.destinos_ponte == {"COMISSAO": 228, "EXCLUIDO": 4, "DUPLICATA_IGNORADA": 1, "AJUSTE_PONTE": 2}
+    assert f.integro and f.destinos_ponte == {"COMISSAO": 228, "EXCLUIDO": 4, "DUPLICATA_IGNORADA": 1, "AJUSTE_PONTE": 3}
     aj = f.ponte_linhas[f.ponte_linhas.destino == "AJUSTE_PONTE"].set_index("num_operacao")
+    # J-01 (AJUSTE REF, prioridade 10) antes da E-03 (spread negativo, prioridade 50): o débito não é trava vencida
+    assert aj.destino_regra.to_dict() == {"PC-0826-0901": "J-01", "PC-0826-0902": "J-01", "PC-0826-0903": "J-02"}
     assert aj.loc["PC-0826-0901", "comissao_brl"] == D("343.76") and aj.loc["PC-0826-0901", "subtipo"] == "CREDITO"
     assert aj.loc["PC-0826-0902", "comissao_brl"] == D("-14.78") and aj.loc["PC-0826-0902", "subtipo"] == "DEBITO"
+    assert aj.loc["PC-0826-0903", "comissao_brl"] == D("-5.00") and aj.operacao_original.to_dict() == {
+        "PC-0826-0901": "PC-0926-0210", "PC-0826-0902": "PC-0926-0011", "PC-0826-0903": None}
+    assert aj.loc["PC-0826-0902", "regra_id"] == "P-01 (ajuste ref PC-0926-0011)"
     assert "FORA_COMPETENCIA" not in set(f.ponte_linhas.destino) and "SPREAD_NEGATIVO" not in set(aj.tipo_pendencia)
-    # entra na comissão do lojista e na nota de remessa do mês pelo valor; nada mais muda
-    assert soma(f.comissoes_remessa.comissao_brl) == D("39543.45") + D("343.76") - D("14.78")
-    assert f.notas[f.notas.linha_negocio == "REMESSA"].valor_brl.iloc[0] == soma(f.comissoes_remessa.comissao_brl)
-    assert f.comissoes_remessa.set_index("cnpj").loc["17217888000111", "comissao_brl"] == base.comissoes_remessa.set_index("cnpj").loc["17217888000111", "comissao_brl"] - D("14.78")
+    assert set(f.ponte_linhas[f.ponte_linhas.destino == "EXCLUIDO"].num_operacao) == {"PC-0926-0210", "PC-0926-0326", "PC-0926-0491", "PC-0926-0545"}
+    # entra na comissão do lojista e na nota única de remessa do mês pelo valor; nada mais muda
+    assert soma(f.comissoes_remessa.comissao_brl) == D("39543.45") + D("343.76") - D("14.78") - D("5.00")
+    nf = f.notas[f.notas.linha_negocio == "REMESSA"]
+    assert len(nf) == 1 and nf.valor_brl.iloc[0] == soma(f.comissoes_remessa.comissao_brl)
+    ma = f.comissoes_remessa.set_index("cnpj").loc["17217888000111", "comissao_brl"]
+    assert ma == base.comissoes_remessa.set_index("cnpj").loc["17217888000111", "comissao_brl"] - D("14.78") - D("5.00")
     assert f.comissoes_checkout.equals(base.comissoes_checkout)
+    # rastro da comissão: aponta para a linha do ajuste e cita a operação original
+    com_id = f.comissoes_remessa.set_index("cnpj").loc["17217888000111", "id_saida"]
+    r = f.rastro[(f.rastro.id_saida == com_id) & (f.rastro.ref_origem == "PC-0826-0902")].iloc[0]
+    assert r.valor == D("-14.78") and r.regra_id == "P-01 (ajuste ref PC-0926-0011)"
     p = f.pendencias[f.pendencias.tipo == "CONFERIR_AJUSTE_PONTE"].set_index("ref_origem")
-    assert len(p) == 2 and set(p.quem_decide) == {"Helena (Financeiro)"} and p.informativa.all() and set(p.regra_id) == {"DP-14"}
+    assert len(p) == 3 and set(p.quem_decide) == {"Helena (Financeiro)"} and p.informativa.all() and set(p.regra_id) == {"DP-14"}
     assert p.loc["PC-0826-0901", "valor_brl"] == D("343.76") and "crédito de R$ 687,52" in p.loc["PC-0826-0901", "motivo"]
-    assert "Não consta na contestação do fechamento anterior" in p.loc["PC-0826-0901", "motivo"]
-    assert "Corresponde ao pedido a (EXCESSO_SPREAD) da contestação do fechamento anterior (2026-08)" in p.loc["PC-0826-0902", "motivo"]
-    assert "débito de -R$ 29,56" in p.loc["PC-0826-0902", "motivo"] and "no mês em que o ajuste apareceu" in p.loc["PC-0826-0902", "motivo"]
+    assert "Refere-se à operação PC-0926-0210, que não está na contestação do fechamento anterior" in p.loc["PC-0826-0901", "motivo"]
+    assert "Refere-se à operação PC-0926-0011, pedido a (EXCESSO_SPREAD) da contestação do fechamento anterior (2026-08)" in p.loc["PC-0826-0902", "motivo"]
+    assert "Abateu -R$ 14,78" in p.loc["PC-0826-0902", "motivo"] and "dentro da nota única do parceiro" in p.loc["PC-0826-0902", "motivo"]
+    assert "não cita a operação original" in p.loc["PC-0826-0903", "motivo"]
     assert soma(f.rastro[f.rastro.id_saida == p.loc["PC-0826-0901", "id_saida"]].valor) == D("343.76")
     # o repasse a conferir não muda: o ajuste está dentro da comissão e do total declarado
     r = f.pendencias[f.pendencias.tipo == "CONFERIR_REPASSE_PONTE"].iloc[0]
     assert r.valor_brl == D("506.65")
-    # as demais pendências são as mesmas de setembro
-    assert f.pendencias.tipo.value_counts().to_dict() == {**base.pendencias.tipo.value_counts().to_dict(), "CONFERIR_AJUSTE_PONTE": 2}
+    assert f.pendencias.tipo.value_counts().to_dict() == {**base.pendencias.tipo.value_counts().to_dict(), "CONFERIR_AJUSTE_PONTE": 3}
+
+
+def test_remessa_do_mes_zerada_ou_negativa_nao_emite_nota_e_vira_pendencia(dados, config):
+    """F17: "Se o mês fechar zerado ou negativo… não emite e vira pendência para mim." Um ajuste maior que toda a
+    participação do mês: sem nota de remessa, pendência SALDO_NEGATIVO_LOJISTA/REMESSA_PARCEIRO da Helena, integridade ok."""
+    ponte = dados["ponte"].iloc[0].to_dict()
+    gigante = {**ponte, "num_operacao": "PC-0826-0999", "ref_origem": "PC-0826-0999", "linha_planilha": 999,
+               "observacao": "AJUSTE REF PC-0926-0002", "spread_brl": D("-100000.00"), "spread_frac": D("-0.5"),
+               "spread_pct": D("-50"), "data_contratacao": pd.Timestamp("2026-08-30"), "data_liquidacao": pd.Timestamp("2026-08-30")}
+    com_aj, anterior = _com_ajustes(dados, extra=[gigante])
+    f = executar(com_aj, config, "2026-09", usar_ia=False, contestacao_anterior=anterior)
+    assert f.integro and f.destinos_ponte["AJUSTE_PONTE"] == 4
+    total = soma(f.comissoes_remessa.comissao_brl)
+    assert total == D("39543.45") + D("343.76") - D("14.78") - D("5.00") - D("50000.00") and total < 0
+    assert f.notas[f.notas.linha_negocio == "REMESSA"].empty and len(f.notas) == 20     # só as de checkout
+    s = f.pendencias[(f.pendencias.tipo == "SALDO_NEGATIVO_LOJISTA") & (f.pendencias.linha_negocio == "REMESSA")]
+    assert len(s) == 1
+    r = s.iloc[0]
+    assert r.valor_brl == total and r.quem_decide == "Helena (Financeiro)" and r.subtipo == "REMESSA_PARCEIRO"
+    assert r.cnpj == "75374179000146" and "Não há nota de remessa a emitir" in r.motivo and "ajustes do parceiro superaram" in r.motivo
+    assert soma(f.rastro[f.rastro.id_saida == r.id_saida].valor) == total
+    assert any(c.nome.startswith("3. nota REMESSA") and c.ok for c in f.checagens)
 
 
 def test_linha_do_parceiro_sem_numeros_vira_pendencia_e_nao_erro(dados, config):

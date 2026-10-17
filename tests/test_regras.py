@@ -153,7 +153,11 @@ def test_exclusoes_duplicado_e_donos(config):
     assert config.dono("CADASTRO", SET, subtipo="PARCELAS_FORA_FAIXA").id == "DP-13"
     assert config.dono("CADASTRO", SET, subtipo="PARCELAS_FORA_FAIXA").quem_decide == "Helena (Financeiro)"
     assert config.dono("CONFERIR_AJUSTE_PONTE", SET).params["informativa"] is True and config.dono("LINHA_NAO_INTERPRETADA", SET).id == "DP-15"
-    assert config.parametro("ajuste_parceiro_contem", SET).startswith("AJUSTE OU ")
+    destino = [r.id for r in config.regras_destino("ponte", SET)]
+    assert destino[:2] == ["J-01", "J-02"] and "E-03" in destino and destino.index("E-03") > 1   # ajuste antes da exclusão
+    j1 = config.regra("J-01")
+    assert j1.tipo == "AJUSTE_PARCEIRO" and j1.params["criterio"] == "observacao_ref" and j1.params["contem_alternativas"] == ["AJUSTE REF"]
+    assert j1.params["prioridade"] == 10 and config.regra("E-03").params["prioridade"] == 50 and config.regra("P-12") is None
     assert config.dono("EXCESSO_SPREAD_CONTESTADO", SET).params["incluida_em"] == "DIVERGENCIA_TAXA"
     assert config.regra("DP-10").status == "INATIVA" and config.dono_se_houver("RECURSO_SEM_OPERACAO", SET) is None
     assert all(r.tipo == "MANUAL" and r.quem_decide for r in lembretes)

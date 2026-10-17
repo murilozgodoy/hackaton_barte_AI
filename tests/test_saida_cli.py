@@ -115,7 +115,7 @@ def test_cli_fechar_imprime_resumo_final_em_portugues(dados, tmp_path, capsys):
     assert "REMESSA" in bloco and "R$ 39.543,45" in bloco and "14 lojistas" in bloco
     assert "Notas a emitir: 21" in bloco and "R$ 246.588,68" in bloco
     assert ("Divergências: 233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) "
-            "+ 118 de isenção não informada (R$ 15.397,42, devolução ao lojista)") in bloco
+            "+ 118 de concessão comercial fora do contrato (R$ 15.397,42, devolução ao lojista por conta da Tarvo)") in bloco
     assert "Lançamentos classificados: 184" in bloco
     assert "Pendências: 16 (2 informativas), R$ 48.364,75 em jogo" in bloco and "Financeiro: 3 pendência(s), R$ 19.750,00 em jogo (1 informativa)" in bloco
     assert "Helena (Financeiro): 10 pendência(s), R$ 5.341,28 em jogo (1 já incluída em outra)" in bloco

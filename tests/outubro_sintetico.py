@@ -8,8 +8,9 @@ nenhum número de setembro muda, só o que o roteiro pede. O que o pacote traz, 
             taxa 0 em todas as transações); uma venda parcelada em 13x (acima das faixas da planilha);
             a Atlas continua transacionando (a carteira de setembro entra via --anterior).
   Taxas     a mesma planilha de setembro (a Bridge já tem a vigência nova; o EC novo não está nela).
-  Ponte     operações com Nº PC-1026-*, competência 10/2026, mais 1 crédito e 1 débito de ajuste referentes à
-            contestação de setembro (PC-0926-0210 revisto; PC-0926-0011 devolvido) e 2 operações de um CNPJ novo.
+  Ponte     operações com Nº PC-1026-*, competência 10/2026, mais 1 linha de ajuste no formato que a Helena descreveu
+            (Nº próprio, Spread R$ negativo, observação "AJUSTE REF PC-0926-0016": excesso da Mundo Aberto devolvido,
+            pedido a da contestação de setembro) e 2 operações de um CNPJ novo.
   Plano     o mesmo.
   Aurora    datas +1 mês (folha e impostos "do mês anterior" passam a 09/2026); saldos iguais.
   Meridiano datas e FITIDs +1 mês.
@@ -186,13 +187,12 @@ def _ponte(origem: Path, destino: Path) -> None:
                 celula_total_ops = row[col("Nº Opera") + 1]
             else:
                 celula_total_spread = row[col("Nº Opera") + 1]
-    # ajustes da contestação de setembro: 1 crédito (spread negativo revisto) e 1 débito (excesso devolvido ao cliente)
+    # ajuste da contestação de setembro no formato da Ponte (Helena à Desbravadores 17/10 11h33): linha nova, Nº próprio,
+    # Spread R$ negativo, observação com a operação original
     modelo = [c.value for c in linhas[ultima]]
     ajustes = [
-        ("PC-0926-0210", date(2026, 9, 12), "95739378000118", "PONTE AÉREA ESTUDANT", D("687.52"), D("0.0158"),
-         "AJUSTE: crédito referente à contestação 09/2026 (spread negativo revisto)"),
-        ("PC-0926-0011", date(2026, 9, 4), "17217888000111", "MUNDO ABERTO INTERCÂ", D("-29.56"), D("-0.003"),
-         "DÉBITO: excesso de spread devolvido ao cliente (contestação 09/2026)"),
+        ("PC-1026-0901", date(2026, 10, 5), "17217888000111", "MUNDO ABERTO INTERCÂ", D("-45.00"), D("-0.003"),
+         "AJUSTE REF PC-0926-0016"),
     ]
     for k, (num, d, cnpj, cliente, spread, frac, obs) in enumerate(ajustes):
         ws.insert_rows(ultima + 2 + k)

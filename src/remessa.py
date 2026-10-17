@@ -13,9 +13,11 @@ exatamente um destino:
                        financeiro) a operação entra na comissão e na nota, sem spread contratado,
                        e vira pendência CADASTRO/CNPJ_PONTE
   FORA_COMPETENCIA     data de contratação fora do mês que está sendo fechado
-  AJUSTE_PONTE         crédito ou débito de ajuste de mês anterior (observação casa com o parâmetro
-                       ajuste_parceiro_contem, ou o Nº Operação está na contestação do fechamento anterior):
-                       entra na comissão do mês pelo valor e vira pendência informativa CONFERIR_AJUSTE_PONTE
+  AJUSTE_PONTE         ajuste de mês anterior (regra AJUSTE_PARCEIRO: observação "AJUSTE REF <operação original>"
+                       ou, como segurança, um trecho marcado): linha própria, Spread R$ com sinal (débito negativo).
+                       Entra na comissão do mês pela participação sobre o Spread R$, dentro da nota única do
+                       parceiro, e vira pendência informativa CONFERIR_AJUSTE_PONTE ligada à operação original.
+                       Vem antes da exclusão por spread negativo pela `prioridade` das regras de destino
   NAO_INTERPRETADA     linha sem os números mínimos (valor, PTAX, spread): fora de tudo, pendência
                        LINHA_NAO_INTERPRETADA, nunca erro fatal
 
@@ -30,9 +32,11 @@ from decimal import Decimal
 
 import pandas as pd
 
+import re
+
 from .dinheiro import arredondar, soma
 from .leitores.comum import normalizar
-from .regras import Config, alternativas
+from .regras import Config
 
 LINHA_NEGOCIO = "REMESSA"
 PREFIXO_ID = "COM-REM-"
@@ -48,7 +52,10 @@ COLUNAS_LINHAS = [
     "valor_brl", "spread_brl", "spread_pct", "spread_estimado_brl", "status_compliance", "observacao",
     "spread_contratado_pct", "spread_contratado_origem", "regra_id", "participacao",
     "comissao_realizado_brl", "diferenca_pp", "diferenca_brl", "excesso_tarvo_brl", "comissao_brl",
-    "destino", "destino_regra", "tipo_pendencia", "subtipo", "motivo",
+    # o spread que o contrato previa para a operação (contratado % x PTAX x Valor ME), a diferença do relatório para
+    # ele e a metade da Tarvo sobre o contratado: é o que se pede ao parceiro quando a trava não foi honrada
+    "spread_contratado_brl", "diferenca_contrato_brl", "metade_tarvo_contrato_brl",
+    "destino", "destino_regra", "tipo_pendencia", "subtipo", "motivo", "operacao_original",
 ]
 
 
@@ -85,8 +92,8 @@ class TabelaSpread:
 
 def calcular(ponte: pd.DataFrame, taxas: pd.DataFrame, config: Config, competencia: str,
              contestacao_anterior: dict | None = None) -> ResultadoRemessa:
-    """`contestacao_anterior`: {num_operacao: {...}} da ponte_contestacao.csv do fechamento anterior (--anterior);
-    uma linha com esse Nº Operação é ajuste do parceiro, mesmo sem marca na observação."""
+    """`contestacao_anterior`: {num_operacao: {...}} da ponte_contestacao.csv do fechamento anterior (--anterior):
+    quando a observação de um ajuste cita essa operação, a pendência aponta para o pedido da contestação."""
     tabela = TabelaSpread(taxas)
     duplicatas = _mapear_duplicatas(ponte)
     registros = [_destino_da_linha(r, idx, duplicatas, tabela, config, competencia, contestacao_anterior or {})
@@ -107,18 +114,19 @@ def _mapear_duplicatas(ponte: pd.DataFrame) -> dict:
     return out
 
 
-def _eh_ajuste(r, config: Config, data, contestacao_anterior: dict) -> str | None:
-    """Motivo pelo qual a linha é um ajuste do parceiro (texto), ou None."""
-    if r.num_operacao in contestacao_anterior:
-        c = contestacao_anterior[r.num_operacao]
-        return (f"o Nº Operação está na contestação do fechamento anterior"
-                + (f" ({c.get('competencia')})" if c.get("competencia") else "")
-                + (f", pedido {c['pedido']} ({c.get('natureza', '')})" if c.get("pedido") else ""))
-    marcas = alternativas(str(config.parametro("ajuste_parceiro_contem", data) or ""))
+def _casa_ajuste(regra, r) -> tuple[bool, str | None]:
+    """A linha casa com a regra AJUSTE_PARCEIRO? -> (casou, Nº da operação original citada na observação, se houver)."""
     obs = normalizar(r.observacao or "")
-    if obs and any(m in obs for m in marcas):
-        return f"observação do relatório \"{r.observacao}\" casa com o parâmetro ajuste_parceiro_contem"
-    return None
+    if not obs:
+        return False, None
+    alts = regra.params["contem_alternativas"]
+    if regra.params["criterio"] == "observacao_ref":
+        for alt in alts:
+            m = re.search(re.escape(alt) + r"[\s:.-]*([A-Z0-9][A-Z0-9/.-]*\d[A-Z0-9/.-]*)", obs)
+            if m:
+                return True, m.group(1).rstrip(".,;:")
+        return False, None
+    return any(alt in obs for alt in alts), None
 
 
 def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Config, competencia: str,
@@ -139,20 +147,6 @@ def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Co
                 "motivo": f"linha {r.linha_planilha} do relatório sem {', '.join(faltam) or 'Nº Operação'}: não dá para "
                           f"calcular a participação; nada entrou na comissão por ela"}
 
-    ajuste = _eh_ajuste(r, config, data, contestacao_anterior or {})
-    if ajuste is not None:
-        lojista = config.lojista_por_cnpj(r.cnpj)
-        modo = config.parametro("arredondamento", data)
-        regra_part = config.regra_parametro("participacao_spread", data)
-        comissao = arredondar(r.spread_brl * regra_part.valor, modo)
-        sinal = "crédito" if r.spread_brl >= 0 else "débito"
-        return {**out, "lojista": (lojista.nome if lojista is not None and lojista.nome else r.cliente),
-                "status_cadastro": lojista.status if lojista is not None else None,
-                "spread_contratado_origem": "ajuste do parceiro: sem conferência de spread contratado",
-                "regra_id": regra_part.id, "participacao": regra_part.valor, "comissao_realizado_brl": comissao,
-                "comissao_brl": comissao, "destino": "AJUSTE_PONTE", "tipo_pendencia": "CONFERIR_AJUSTE_PONTE",
-                "subtipo": "CREDITO" if r.spread_brl >= 0 else "DEBITO",
-                "motivo": f"{sinal} de ajuste do parceiro de câmbio ({ajuste})"}
 
     if r.num_operacao in duplicatas:
         tipo_dup, fica = duplicatas[r.num_operacao]
@@ -167,10 +161,6 @@ def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Co
                     "motivo": f"repetição idêntica da operação {r.num_operacao} (linha {r.linha_planilha} do "
                               f"relatório); contada uma vez"}
 
-    if r.data_contratacao.strftime("%Y-%m") != competencia:
-        return {**out, "destino": "FORA_COMPETENCIA", "tipo_pendencia": "FORA_COMPETENCIA",
-                "motivo": f"data de contratação {data} fora da competência {competencia}"}
-
     lojista = config.lojista_por_cnpj(r.cnpj)
     sem_cadastro = f"CNPJ {r.cnpj} ({r.cliente}) não está na planilha de taxas nem no complemento"
     if lojista is None:
@@ -183,20 +173,11 @@ def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Co
     else:
         out.update(lojista=lojista.nome or r.cliente, status_cadastro=lojista.status)
 
-    for regra in config.regras_exclusao("ponte", data):
-        crit = regra.params["criterio"]
-        bate = ((crit == "spread_negativo" and r.spread_brl < 0)
-                or (crit == "status_compliance_fora" and r.status_compliance not in regra.params["aceitos"])
-                or (crit == "status_cadastro" and lojista is not None and lojista.status in regra.params["status"]))
-        if bate:
-            return {**out, "destino": "EXCLUIDO", "destino_regra": regra.id, "tipo_pendencia": regra.tipo_pendencia,
-                    "subtipo": regra.subtipo, "motivo": regra.situacao}
-
     modo = config.parametro("arredondamento", data)
     regra_part = config.regra_parametro("participacao_spread", data)
     participacao = regra_part.valor
-    comissao_realizado = arredondar(r.spread_brl * participacao, modo)
 
+    # spread contratado da operação (também para as linhas excluídas: é o que se pede ao parceiro)
     excecao = config.excecao_taxa(r.cnpj, LINHA_NEGOCIO, PRODUTO_SPREAD, data)
     if lojista is None:
         contratado, origem = None, "sem cadastro (CNPJ fora da planilha e do complemento): sem spread contratado"
@@ -212,7 +193,55 @@ def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Co
             regra_padrao = config.regra_parametro("spread_padrao", data)
             contratado = regra_padrao.valor * 100
             origem = f"{regra_padrao.id} (padrão" + (f", célula {ref} em branco/padrão)" if ref else ", sem linha na planilha)")
+    out.update(spread_contratado_pct=contratado, spread_contratado_origem=origem)
+    if contratado is not None:
+        contratado_brl = arredondar(contratado / 100 * r.ptax * r.valor_me, modo)
+        out.update(spread_contratado_brl=contratado_brl, diferenca_contrato_brl=r.spread_brl - contratado_brl,
+                   metade_tarvo_contrato_brl=arredondar(contratado_brl * participacao, modo))
 
+    # regras de destino em ordem de prioridade (menor vence). Os ajustes do parceiro (AJUSTE_PARCEIRO) são avaliados
+    # antes do portão de competência, porque o ajuste entra no mês em que aparece qualquer que seja a data da linha;
+    # as exclusões (EXCLUIR_E_PENDENCIA) só valem para linhas da competência.
+    regras_destino = config.regras_destino("ponte", data)
+    for regra in regras_destino:
+        if regra.tipo == "AJUSTE_PARCEIRO":
+            casou, original = _casa_ajuste(regra, r)
+            if not casou:
+                continue
+            comissao = arredondar(r.spread_brl * participacao, modo)
+            sinal = "crédito" if r.spread_brl >= 0 else "débito"
+            ant = (contestacao_anterior or {}).get(original) if original else None
+            return {**out, "lojista": (lojista.nome if lojista is not None and lojista.nome else r.cliente),
+                    "status_cadastro": lojista.status if lojista is not None else None,
+                    "spread_contratado_origem": "ajuste do parceiro: sem conferência de spread contratado",
+                    "spread_contratado_pct": None, "spread_contratado_brl": None, "diferenca_contrato_brl": None,
+                    "metade_tarvo_contrato_brl": None,
+                    "regra_id": regra_part.id + (f" (ajuste ref {original})" if original else ""),
+                    "participacao": participacao, "comissao_realizado_brl": comissao, "comissao_brl": comissao,
+                    "destino": "AJUSTE_PONTE", "destino_regra": regra.id, "tipo_pendencia": regra.tipo_pendencia,
+                    "subtipo": regra.subtipo or ("CREDITO" if r.spread_brl >= 0 else "DEBITO"),
+                    "operacao_original": original,
+                    "motivo": f"{sinal} de ajuste do parceiro de câmbio pela regra {regra.id} ({regra.situacao})"
+                              + (f", referente à operação {original}" if original else "")
+                              + (f", pedido {ant['pedido']} ({ant.get('natureza') or ''}) da contestação do fechamento anterior"
+                                 if ant and ant.get("pedido") else "")}
+
+    if r.data_contratacao.strftime("%Y-%m") != competencia:
+        return {**out, "destino": "FORA_COMPETENCIA", "tipo_pendencia": "FORA_COMPETENCIA",
+                "motivo": f"data de contratação {data} fora da competência {competencia}"}
+
+    for regra in regras_destino:
+        if regra.tipo != "EXCLUIR_E_PENDENCIA":
+            continue
+        crit = regra.params["criterio"]
+        bate = ((crit == "spread_negativo" and r.spread_brl < 0)
+                or (crit == "status_compliance_fora" and r.status_compliance not in regra.params["aceitos"])
+                or (crit == "status_cadastro" and lojista is not None and lojista.status in regra.params["status"]))
+        if bate:
+            return {**out, "destino": "EXCLUIDO", "destino_regra": regra.id, "tipo_pendencia": regra.tipo_pendencia,
+                    "subtipo": regra.subtipo, "motivo": regra.situacao}
+
+    comissao_realizado = arredondar(r.spread_brl * participacao, modo)
     diferenca_pp = diferenca_brl = excesso_tarvo = None
     if contratado is not None:
         diferenca_pp = r.spread_pct - contratado
@@ -225,8 +254,7 @@ def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Co
     if excesso_tarvo is not None and not config.parametro("incluir_excesso_contestado", data):
         comissao = comissao_realizado - excesso_tarvo
 
-    return {**out, "spread_contratado_pct": contratado, "spread_contratado_origem": origem,
-            "regra_id": regra_part.id, "participacao": participacao,
+    return {**out, "regra_id": regra_part.id, "participacao": participacao,
             "comissao_realizado_brl": comissao_realizado, "diferenca_pp": diferenca_pp,
             "diferenca_brl": diferenca_brl, "excesso_tarvo_brl": excesso_tarvo, "comissao_brl": comissao,
             "destino": "COMISSAO"}

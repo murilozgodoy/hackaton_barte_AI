@@ -115,7 +115,8 @@ def texto_divergencias(t: dict) -> str:
     txt = (f"{t['linhas']} transações = {c['linhas']} de contrato (checkout {brl(Decimal(dc['valor_brl']))} + remessa "
            f"{brl(Decimal(dr['valor_brl']))} = {brl(Decimal(c['valor_brl']))})")
     if dl["linhas"]:
-        txt += f" + {dl['linhas']} de isenção não informada ({brl(Decimal(dl['valor_brl']))}, devolução ao lojista)"
+        txt += (f" + {dl['linhas']} de concessão comercial fora do contrato ({brl(Decimal(dl['valor_brl']))}, devolução ao "
+                f"lojista por conta da Tarvo)")
     return txt
 
 

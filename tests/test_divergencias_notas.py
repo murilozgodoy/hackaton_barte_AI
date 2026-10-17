@@ -49,7 +49,7 @@ def test_divergencia_casa_do_estudante_e_tarifa_zero(partes):
     assert len(casa) == 118 == len(fora) and set(fora.natureza) == {"DEVOLUCAO_LOJISTA"}
     assert set(casa.taxa_contratada_pct) == {D("0")} and set(casa.tipo_pendencia) == {"TARIFA_ZERO_COBRADA"}
     assert set(casa.regra_id) == {"X-01"} and casa.id_saida.tolist() == [f"DIV-{i:04d}" for i in range(1, 119)]
-    assert set(casa.observacao) == {"isenção comercial não informada à Orbe. Devolução ao lojista, não cobrar da Orbe"}
+    assert set(casa.observacao) == {"concessão comercial fora do contrato (a Orbe cobrou o contratado). Devolução ao lojista por conta da Tarvo, não cobrar da Orbe"}
     assert "TX88445133" not in set(casa.ref_origem)     # estorno de agosto: 1,49% contratado = 1,49% aplicado
     # a Orbe cobrou 15.396,77 (truncado); a divergência por linha HALF_UP soma 15.397,42: 0,65 de truncamento
     assert soma(casa.diferenca_brl) - D("15396.77") == D("0.65")

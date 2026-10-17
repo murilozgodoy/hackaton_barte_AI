@@ -5,7 +5,7 @@ Confere o que o roteiro do teste de férias (evals/teste_ferias.md) espera: comp
 com a competência certa; EC novo na Orbe vira CADASTRO (Comercial) e vai para a carteira; Bridge já na taxa nova (sem
 divergência); Casa zerada (sem divergência, comissão 0, sem nota); parcelado em 13x vira CADASTRO/PARCELAS_FORA_FAIXA
 (Helena); a carteira da Atlas de setembro entra e continua pendente enquanto não há taxa; os 2 ajustes da Ponte entram
-na comissão do mês e viram pendência informativa ligada à contestação de setembro; o CNPJ novo na Ponte entra na
+na comissão do mês e vira pendência informativa ligada à contestação de setembro; o CNPJ novo na Ponte entra na
 comissão com CADASTRO/CNPJ_PONTE (Comercial); folha e impostos do mês anterior classificados por regra genérica."""
 import json
 from decimal import Decimal
@@ -92,23 +92,30 @@ def test_carteira_da_atlas_entra_e_continua_pendente_sem_taxa(outubro):
     assert sc.qtd_itens == "114" and "57 transações de meses anteriores" in sc.motivo and sc.quem_decide == "Comercial"
 
 
-def test_ajustes_da_ponte_entram_no_mes_e_apontam_para_a_contestacao_de_setembro(outubro, dados):
+def test_ajuste_da_ponte_entra_no_mes_e_aponta_para_a_contestacao_de_setembro(outubro, dados):
+    """F17: linha nova (PC-1026-0901), Spread R$ -45,00, observação "AJUSTE REF PC-0926-0016". Abate 50% (-R$ 22,50) na
+    participação da Mundo Aberto dentro da nota única; não cai na E-03; a pendência cita a operação original e o pedido a."""
     set_, _pacote, out, res = outubro
-    assert res["ponte_destinos"]["AJUSTE_PONTE"] == 2
+    assert res["ponte_destinos"]["AJUSTE_PONTE"] == 1 and res["ponte_destinos"]["EXCLUIDO"] == 4   # os 4 negativos de verdade
     pend = _csv(out / "pendencias.csv")
-    aj = pend[pend.tipo == "CONFERIR_AJUSTE_PONTE"].set_index("ref_origem")
-    assert set(aj.index) == {"PC-0926-0210", "PC-0926-0011"} and set(aj.quem_decide) == {"Helena (Financeiro)"} and set(aj.informativa) == {"true"}
-    assert aj.loc["PC-0926-0210", "subtipo"] == "CREDITO" and D(aj.loc["PC-0926-0210", "valor_brl"]) == D("343.76")
-    assert aj.loc["PC-0926-0011", "subtipo"] == "DEBITO" and D(aj.loc["PC-0926-0011", "valor_brl"]) == D("-14.78")
-    assert "pedido b (SPREAD_NEGATIVO) da contestação do fechamento anterior (2026-09)" in aj.loc["PC-0926-0210", "motivo"]
-    assert "pedido a (EXCESSO_SPREAD) da contestação do fechamento anterior (2026-09)" in aj.loc["PC-0926-0011", "motivo"]
-    # o ajuste está dentro da comissão e da nota de remessa do mês
+    aj = pend[pend.tipo == "CONFERIR_AJUSTE_PONTE"].iloc[0]
+    assert aj.ref_origem == "PC-1026-0901" and aj.quem_decide == "Helena (Financeiro)" and aj.informativa == "true"
+    assert aj.subtipo == "DEBITO" and D(aj.valor_brl) == D("-22.50") and aj.regra_id == "DP-14"
+    assert "Refere-se à operação PC-0926-0016, pedido a (EXCESSO_SPREAD) da contestação do fechamento anterior (2026-09)" in aj.motivo
+    assert "Abateu -R$ 22,50" in aj.motivo and "dentro da nota única do parceiro" in aj.motivo
+    assert "PC-1026-0901" not in set(pend[pend.tipo == "SPREAD_NEGATIVO"].ref_origem)
+    rastro = _csv(out / "rastro.csv")
+    r = rastro[(rastro.id_saida == aj.id_saida)].iloc[0]
+    assert r.ref_origem == "PC-1026-0901" and r.regra_id == "P-01 (ajuste ref PC-0926-0016)" and D(r.valor) == D("-22.50")
+    # o ajuste está dentro da comissão da Mundo Aberto e da nota única de remessa do mês
     com = _csv(out / "comissoes_por_lojista.csv")
     rem = com[com.linha_negocio == "REMESSA"]
     nota = _csv(out / "notas_a_emitir.csv")
     assert soma(rem.comissao_brl.map(D)) == D(nota[nota.linha_negocio == "REMESSA"].valor_brl.iloc[0]) == D(res["totais"]["comissao_remessa_brl"])
-    # as 2 operações do CNPJ novo já estavam no total de setembro (eram de outro lojista): só os ajustes mudam o total
-    assert D(res["totais"]["comissao_remessa_brl"]) == D("39543.45") + D("343.76") - D("14.78")
+    assert len(nota[nota.linha_negocio == "REMESSA"]) == 1   # nota única, sem complementar
+    # as 2 operações do CNPJ novo já estavam no total de setembro (eram de outro lojista): só o ajuste muda o total
+    assert D(res["totais"]["comissao_remessa_brl"]) == D("39543.45") - D("22.50")
+    assert D(rem[rem.cnpj == MA].comissao_brl.iloc[0]) == D("3547.69") - D("22.50")
 
 
 def test_cnpj_novo_na_ponte_entra_na_comissao_com_cadastro_para_o_comercial(outubro):

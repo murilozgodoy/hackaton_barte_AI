@@ -76,7 +76,8 @@ def test_casa_do_estudante_tarifa_zero(fech):
     assert r.quem_decide == "Helena (Financeiro) + Comercial"
     assert "cobrou efetivamente R$ 15.396,77" in r.motivo and "R$ 0,65 a menos" in r.motivo and "trunca centavos" in r.motivo
     assert "devolução ao lojista" in r.motivo and "não há o que cobrar da Orbe" in r.motivo
-    assert "natureza DEVOLUCAO_LOJISTA, fora da cobrança da adquirente" in r.motivo and "isenção comercial não informada à Orbe" in r.motivo
+    assert "natureza DEVOLUCAO_LOJISTA, fora da cobrança da adquirente" in r.motivo and "concessão comercial fora do contrato" in r.motivo
+    assert "custo da Tarvo" in r.motivo   # F16: quem abriu mão da receita foi a Tarvo
     assert len(fech.rastro[fech.rastro.id_saida == r.id_saida]) == 118
     casa = fech.divergencias[fech.divergencias.cnpj == CASA]
     assert len(casa) == 118 and set(casa.natureza) == {"DEVOLUCAO_LOJISTA"} and CASA not in set(fech.divergencias_contrato.cnpj)
@@ -116,6 +117,33 @@ def test_spreads_negativos(fech):
     assert set(s.ref_origem) == {"PC-0926-0210", "PC-0926-0326", "PC-0926-0491", "PC-0926-0545"}
     assert soma(s.valor_brl) == D("-1834.05") and (s.quem_decide == "Helena (Financeiro)").all()
     assert "Taxa travada no pedido (D-1)" in s.iloc[0].motivo
+
+
+def test_spread_negativo_com_os_dois_valores(fech):
+    """F16 (Helena ao Theo, 17/10 11h37): "Coloquem os dois na pendência, deixando claro qual é qual: o spread negativo do
+    relatório, que é o que aconteceu, e a diferença até o spread do contrato, que é o que eu vou pedir à Ponte."
+    valor_brl continua o spread do relatório (totais não mudam); as colunas extras trazem o contrato."""
+    s = _por(fech, "SPREAD_NEGATIVO").set_index("ref_origem")
+    esperado = {   # relatório | contratado (% x PTAX x Valor ME, HALF_UP) | diferença (relatório - contratado) | metade da Tarvo
+        "PC-0926-0210": ("-687.52", "664.35", "-1351.87", "332.18"),
+        "PC-0926-0326": ("-509.22", "492.07", "-1001.29", "246.04"),
+        "PC-0926-0491": ("-292.28", "282.63", "-574.91", "141.32"),
+        "PC-0926-0545": ("-345.03", "292.88", "-637.91", "146.44"),
+    }
+    for ref, (rel, contr, dif, metade) in esperado.items():
+        r = s.loc[ref]
+        assert (r.valor_brl, r.spread_relatorio_brl, r.spread_contratado_brl, r.diferenca_contrato_brl, r.metade_tarvo_contrato_brl) == \
+            (D(rel), D(rel), D(contr), D(dif), D(metade)), ref
+        assert f"O que aconteceu: spread {brl(D(rel))} no relatório" in r.motivo
+        assert f"O que pedimos ao parceiro (a trava deveria ter sido honrada): spread contratado {brl(D(contr))}" in r.motivo
+        assert f"diferença {brl(-D(dif))}, dos quais {brl(D(metade))} seriam a metade da Tarvo" in r.motivo
+    assert (soma(s.spread_relatorio_brl), soma(s.spread_contratado_brl), soma(s.diferenca_contrato_brl), soma(s.metade_tarvo_contrato_brl)) == \
+        (D("-1834.05"), D("1731.93"), D("-3565.98"), D("865.98"))
+    # as outras pendências não têm os dois valores; o rastro continua somando o valor_brl
+    outras = fech.pendencias[fech.pendencias.tipo != "SPREAD_NEGATIVO"]
+    assert outras.spread_contratado_brl.isna().all()
+    por_id = fech.rastro.groupby("id_saida")["valor"].apply(soma)
+    assert all(por_id[i] == v for i, v in zip(s.id_saida, s.valor_brl))
 
 
 def test_saldo_negativo_casa(fech):
@@ -272,8 +300,8 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert rel.startswith("# Fechamento Tarvo — competência 09/2026") and "Integridade: OK" in rel
     assert "R$ 207.039,73" in rel and "Ponte Câmbio S.A." in rel and "### Comercial" in rel
     assert "Fora da cobrança da contraparte" in rel and "118 transações" in rel and "R$ 15.397,42" in rel
-    assert ("233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) + 118 de isenção "
-            "não informada (R$ 15.397,42, devolução ao lojista)") in rel
+    assert ("233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) + 118 de concessão "
+            "comercial fora do contrato (R$ 15.397,42, devolução ao lojista por conta da Tarvo)") in rel
     assert "| DEVOLUCAO_LOJISTA | CHECKOUT | Casa do Estudante Viagens Ltda | 118 |" in rel
     assert res["totais"]["divergencias"]["checkout"] == {"linhas": 92, "valor_brl": "1576.23"}
     assert res["totais"]["divergencias"]["devolucao_lojista"] == {"linhas": 118, "valor_brl": "15397.42"}
