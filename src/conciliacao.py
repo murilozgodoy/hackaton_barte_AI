@@ -22,19 +22,21 @@ def calcular(dados: dict[str, pd.DataFrame], ponte_linhas: pd.DataFrame, com_rem
              lancamentos: pd.DataFrame, participacao: Decimal, modo: str) -> dict:
     orbe, ponte = dados["orbe"], dados["ponte"]
 
-    # Orbe x banco: o que a adquirente diz que liquidou x o que entrou e o que foi repassado
+    # Adquirente x banco: NÃO conciliável com os arquivos do mês. A adquirente liquida crédito
+    # parcelado em parcelas mensais (salvo antecipação): o que entra no banco mistura parcelas de
+    # vendas de meses anteriores e deixa de fora parcelas futuras das vendas deste mês. Sem a
+    # agenda de recebíveis, os totais abaixo são só informativos e não se comparam entre si.
     liquido_orbe = soma(orbe["valor_liquido"])
     recebido, n_receb = _por_papel(lancamentos, "recebimento_adquirente")
     repassado, n_rep = _por_papel(lancamentos, "repasse_lojista")   # débitos negativos; devolução volta positiva
-    repassado = -repassado
     orbe_banco = {
+        "conciliavel": False,
+        "limitacao": ("não conciliável com os arquivos disponíveis: a adquirente liquida crédito parcelado em "
+                      "parcelas mensais (salvo antecipação); requer a agenda de recebíveis da adquirente"),
         "liquido_orbe": liquido_orbe,
         "liquido_orbe_por_tipo": {t: soma(g["valor_liquido"]) for t, g in orbe.groupby("tipo_lancamento")},
         "recebido_da_adquirente": recebido, "qtd_recebimentos": n_receb,
-        "repassado_a_lojistas": repassado, "qtd_repasses": n_rep,
-        "liquido_menos_recebido": liquido_orbe - recebido,
-        "liquido_menos_repassado": liquido_orbe - repassado,
-        "recebido_menos_repassado": recebido - repassado,
+        "repassado_a_lojistas": -repassado, "qtd_repasses": n_rep,
     }
 
     # Remessa: recursos dos lojistas x liquidação na Ponte x operações do relatório (Valor R$ + IOF)

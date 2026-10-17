@@ -1,0 +1,248 @@
+{
+  "competencia": "2026-09",
+  "status_integridade": "OK",
+  "totais": {
+    "comissao_checkout_brl": "207039.73",
+    "comissao_remessa_brl": "39543.45",
+    "notas": {
+      "quantidade": 21,
+      "valor_total_brl": "246588.68"
+    },
+    "divergencias": {
+      "checkout": {
+        "linhas": 210,
+        "valor_brl": "16973.65"
+      },
+      "remessa": {
+        "linhas": 23,
+        "valor_brl": "1418.85"
+      }
+    },
+    "pendencias": {
+      "quantidade": 16,
+      "por_responsavel": {
+        "Helena (Financeiro) + Comercial": {
+          "quantidade": 1,
+          "valor_em_jogo_brl": "15397.42"
+        },
+        "Helena (Financeiro)": {
+          "quantidade": 10,
+          "valor_em_jogo_brl": "6050.74"
+        },
+        "Comercial": {
+          "quantidade": 1,
+          "valor_em_jogo_brl": "7876.05"
+        },
+        "Financeiro": {
+          "quantidade": 4,
+          "valor_em_jogo_brl": "337990.00"
+        }
+      },
+      "por_tipo": {
+        "TARIFA_ZERO_COBRADA": {
+          "quantidade": 1,
+          "valor_em_jogo_brl": "15397.42"
+        },
+        "DIVERGENCIA_TAXA": {
+          "quantidade": 3,
+          "valor_em_jogo_brl": "2995.08"
+        },
+        "EXCESSO_SPREAD_CONTESTADO": {
+          "quantidade": 1,
+          "valor_em_jogo_brl": "709.46"
+        },
+        "REPASSE_PONTE_DIVERGENTE": {
+          "quantidade": 1,
+          "valor_em_jogo_brl": "506.65"
+        },
+        "SPREAD_NEGATIVO": {
+          "quantidade": 4,
+          "valor_em_jogo_brl": "1834.05"
+        },
+        "SEM_CONTRATO": {
+          "quantidade": 1,
+          "valor_em_jogo_brl": "7876.05"
+        },
+        "SALDO_NEGATIVO_LOJISTA": {
+          "quantidade": 1,
+          "valor_em_jogo_brl": "5.50"
+        },
+        "RECURSO_SEM_OPERACAO": {
+          "quantidade": 1,
+          "valor_em_jogo_brl": "18240.00"
+        },
+        "EXTRATO_NAO_IDENTIFICADO": {
+          "quantidade": 1,
+          "valor_em_jogo_brl": "7350.00"
+        },
+        "DEVOLUCAO": {
+          "quantidade": 1,
+          "valor_em_jogo_brl": "12400.00"
+        },
+        "EM_TRANSITO": {
+          "quantidade": 1,
+          "valor_em_jogo_brl": "300000.00"
+        }
+      }
+    }
+  },
+  "lancamentos": {
+    "REGRA": 184,
+    "IA": 0,
+    "HUMANO": 0
+  },
+  "orbe_destinos": {
+    "COMISSAO": 1886,
+    "EXCLUIDO": 57
+  },
+  "ponte_destinos": {
+    "COMISSAO": 228,
+    "EXCLUIDO": 4,
+    "DUPLICATA_IGNORADA": 1
+  },
+  "conciliacao": {
+    "adquirente_x_banco": {
+      "conciliavel": false,
+      "limitacao": "não conciliável com os arquivos disponíveis: a adquirente liquida crédito parcelado em parcelas mensais (salvo antecipação); requer a agenda de recebíveis da adquirente",
+      "recebido_da_adquirente_brl": "3557246.29",
+      "repassado_a_lojistas_brl": "4217867.61"
+    },
+    "remessa_x_banco": {
+      "recursos_recebidos": "5629687.12",
+      "qtd_recursos": 64,
+      "liquidado_na_ponte": "5611447.12",
+      "qtd_liquidacoes": 21,
+      "operacoes_valor_mais_iof": "5611447.12",
+      "recursos_menos_liquidado": "18240.00",
+      "liquidado_menos_operacoes": "0.00"
+    },
+    "parceiro_cambio": {
+      "spread_total_declarado": "78073.59",
+      "spread_operacoes_unicas": "77251.71",
+      "repasse_pelo_total_declarado": "39036.80",
+      "comissao_calculada": "39543.45",
+      "diferenca": "506.65",
+      "efeito_excluidas": "917.02",
+      "qtd_excluidas": 4,
+      "efeito_duplicatas": "-410.94",
+      "qtd_duplicatas": 1,
+      "efeito_arredondamento": "0.56"
+    }
+  },
+  "lembretes": [
+    {
+      "regra_id": "M-01",
+      "situacao": "Prazo de contestação com a Ponte Câmbio",
+      "o_que_fazer": "Em caso de divergência, responder o e-mail mensal da Ponte em até 5 dias úteis do recebimento. Vale para os spreads negativos e para o excesso de spread contestado. Depois do prazo a Ponte considera o relatório aceito",
+      "quem_decide": "Helena (Financeiro)"
+    },
+    {
+      "regra_id": "M-02",
+      "situacao": "Nota de intermediação antes da data de repasse da Ponte",
+      "o_que_fazer": "Emitir a nota de intermediação para a Ponte Câmbio antes da data de repasse informada no e-mail mensal. Sem a nota, o repasse da participação não é creditado",
+      "quem_decide": "Financeiro"
+    },
+    {
+      "regra_id": "M-03",
+      "situacao": "Estorno da metade da Tarvo se a Ponte devolver excesso contestado",
+      "o_que_fazer": "Se a Ponte devolver ao lojista o excesso de spread contestado, a metade da Tarvo sobre esse excesso é estornada no mês em que o ajuste ocorrer (não se reabre o mês faturado)",
+      "quem_decide": "Helena (Financeiro)"
+    }
+  ],
+  "base_de_regras": {
+    "regras_ativas": 56,
+    "lojistas": 25,
+    "ultima_alteracao_historico": "2026-10-16"
+  },
+  "integridade": [
+    {
+      "nome": "4. transações em comissão de checkout = transações no rastro COM-CHK",
+      "ok": true,
+      "detalhe": "1886 transações"
+    },
+    {
+      "nome": "1. soma do rastro = valor reportado (comissoes_por_lojista.csv)",
+      "ok": true,
+      "detalhe": "35 ids conferidos"
+    },
+    {
+      "nome": "1. soma do rastro = valor reportado (divergencias_taxa.csv)",
+      "ok": true,
+      "detalhe": "233 ids conferidos"
+    },
+    {
+      "nome": "1. soma do rastro = valor reportado (notas_a_emitir.csv)",
+      "ok": true,
+      "detalhe": "21 ids conferidos"
+    },
+    {
+      "nome": "1. soma do rastro = valor reportado (lancamentos_classificados.csv)",
+      "ok": true,
+      "detalhe": "184 ids conferidos"
+    },
+    {
+      "nome": "1. soma do rastro = valor reportado (pendencias.csv)",
+      "ok": true,
+      "detalhe": "16 ids conferidos"
+    },
+    {
+      "nome": "1. todo id do rastro existe nas saídas",
+      "ok": true,
+      "detalhe": "489 ids no rastro"
+    },
+    {
+      "nome": "2. comissões de checkout com saldo > 0 = notas CHECKOUT",
+      "ok": true,
+      "detalhe": "20 lojistas somam 207045.23; 20 notas somam 207045.23"
+    },
+    {
+      "nome": "3. nota REMESSA = soma da comissão de remessa",
+      "ok": true,
+      "detalhe": "comissão 39543.45; 1 nota(s) somam 39543.45"
+    },
+    {
+      "nome": "4. toda linha da Orbe tem exatamente um destino",
+      "ok": true,
+      "detalhe": "1943 linhas -> COMISSAO 1886, EXCLUIDO 57"
+    },
+    {
+      "nome": "4. há linhas da Orbe na competência fechada",
+      "ok": true,
+      "detalhe": "ok"
+    },
+    {
+      "nome": "4. toda operação única da Ponte tem exatamente um destino",
+      "ok": true,
+      "detalhe": "233 linhas, 232 operações únicas -> COMISSAO 228, EXCLUIDO 4, DUPLICATA_IGNORADA 1"
+    },
+    {
+      "nome": "5. todo lançamento do AURORA está classificado",
+      "ok": true,
+      "detalhe": "84 lançamentos"
+    },
+    {
+      "nome": "5. todo lançamento do MERIDIANO está classificado",
+      "ok": true,
+      "detalhe": "100 lançamentos"
+    },
+    {
+      "nome": "5. lançamento classificado por REGRA tem conta",
+      "ok": true,
+      "detalhe": "0 sem conta"
+    },
+    {
+      "nome": "6. saldo do AURORA fecha linha a linha",
+      "ok": true,
+      "detalhe": "612334.81 + -2532423.41 = -1920088.60; extrato diz -1920088.60"
+    }
+  ],
+  "avisos": [],
+  "arquivos": {
+    "comissoes": "comissoes_por_lojista.csv",
+    "divergencias": "divergencias_taxa.csv",
+    "notas": "notas_a_emitir.csv",
+    "lancamentos": "lancamentos_classificados.csv",
+    "pendencias": "pendencias.csv",
+    "rastro": "rastro.csv"
+  }
+}

@@ -20,6 +20,7 @@ from .fontes import carregar_config_fontes, localizar, preparar_entrada
 from .leitores import carregar_todas
 from .leitores.comum import ErroLeitura
 from .regras import Config, ErroConfig, carregar_config
+from .relatorio import valor_em_jogo
 from .validacao import Checagem, validar_leitores
 
 RAIZ = Path(__file__).resolve().parents[1]
@@ -153,11 +154,14 @@ def imprimir_fechamento(f: Fechamento) -> None:
     met = f.lancamentos["metodo"].value_counts().to_dict()
     print("\nLançamentos classificados: " + ", ".join(f"{k} {v}" for k, v in met.items())
           + f" (total {len(f.lancamentos)})")
-    pend = f.lancamentos[f.lancamentos["tipo_pendencia"].notna()]
-    for r in pend.itertuples(index=False):
-        print(f"  [{r.tipo_pendencia}] {r.banco} {r.ref_origem} {r.data.date()} {brl(r.valor)} {r.descricao}")
-    for r in f.em_transito.itertuples(index=False):
-        print(f"  [EM_TRANSITO] {r.banco} {r.ref_origem} {r.data.date()} {brl(r.valor)} {r.descricao}: {r.motivo}")
+
+    print(f"\nPendências ({len(f.pendencias)}), por responsável:")
+    for quem, g in f.pendencias.groupby("quem_decide", sort=False):
+        print(f"  {quem}: {len(g)} pendência(s), {brl(valor_em_jogo(g['valor_brl']))} em jogo")
+        for r in g.itertuples(index=False):
+            valor = brl(r.valor_brl) if r.valor_brl is not None else "sem valor"
+            sub = f"/{r.subtipo}" if r.subtipo else ""
+            print(f"    {r.id_saida} {r.tipo}{sub:<30} {str(r.ref_origem)[:24]:<24} {valor:>16}  {str(r.lojista or '')[:30]}")
 
     print("\nChecagens de integridade:")
     for c in f.checagens:
@@ -170,12 +174,9 @@ def imprimir_conciliacao(f: Fechamento) -> None:
     c = f.conciliacao
     print("\nConciliação entre fontes (informativo, não gera pendência):")
     o = c["orbe_banco"]
-    print(f"  Adquirente x banco: líquido que a adquirente diz ter liquidado {brl(o['liquido_orbe'])} "
-          "(" + ", ".join(f"{t} {brl(v)}" for t, v in o["liquido_orbe_por_tipo"].items()) + ")")
-    print(f"    recebido da adquirente no banco: {brl(o['recebido_da_adquirente'])} ({o['qtd_recebimentos']} créditos) "
-          f"-> líquido - recebido = {brl(o['liquido_menos_recebido'])}")
-    print(f"    repassado a lojistas: {brl(o['repassado_a_lojistas'])} ({o['qtd_repasses']} lançamentos, devoluções abatidas) "
-          f"-> líquido - repassado = {brl(o['liquido_menos_repassado'])}; recebido - repassado = {brl(o['recebido_menos_repassado'])}")
+    print(f"  Adquirente x banco: {o['limitacao']}.")
+    print(f"    totais informativos: recebido da adquirente {brl(o['recebido_da_adquirente'])} ({o['qtd_recebimentos']} créditos); "
+          f"repassado a lojistas {brl(o['repassado_a_lojistas'])} ({o['qtd_repasses']} lançamentos)")
     r = c["remessa_banco"]
     print(f"  Remessa x banco: recursos recebidos de lojistas {brl(r['recursos_recebidos'])} ({r['qtd_recursos']}); "
           f"liquidado no parceiro {brl(r['liquidado_na_ponte'])} ({r['qtd_liquidacoes']}); "
@@ -206,7 +207,7 @@ def cmd_validar(args) -> int:
 def cmd_fechar(args) -> int:
     ctx = carregar_contexto(args)
     fech = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=not args.sem_ia)
-    arquivos = escrever(fech, args.saida)
+    arquivos = escrever(fech, args.saida, ctx.config)
     codigo = SAIDA_OK if fech.integro else SAIDA_INTEGRIDADE
     if args.json:
         print(json.dumps({

@@ -61,13 +61,13 @@ TIPOS_PENDENCIA = {
     "DIVERGENCIA_TAXA", "TARIFA_ZERO_COBRADA", "SEM_CONTRATO", "SPREAD_NEGATIVO",
     "EXCESSO_SPREAD_CONTESTADO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO", "EXTRATO_NAO_IDENTIFICADO",
     "DEVOLUCAO", "EM_TRANSITO", "REVISAR_IA", "MANUAL", "FORA_COMPETENCIA", "COMPLIANCE",
-    "DUPLICATA_DIVERGENTE",
+    "DUPLICATA_DIVERGENTE", "RECURSO_SEM_OPERACAO", "REPASSE_PONTE_DIVERGENTE",
 }
 # Pendências que o próprio motor gera (sem regra que as origine): precisam de DONO_PENDENCIA.
 PENDENCIAS_DO_MOTOR = {
     "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO",
     "EXTRATO_NAO_IDENTIFICADO", "EM_TRANSITO", "REVISAR_IA", "FORA_COMPETENCIA",
-    "DUPLICATA_DIVERGENTE",
+    "DUPLICATA_DIVERGENTE", "RECURSO_SEM_OPERACAO", "REPASSE_PONTE_DIVERGENTE",
 }
 CRITERIOS = {"orbe": {"status_cadastro"},
              "ponte": {"status_cadastro", "spread_negativo", "status_compliance_fora"}}
@@ -261,11 +261,13 @@ def ler_csv_regras(caminho: Path, colunas: list[str]) -> list[tuple[int, dict]]:
 class Config:
     """Base de regras carregada e validada. `regras` só tem as ATIVAS; `todas` inclui as demais."""
 
-    def __init__(self, cadastro: pd.DataFrame, regras: list[Regra], avisos: list[str]):
+    def __init__(self, cadastro: pd.DataFrame, regras: list[Regra], avisos: list[str],
+                 historico_ultima_alteracao: date | None = None):
         self.cadastro = cadastro
         self.todas = regras
         self.regras = [r for r in regras if r.status == "ATIVA"]
         self.avisos = avisos
+        self.historico_ultima_alteracao = historico_ultima_alteracao
         self._por_ec = {r.ec_orbe: r for r in cadastro.itertuples() if r.ec_orbe}
         self._por_cnpj = {r.cnpj: r for r in cadastro.itertuples()}
 
@@ -367,7 +369,23 @@ def carregar_config(dir_regras: Path, taxas: pd.DataFrame, plano_contas: pd.Data
         raise ErroConfig([str(e)]) from None
     if erros:
         raise ErroConfig(erros)
-    return Config(cadastro, regras, avisos)
+    return Config(cadastro, regras, avisos, _ultima_alteracao(dir_regras / "historico_alteracoes.csv", avisos))
+
+
+def _ultima_alteracao(caminho: Path, avisos: list[str]) -> date | None:
+    """Data mais recente registrada em historico_alteracoes.csv (para o relatório dizer que base usou)."""
+    if not caminho.exists():
+        avisos.append(f"{caminho.name} não encontrado: o relatório não saberá a data da base de regras")
+        return None
+    datas = []
+    for n, r in ler_csv_regras(caminho, ["data", "quem"]):
+        try:
+            d = data_config(r["data"], avisos, f"{caminho.name} linha {n}")
+        except ValueError:
+            continue
+        if d:
+            datas.append(d)
+    return max(datas) if datas else None
 
 
 def montar_cadastro(taxas: pd.DataFrame, caminho_complemento: Path, erros: list[str],

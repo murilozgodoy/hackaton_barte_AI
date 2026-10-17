@@ -4525,3 +4525,449 @@ LAN-0181;05b_extrato_banco_meridiano_cc90233_set2026.ofx;MRD2026090674;-240282.3
 LAN-0182;05b_extrato_banco_meridiano_cc90233_set2026.ofx;MRD2026090680;3912.66;C-23;
 LAN-0183;05b_extrato_banco_meridiano_cc90233_set2026.ofx;MRD2026090688;-141194.63;C-20;
 LAN-0184;05b_extrato_banco_meridiano_cc90233_set2026.ofx;MRD2026090696;-450.00;C-26;
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88410128;218.82;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88410171;210.41;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88410468;208.16;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88410859;119.87;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88410932;16.38;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88410975;16.54;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88412076;162.19;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88412454;23.26;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88412743;137.19;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88413035;122.24;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88413399;49.65;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88415433;193.77;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88415491;104.51;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88415685;178.14;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88415978;85.99;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88416144;71.39;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88416311;277.42;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88416509;60.12;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88416842;284.66;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88416907;89.23;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88417204;7.62;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88417236;35.02;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88417794;48.76;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88418090;208.68;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88418116;15.99;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88418131;35.65;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88418180;248.75;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88418183;17.09;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88418273;51.00;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88418435;197.92;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88418675;2.58;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88418990;119.24;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88419350;663.48;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;AN88445172;103.70;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88419800;42.82;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88420231;107.69;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88420767;219.85;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88421206;83.62;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88421445;110.49;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88421653;5.34;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88421843;50.55;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88421923;115.29;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;AN88445486;910.93;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88422954;228.88;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88423437;30.74;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88423515;352.41;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88423709;83.06;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88423749;45.12;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88423783;93.42;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88423823;106.85;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88423880;303.81;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88424905;73.21;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88425223;156.47;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88425512;8.15;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88426178;21.13;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88426399;38.88;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88426592;138.51;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88426693;232.18;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88426890;184.48;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;AN88445740;606.36;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88427447;11.15;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88427666;12.35;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;AN88445802;1206.58;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88428766;24.06;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88428877;236.05;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88429419;19.80;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88429864;6.83;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88430460;24.08;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88431209;63.43;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88431428;24.78;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88431591;26.33;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88431751;8.47;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88432026;314.08;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88432422;82.06;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88432502;13.07;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88432675;94.07;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88433046;394.21;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88433069;587.10;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88433215;145.99;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88433422;140.23;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88433569;18.62;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88433927;233.03;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88434067;257.52;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88434117;28.80;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88434297;29.11;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88434330;39.71;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88434450;2.68;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88434663;11.80;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88434700;5.27;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88435634;6.17;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88435991;40.27;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88436989;39.22;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88437409;22.70;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88437720;205.62;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88437827;50.42;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88437916;39.44;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88437994;86.61;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88438047;23.99;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88438090;43.64;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88438180;372.75;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88438430;182.26;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88438834;12.35;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88439362;272.74;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88439855;6.64;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88440140;43.08;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88440981;100.00;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88441917;9.09;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88442297;4.40;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88442386;146.25;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88442455;24.52;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88442853;56.32;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88443222;101.43;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88443269;504.90;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88443300;9.95;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88446763;-9.09;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88444507;94.68;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88444622;5.11;X-01;0.00
+PEN-0001;01_orbe_relatorio_comissoes_set2026.csv;TX88444796;105.04;X-01;0.00
+PEN-0002;01_orbe_relatorio_comissoes_set2026.csv;TX88428053;4.50;planilha:Taxas vigentes!E7;2.19
+PEN-0002;01_orbe_relatorio_comissoes_set2026.csv;TX88428930;3.44;planilha:Taxas vigentes!E7;2.19
+PEN-0002;01_orbe_relatorio_comissoes_set2026.csv;TX88429199;2.86;planilha:Taxas vigentes!E7;2.19
+PEN-0002;01_orbe_relatorio_comissoes_set2026.csv;TX88429931;7.95;planilha:Taxas vigentes!E7;2.19
+PEN-0002;01_orbe_relatorio_comissoes_set2026.csv;TX88431123;11.20;planilha:Taxas vigentes!E7;2.19
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88423647;66.28;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88423890;32.25;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88424022;5.37;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88424077;17.84;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88424136;9.41;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88425052;38.38;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88425173;13.72;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88425448;9.99;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88426013;7.89;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88426233;6.92;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88426252;12.76;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88427001;63.45;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88427107;4.31;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88427377;34.31;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88427564;23.88;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88427938;8.96;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88428178;11.23;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88428435;2.23;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88428474;4.09;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88428676;52.10;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88428712;5.93;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88428735;25.33;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88428970;5.13;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88429150;5.42;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88429336;14.23;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88429536;26.98;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88429827;29.98;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88429989;3.29;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88429990;26.86;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88430153;8.73;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88430353;6.45;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88430936;32.50;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88431486;7.74;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88431556;9.98;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88431560;13.56;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88431672;19.79;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88431963;18.48;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88432567;40.26;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88432830;13.94;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88433537;21.56;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88433590;5.86;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88433646;14.13;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88433964;2.88;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88434224;15.81;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88434279;42.87;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88434338;33.22;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88434373;8.69;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88434470;13.44;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88434471;10.81;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88434839;10.06;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88434983;16.15;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88435140;13.05;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88435217;14.33;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88435384;10.89;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88435533;2.96;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88435587;56.13;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88435592;25.07;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88435619;12.15;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88435787;51.66;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88437238;6.09;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88446419;-52.10;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88437958;38.92;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88446585;-5.13;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88438012;5.44;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88438067;27.48;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88438149;9.38;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88438431;18.93;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88446596;-29.98;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88446647;-11.23;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88439502;29.86;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88439678;16.20;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88439849;16.48;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88440095;2.51;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88440860;69.84;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88441580;44.82;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88441819;19.51;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88441880;5.58;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88441929;8.83;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88442136;35.19;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88442245;13.17;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88442632;5.18;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88442710;13.31;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88442909;39.85;planilha:Taxas vigentes!G10;3.59
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88442937;7.21;planilha:Taxas vigentes!E10;2.49
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88443187;13.46;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88443503;11.40;planilha:Taxas vigentes!F10;2.99
+PEN-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88444545;64.41;planilha:Taxas vigentes!G10;3.59
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0016;68.32;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0492;36.13;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0011;29.56;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0039;63.59;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0075;75.41;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0145;65.71;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0409;19.90;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0045;45.66;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0180;69.12;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0266;65.78;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0388;62.40;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0098;18.59;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0188;40.38;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0516;23.28;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0487;65.02;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0434;235.74;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0033;68.20;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0373;113.41;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0240;16.71;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0236;71.36;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0364;43.42;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0141;44.40;planilha:Taxas vigentes!J15;1.20
+PEN-0004;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0566;76.76;planilha:Taxas vigentes!J15;1.20
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0011;14.78;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0016;34.16;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0033;34.10;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0039;31.80;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0045;22.83;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0075;37.71;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0098;9.30;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0141;22.20;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0145;32.86;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0180;34.56;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0188;20.19;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0236;35.68;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0240;8.36;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0266;32.89;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0364;21.71;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0373;56.71;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0388;31.20;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0409;9.95;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0434;117.87;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0487;32.51;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0492;18.07;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0516;11.64;P-05;50.00
+PEN-0005;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0566;38.38;P-05;50.00
+PEN-0006;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0210;343.76;E-03;50.00
+PEN-0006;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0326;254.61;E-03;50.00
+PEN-0006;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0491;146.14;E-03;50.00
+PEN-0006;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0545;172.52;E-03;50.00
+PEN-0006;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0162;-410.94;D-01;50.00
+PEN-0006;03_email_ponte_cambio_relatorio_set2026.eml;SPREAD TOTAL R$:;0.56;P-06;
+PEN-0007;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0326;-509.22;;
+PEN-0008;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0545;-345.03;;
+PEN-0009;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0491;-292.28;;
+PEN-0010;03_email_ponte_cambio_relatorio_set2026.eml;PC-0926-0210;-687.52;;
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88421353;45.11;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88423234;339.06;;4.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88418299;38.21;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88422170;311.62;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88423562;279.21;;4.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88410188;76.53;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88425538;2.01;;0.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88425685;245.22;;4.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88417174;301.94;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88413600;97.51;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88417783;130.61;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88412107;48.67;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;AN88445637;1099.59;;2.10
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88428032;4.99;;0.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;AN88445646;466.69;;2.10
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88428488;9.30;;0.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88427530;314.31;;4.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;AN88445703;1090.78;;2.10
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;AN88445766;1114.36;;2.10
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88429366;99.99;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88428508;35.19;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88430278;18.19;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;AN88446030;-1099.59;;2.10
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88430524;5.94;;1.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88430846;54.78;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88414356;224.15;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88430812;150.02;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88419921;138.83;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88431921;158.90;;4.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88433440;71.12;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88433459;5.09;;1.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88433374;5.77;;0.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88433751;7.03;;0.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88411311;112.59;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88434732;28.21;;0.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88436129;106.64;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88435925;8.83;;1.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88435943;149.74;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88417414;255.39;;4.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88415360;63.81;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88446499;-18.19;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88410385;10.23;;0.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;AN88446517;1183.35;;2.10
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88437771;99.57;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88437854;199.96;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88438901;5.63;;0.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88440207;120.41;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;AN88446660;-1183.35;;2.10
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88419007;238.64;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88412755;82.74;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88443476;139.99;;4.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88442802;64.98;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88444518;120.92;;3.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88413941;101.77;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88444426;2.43;;0.99
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88444140;30.56;;3.49
+PEN-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88413380;60.07;;3.49
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88410932;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88410975;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88410128;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88410468;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88410859;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88410171;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88412076;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88412454;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88413035;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88413399;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88412743;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88415491;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88416144;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88415433;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88415685;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88415978;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88416311;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88416907;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88416509;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88417204;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88416842;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88417236;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88418090;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88418435;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88418273;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88418116;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88417794;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88418183;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88445133;-5.50;planilha:Taxas vigentes!D13;1.49
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88418180;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88418131;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88419350;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88418990;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88418675;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;AN88445172;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88420231;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88420767;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88419800;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88421653;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88421206;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88421843;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88421445;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88421923;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88422954;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;AN88445486;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88423783;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88423749;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88423823;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88423709;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88423880;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88423515;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88423437;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88424905;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88425223;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88425512;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88426178;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88426890;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88426592;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88426399;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88426693;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88427666;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;AN88445740;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88427447;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88428766;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88429419;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88428877;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;AN88445802;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88430460;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88429864;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88431591;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88431209;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88431428;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88432026;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88432675;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88432502;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88431751;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88432422;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88434117;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88433069;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88433927;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88433215;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88433422;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88433046;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88434067;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88433569;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88434450;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88434700;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88434297;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88434330;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88434663;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88435634;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88435991;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88436989;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88437827;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88437720;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88437409;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88437916;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88438834;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88438430;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88438047;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88438180;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88437994;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88438090;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88439362;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88440140;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88439855;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88440981;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88442297;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88441917;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88442386;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88442455;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88443269;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88443300;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88446763;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88442853;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88443222;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88444622;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88444796;0.00;X-01;0.00
+PEN-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88444507;0.00;X-01;0.00
+PEN-0013;05b_extrato_banco_meridiano_cc90233_set2026.ofx;MRD2026090425;18240.00;C-19;
+PEN-0014;05a_extrato_banco_aurora_cc4471_set2026.csv;L50;7350.00;C-17;
+PEN-0015;05a_extrato_banco_aurora_cc4471_set2026.csv;L65;12400.00;C-18;
+PEN-0016;05a_extrato_banco_aurora_cc4471_set2026.csv;L92;-300000.00;C-04;

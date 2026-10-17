@@ -35,7 +35,25 @@ O motor extrai sozinho para `data/`.
 ```
 
 Códigos de saída: 0 ok · 1 problema nos arquivos de entrada · 2 problema na base de
-regras · 3 integridade das saídas falhou.
+regras · 3 integridade das saídas falhou (nesse caso `resumo.json` não é gravado e o
+relatório sai marcado como inválido).
+
+## Saídas (`saida/`)
+
+Os 6 CSVs do regulamento (`comissoes_por_lojista`, `divergencias_taxa`, `notas_a_emitir`,
+`lancamentos_classificados`, `pendencias`, `rastro`), mais `resumo.json` (para agentes:
+totais em string decimal, nada a recalcular) e `RELATORIO_FECHAMENTO.md` (uma página para a
+analista e o CFO). A soma de `valor` por `id_saida` no `rastro.csv` é igual ao valor
+reportado em cada saída; isso é conferido a cada execução.
+
+## Limitações conhecidas
+
+- **Adquirente × banco não é conciliável com os arquivos do mês.** A adquirente liquida
+  crédito parcelado em parcelas mensais (salvo antecipação), então o que entra no banco em
+  setembro mistura parcelas de vendas anteriores e deixa de fora parcelas futuras. O relatório
+  mostra os totais só como informativos; a conciliação exige a agenda de recebíveis da adquirente.
+- O extrato OFX do Meridiano não traz saldo inicial, então o saldo desse banco não é conferido
+  linha a linha (o do Aurora é).
 
 ## Base de regras (`regras/`)
 

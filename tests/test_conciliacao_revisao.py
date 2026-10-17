@@ -36,12 +36,13 @@ def test_conciliacao_remessa_fecha_com_valor_mais_iof(fech):
     assert r["recursos_recebidos"] == D("5629687.12") and r["recursos_menos_liquidado"] == D("18240.00")
 
 
-def test_conciliacao_adquirente(fech):
+def test_conciliacao_adquirente_e_so_informativa(fech):
     o = fech.conciliacao["orbe_banco"]
+    assert o["conciliavel"] is False and "agenda de recebíveis" in o["limitacao"]
     assert o["liquido_orbe"] == D("7264348.20") and o["recebido_da_adquirente"] == D("3557246.29")
     assert o["qtd_recebimentos"] == 21 and o["qtd_repasses"] == 45
     assert o["repassado_a_lojistas"] == D("4230267.61") - D("12400.00")
-    assert o["recebido_menos_repassado"] == D("3557246.29") - D("4217867.61")
+    assert not any(k.endswith("menos_recebido") or k.endswith("menos_repassado") for k in o)
 
 
 def test_em_transito_quando_nada_cai_no_outro_banco(dados, config):
@@ -74,7 +75,9 @@ def test_contagens_sao_inteiras_no_csv(dados, tmp_path):
 def test_saida_versionada_e_a_do_codigo_atual(dados, tmp_path):
     """saida/ é o que a banca vê: tem que ser exatamente o que o código gera hoje."""
     assert main(["fechar", "--saida", str(tmp_path), "--sem-ia"]) == 0
-    for p in tmp_path.glob("*.csv"):
+    gerados = list(tmp_path.glob("*.csv")) + [tmp_path / "resumo.json", tmp_path / "RELATORIO_FECHAMENTO.md"]
+    assert len(gerados) == 8
+    for p in gerados:
         versionado = RAIZ / "saida" / p.name
         assert versionado.exists(), f"saida/{p.name} não está versionado"
         assert p.read_bytes() == versionado.read_bytes(), f"saida/{p.name} está desatualizado: rode o fechar"
