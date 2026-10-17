@@ -1,6 +1,7 @@
 """Classificação dos extratos de setembro/2026 e detecção de transferência em trânsito."""
 from decimal import Decimal
 
+import pandas as pd
 import pytest
 
 from src.extratos import classificar
@@ -118,3 +119,34 @@ def test_provisoes_vao_para_a_conta_da_obrigacao_e_nao_para_despesa(ext):
     for ref in ("L15", "L42", "L54", "L55", "L57", "L86", "L87"):     # folha, ISS, INSS, FGTS, IRRF, PIS, COFINS
         assert lanc.loc[ref, "conta_codigo"].startswith("2.1.0"), (ref, lanc.loc[ref, "conta_codigo"])
     assert lanc.loc["MRD2026090132", "conta_codigo"] == "1.1.03.002"   # repasse da Ponte: baixa do a receber provisionado
+
+
+# ---------------------------------------------------------------- competência dos extratos (extrato de outro mês)
+
+def _deslocar(df, meses: int, so_primeiras: int | None = None):
+    novo = df.copy()
+    sel = novo.index[:so_primeiras] if so_primeiras else novo.index
+    novo.loc[sel, "data"] = novo.loc[sel, "data"] + pd.DateOffset(months=meses)
+    novo.attrs = dict(df.attrs)
+    return novo
+
+
+def test_extrato_inteiro_de_outro_mes_e_erro(dados):
+    """Os dois bancos em outubro com a competência de setembro: ERRO ("o extrato X é de outro mês"), nunca sucesso."""
+    from src.validacao import checar_competencia_extratos
+    c = checar_competencia_extratos([_deslocar(dados["aurora"], 1), _deslocar(dados["meridiano"], 1)], "2026-09")
+    assert [(x.fonte, x.ok, x.nivel) for x in c] == [("AURORA", False, "ERRO"), ("MERIDIANO", False, "ERRO")]
+    assert "é de outro mês" in c[0].detalhe and "05a_extrato_banco_aurora" in c[0].detalhe and "2026-10-01" in c[0].detalhe
+    ok = checar_competencia_extratos(extratos_de(dados), "2026-09")
+    assert all(x.ok for x in ok) and [x.detalhe for x in ok] == ["84 lançamentos em 2026-09", "100 lançamentos em 2026-09"]
+
+
+def test_algumas_linhas_fora_da_competencia_e_aviso_persistido(dados):
+    """Parte do extrato fora do mês: classifica normalmente, mais AVISO com banco, quantidade e período, que entra em
+    Fechamento.avisos (resumo.json e seção Avisos do relatório) com a ação esperada."""
+    from src.validacao import avisos_dos_leitores, checar_competencia_extratos
+    c = checar_competencia_extratos([_deslocar(dados["aurora"], -1, so_primeiras=3), dados["meridiano"]], "2026-09")
+    assert (c[0].fonte, c[0].ok, c[0].nivel) == ("AURORA", False, "AVISO") and c[1].ok
+    assert c[0].detalhe.startswith("3 de 84 lançamentos do AURORA (05a_extrato_banco_aurora_cc4471_set2026.csv) fora de 2026-09, de 2026-08-01 a 2026-08-02")
+    avisos = avisos_dos_leitores(c)
+    assert len(avisos) == 1 and avisos[0].startswith("AURORA: lançamentos na competência (3 de 84") and "Ação: conferir se o extrato é do mês certo" in avisos[0]

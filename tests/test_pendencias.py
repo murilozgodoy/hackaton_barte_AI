@@ -321,10 +321,3 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert "Rodapé: EXCESSO_SPREAD_CONTESTADO (R$ 709,46) já incluído em DIVERGENCIA_TAXA de Mundo Aberto" in rel
     assert "1.5%–1.5%" not in rel and "+ -R$" not in rel
 
-
-def test_integridade_falha_nao_escreve_resumo(dados, tmp_path, capsys):
-    (tmp_path).mkdir(exist_ok=True)
-    (tmp_path / "resumo.json").write_text("{}", encoding="utf-8")
-    assert main(["fechar", "--saida", str(tmp_path), "--competencia", "2026-10", "--sem-ia"]) == 3
-    assert not (tmp_path / "resumo.json").exists()
-    assert "RELATÓRIO INVÁLIDO" in (tmp_path / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")

@@ -1,6 +1,7 @@
 """Formato dos CSVs de saída e comportamento da CLI."""
 import csv
 import json
+import shutil
 from decimal import Decimal
 from pathlib import Path
 
@@ -81,9 +82,10 @@ def test_cli_fechar_e_deterministico(dados, tmp_path):
 def test_cli_competencia_invalida_ou_vazia(dados, tmp_path, capsys):
     assert main(["fechar", "--saida", str(tmp_path), "--competencia", "2026-9"]) == 1
     assert "AAAA-MM" in capsys.readouterr().err
-    assert main(["fechar", "--saida", str(tmp_path), "--competencia", "2026-10", "--sem-ia"]) == 3
-    saida = capsys.readouterr()
-    assert "nenhuma linha da Orbe entrou no mês" in saida.out and "INTEGRIDADE FALHOU" in saida.err
+    # competência de outro mês com os arquivos de setembro: os extratos são de outro mês -> erro de entrada (código 1)
+    assert main(["fechar", "--saida", str(tmp_path), "--competencia", "2026-10", "--sem-ia"]) == 1
+    err = capsys.readouterr().err
+    assert "é de outro mês" in err and "2026-10" in err and "--competencia" in err
 
 
 def test_cli_regras_invalidas_codigo_2(dados, tmp_path, capsys):
@@ -123,3 +125,67 @@ def test_cli_fechar_imprime_resumo_final_em_portugues(dados, tmp_path, capsys):
     assert "Checagens de integridade: 6 de 6 ok" in bloco
     assert str(tmp_path) in bloco
     assert linhas[-1].strip().endswith("RELATORIO_FECHAMENTO.md")
+
+
+# ---------------------------------------------------------------- competência dos extratos e avisos dos leitores
+
+def _entrada_com_extratos_de_outubro(pasta_dados, tmp_path):
+    """Pasta com os arquivos de setembro, mas os dois extratos bancários deslocados para outubro."""
+    from tests.outubro_sintetico import gerar
+    entrada = tmp_path / "entrada"
+    shutil.copytree(pasta_dados, entrada)
+    for p in entrada.glob("05*"):
+        p.unlink()
+    for p in gerar(tmp_path / "out_sint", pasta_dados).glob("05*"):
+        shutil.copy(p, entrada / p.name)
+    return entrada
+
+
+def test_extrato_de_outro_mes_para_com_codigo_1(pasta_dados, tmp_path, capsys):
+    """Bancos de outubro com Orbe e Ponte de setembro: erro de entrada, nunca um número "íntegro"."""
+    entrada = _entrada_com_extratos_de_outubro(pasta_dados, tmp_path)
+    assert main(["validar", "--entrada", str(entrada)]) == 1
+    err = capsys.readouterr().err
+    assert "é de outro mês" in err and "AURORA" in err and "MERIDIANO" in err and "2026-09" in err
+    assert main(["fechar", "--entrada", str(entrada), "--saida", str(tmp_path / "saida"), "--sem-ia"]) == 1
+    assert not (tmp_path / "saida" / "resumo.json").exists()
+
+
+def test_integridade_falha_nao_escreve_resumo(pasta_dados, tmp_path, capsys):
+    """Orbe e Ponte de setembro com --competencia 2026-10 (extratos de outubro): nenhuma linha da Orbe no mês -> 3."""
+    entrada = _entrada_com_extratos_de_outubro(pasta_dados, tmp_path)
+    saida = tmp_path / "saida"
+    saida.mkdir()
+    (saida / "resumo.json").write_text("{}", encoding="utf-8")
+    assert main(["fechar", "--entrada", str(entrada), "--saida", str(saida), "--competencia", "2026-10", "--sem-ia"]) == 3
+    out = capsys.readouterr()
+    assert "nenhuma linha da Orbe entrou no mês" in out.out and "INTEGRIDADE FALHOU" in out.err
+    assert not (saida / "resumo.json").exists()
+    assert "RELATÓRIO INVÁLIDO" in (saida / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
+
+
+def test_aviso_dos_leitores_chega_ao_resumo_e_ao_relatorio(pasta_dados, tmp_path, capsys):
+    """3 lançamentos do Aurora datados de agosto: fecha (código 0), classifica normalmente, e o aviso fica em
+    resumo.json["avisos"] e na seção Avisos do relatório, com fonte e ação esperada (não só na tela)."""
+    entrada = tmp_path / "entrada"
+    shutil.copytree(pasta_dados, entrada)
+    p = next(entrada.glob("05a_extrato_banco_aurora*.csv"))
+    raw = p.read_bytes()
+    for enc in ("utf-8-sig", "cp1252"):
+        try:
+            texto = raw.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    import re
+    texto, n = re.subn(r"\n(\d{2})/09/2026;", r"\n\1/08/2026;", texto, count=3)   # as 3 primeiras linhas viram agosto
+    assert n == 3
+    p.write_text(texto, encoding=enc)
+    assert main(["fechar", "--entrada", str(entrada), "--saida", str(tmp_path / "saida"), "--json", "--sem-ia"]) == 0
+    j = json.loads(capsys.readouterr().out)
+    assert j["lancamentos"] == {"REGRA": 184, "IA": 0, "HUMANO": 0}
+    assert any(a.startswith("AURORA: lançamentos na competência (3 de 84") and "Ação: conferir" in a for a in j["avisos"])
+    res = json.loads((tmp_path / "saida" / "resumo.json").read_text(encoding="utf-8"))
+    assert res["avisos"] == j["avisos"]
+    rel = (tmp_path / "saida" / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
+    assert "## Avisos" in rel and "- AURORA: lançamentos na competência (3 de 84" in rel

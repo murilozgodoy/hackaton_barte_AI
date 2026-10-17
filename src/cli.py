@@ -22,7 +22,7 @@ import pandas as pd
 from . import carteira as carteira_mod
 from . import comandos
 from .dinheiro import brl, soma
-from .fechamento import Fechamento, escrever, executar
+from .fechamento import Fechamento, escrever, executar, extratos_de
 from .fontes import carregar_config_fontes, localizar, preparar_entrada
 from .leitores import carregar_todas
 from .leitores.comum import ErroLeitura
@@ -30,7 +30,7 @@ from .notas import competencia_texto, primeiro_dia
 from .regras import Config, ErroConfig, _Contexto, carregar_config
 from . import relatorio
 from .relatorio import valor_em_jogo
-from .validacao import Checagem, validar_leitores
+from .validacao import Checagem, avisos_dos_leitores, checar_competencia_extratos, validar_leitores
 
 RAIZ = Path(__file__).resolve().parents[1]
 COMANDOS = ("validar", "fechar", "explicar", "pendencias", "regra", "empacotar-skill")
@@ -135,6 +135,12 @@ def carregar_contexto(args, base: BaseRegras) -> Contexto:
     faltas = config.verificar_cobertura([primeiro, ultimo])
     if faltas:
         raise Parada(SAIDA_REGRAS, "Base de regras não cobre a competência " + competencia + ":\n  - " + "\n  - ".join(faltas))
+    # extrato de outro mês não pode passar como sucesso: nenhum lançamento na competência é erro de entrada
+    extr = checar_competencia_extratos(extratos_de(dados), competencia)
+    checagens += extr
+    falhas = [c for c in extr if c.nivel == "ERRO" and not c.ok]
+    if falhas:
+        raise Parada(SAIDA_ENTRADA, "Arquivos de entrada não fecham:\n  - " + "\n  - ".join(f"{c.fonte}: {c.detalhe}" for c in falhas))
     return Contexto(pasta, arquivos, dados, config, competencia, not getattr(args, "competencia", None), checagens)
 
 
@@ -353,6 +359,8 @@ def cmd_fechar(args) -> int:
     try:
         fech = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=not args.sem_ia, carteira=carteira,
                         contestacao_anterior=contestacao)
+        # avisos dos leitores (checagens AVISO que falharam) vão para o relatório e o resumo, não só para a tela
+        fech.avisos = avisos_dos_leitores(ctx.checagens) + fech.avisos
         arquivos, res = escrever(fech, args.saida, ctx.config, entrada, dir_regras=resolver_regras(args.regras).pasta,
                                  pasta_anterior=getattr(args, "anterior", None))
     except ErroConfig as e:

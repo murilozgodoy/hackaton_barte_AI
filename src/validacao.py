@@ -21,9 +21,42 @@ class Checagem:
     ok: bool
     detalhe: str
     nivel: str = "ERRO"  # ERRO | AVISO | INFO
+    acao: str = ""       # o que a pessoa deve fazer quando a checagem AVISO falha (vai para os avisos do fechamento)
 
     def __post_init__(self):
         self.ok = bool(self.ok)  # numpy.bool_ viraria "True" no JSON
+
+
+def avisos_dos_leitores(checagens: list[Checagem]) -> list[str]:
+    """Checagens de nível AVISO que falharam, em texto para Fechamento.avisos (resumo.json e seção Avisos do
+    relatório): fonte, o que não fechou e a ação esperada."""
+    return [f"{c.fonte}: {c.nome} ({c.detalhe})" + (f". Ação: {c.acao}" if c.acao else "")
+            for c in checagens if c.nivel == "AVISO" and not c.ok]
+
+
+def checar_competencia_extratos(extratos: list[pd.DataFrame], competencia: str) -> list[Checagem]:
+    """Extrato de outro mês não pode passar como sucesso. Nenhum lançamento na competência -> ERRO ("o extrato X é de
+    outro mês"); alguns fora -> AVISO com banco, quantidade e período (os lançamentos são classificados normalmente)."""
+    c = []
+    for df in extratos:
+        if not len(df):
+            continue
+        banco, arquivo = df["banco"].iloc[0], df["arquivo_origem"].iloc[0]
+        meses = df["data"].dt.strftime("%Y-%m")
+        fora = df[meses != competencia]
+        de, ate = df["data"].min().date(), df["data"].max().date()
+        if len(fora) == len(df):
+            c.append(Checagem(banco, "lançamentos na competência", False,
+                              f"o extrato {arquivo} é de outro mês: nenhum dos {len(df)} lançamentos do {banco} está em "
+                              f"{competencia} (datas de {de} a {ate}); confira o arquivo ou --competencia"))
+        elif len(fora):
+            c.append(Checagem(banco, "lançamentos na competência", False,
+                              f"{len(fora)} de {len(df)} lançamentos do {banco} ({arquivo}) fora de {competencia}, de "
+                              f"{fora['data'].min().date()} a {fora['data'].max().date()}", "AVISO",
+                              acao="conferir se o extrato é do mês certo; esses lançamentos foram classificados normalmente"))
+        else:
+            c.append(Checagem(banco, "lançamentos na competência", True, f"{len(df)} lançamentos em {competencia}"))
+    return c
 
 
 def _soma(serie) -> Decimal:
@@ -189,11 +222,13 @@ def validar_leitores(d: dict[str, pd.DataFrame]) -> list[Checagem]:
                           f"soma {s}, declarado {s_decl}"))
     ruins = sum(1 for me, tc, v in zip(p.valor_me, p.taxa_cliente, p.valor_brl) if _hu(me * tc) != v)
     c.append(Checagem("ponte", "Valor R$ = Valor ME x Taxa Cliente", ruins == 0,
-                      f"{ruins} operações não fecham", "AVISO"))
+                      f"{ruins} operações não fecham", "AVISO",
+                      acao="conferir essas operações com o parceiro de câmbio antes de usar a conciliação"))
     ruins = sum(1 for me, tc, px, s in zip(p.valor_me, p.taxa_cliente, p.ptax, p.spread_brl)
                 if _hu((tc - px) * me) != s)
     c.append(Checagem("ponte", "Spread R$ = (Taxa Cliente - PTAX) x Valor ME", ruins == 0,
-                      f"{ruins} operações não fecham", "AVISO"))
+                      f"{ruins} operações não fecham", "AVISO",
+                      acao="conferir o Spread R$ dessas operações com o parceiro; a comissão usa o Spread R$ do relatório"))
     for ign in p.attrs.get("linhas_ignoradas", []) or []:
         c.append(Checagem("ponte", "linha ignorada", True,
                           f"linha {ign['linha']} sem Nº Operação ou data de contratação válida: {ign['conteudo']}", "INFO"))
@@ -236,7 +271,8 @@ def validar_leitores(d: dict[str, pd.DataFrame]) -> list[Checagem]:
     if de and ate:
         fora = ((m["data"].dt.date < de) | (m["data"].dt.date > ate)).sum()
         c.append(Checagem("meridiano", "datas dentro do período do extrato", fora == 0,
-                          f"{fora} transações fora de {de} a {ate}", "AVISO"))
+                          f"{fora} transações fora de {de} a {ate}", "AVISO",
+                          acao="conferir com o banco se o extrato está completo e é do mês certo"))
     if m.attrs.get("saldo_final") is not None:
         implicito = m.attrs["saldo_final"] - _soma(m.valor)
         c.append(Checagem("meridiano", "saldo inicial (o OFX não informa)", True,
