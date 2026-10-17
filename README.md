@@ -93,13 +93,14 @@ dados da Orbe, da Ponte ou de lojistas. A sugestão volta com `metodo=IA`, confi
 
 ## Usar com assistente de IA (opcional)
 
-A skill `skills/fechamento-tarvo/SKILL.md` (padrão aberto Agent Skills; atalho em `.agents/skills/`)
-ensina um assistente (Claude, Codex, Cursor, Copilot) a conduzir o fechamento **usando os mesmos
+A skill `skills/fechamento-tarvo/SKILL.md` segue o padrão aberto Agent Skills (atalho em `.agents/skills/`;
+testada em: Claude Code) e ensina um assistente a conduzir o fechamento **usando os mesmos
 comandos deste README**: ele roda `validar` e `fechar`, lê `saida/resumo.json` e o relatório,
 explica de onde vem cada número (`explicar`), conduz as pendências e propõe regras, que só são
 gravadas com aprovação nominal. Ele nunca calcula nem edita entradas. `AGENTS.md` resume o fluxo
 para agentes que não leem skills. Para distribuir: `python -m src empacotar-skill` gera um zip
-autocontido em `dist/`. Detalhes em "Dados enviados à IA", abaixo.
+autocontido em `dist/`. Detalhes em "Dados enviados à IA", abaixo. No Windows, o atalho `.agents/skills`
+é symlink e pode virar arquivo de texto: use `skills/fechamento-tarvo/` direto ou o `AGENTS.md`.
 
 ### Outros comandos
 
@@ -125,12 +126,13 @@ positivas; nota de remessa = soma da remessa; toda linha da Orbe e toda operaç�
 exatamente um destino (nada some); todo lançamento classificado; saldo do Aurora fecha.
 
 Setembro/2026: comissão CHECKOUT R$ 207.039,73 (21 lojistas), REMESSA R$ 39.543,45 (14),
-21 notas (R$ 246.588,68), 233 divergências = 115 de contrato (R$ 1.576,23 checkout + R$ 1.418,85
-remessa, `natureza=CONTRATO`, contestadas) + 118 transações da Casa do Estudante
-(`natureza=DEVOLUCAO_LOJISTA`: concessão comercial fora do contrato, R$ 15.397,42 de devolução ao
-lojista por conta da Tarvo, fora de qualquer cobrança à Orbe), 184 lançamentos classificados por
-regra, 16 pendências (R$ 48.364,75 em jogo). O `RELATORIO_FECHAMENTO.md` abre com a página do CFO
-(totais, notas, dinheiro em jogo por causa, pendências por responsável, rascunhos prontos em
+21 notas (R$ 246.588,68), 115 divergências de contrato (R$ 1.576,23 checkout + R$ 1.418,85 remessa,
+contestadas), 184 lançamentos classificados por regra, 16 pendências. As 118 transações da Casa do
+Estudante ficam fora de `divergencias_taxa.csv` por regra (X-01, `destino=PENDENCIA`): são uma concessão
+comercial fora do contrato, e a devolução ao lojista por conta da Tarvo (R$ 15.396,77, o que a Orbe cobrou de
+fato; a fórmula daria R$ 15.397,42) existe só na pendência TARIFA_ZERO_COBRADA, com o detalhe por transação
+no rastro. O `RELATORIO_FECHAMENTO.md` abre com a página do CFO (totais, notas, dinheiro em jogo por
+natureza, nunca somado entre naturezas, pendências por responsável, rascunhos prontos em
 `saida/comunicacoes/`, conhecimento capturado) e traz o detalhe em anexo.
 
 ## Como funciona
@@ -165,8 +167,13 @@ pendência com dono, nunca palpite.
 
 ## Dados enviados à IA
 
-- **No fluxo da skill, nenhum arquivo é enviado pelo motor a serviço externo.** O agente roda
-  `python -m src` localmente (ou no sandbox de code execution) e lê os resultados.
+- **O motor não envia nada a serviço externo.** O agente roda `python -m src` localmente (ou no sandbox de
+  code execution) e lê os resultados.
+- **O que o agente lê passa pelo provedor do modelo.** Tudo o que o assistente lê para conduzir o fechamento
+  (`resumo.json`, `pendencias.csv`, o relatório, a saída de `explicar` e trechos dos arquivos que ele abrir) vai
+  para o provedor do modelo de IA como parte da conversa. No chat web (Claude.ai, Cowork), os arquivos anexados
+  sobem para o sandbox do provedor. Quem não aceitar isso usa só a CLI, sem IA (`COMO_FECHAR_O_MES.md`): o
+  resultado é o mesmo.
 - **Classificação de extrato por IA é opcional e desligada por padrão.** Só acontece se
   `ANTHROPIC_API_KEY` estiver definida e houver lançamento que nenhuma regra cobre. Nesse
   caso o motor envia, **só desses lançamentos**, banco, data, descrição e valor, mais a lista

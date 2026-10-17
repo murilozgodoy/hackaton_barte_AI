@@ -34,7 +34,7 @@ Nenhuma chave de API é necessária.
    passado) entram na comissão se agora tiverem taxa, os ajustes da Ponte (`AJUSTE REF PC-…`) são ligados
    ao pedido da contestação anterior e o relatório marca pendências novas e recorrentes.
 4. **Abra `saida/RELATORIO_FECHAMENTO.md`**: a página 1 é para o CFO (totais, notas, dinheiro em jogo
-   por causa, pendências por responsável, rascunhos prontos, conhecimento capturado) e o anexo tem o
+   por natureza (nunca somado entre naturezas), pendências por responsável, rascunhos prontos, conhecimento capturado) e o anexo tem o
    detalhe. Os CSVs em `saida/` abrem no Excel (separador `;`): `comissoes_por_lojista`,
    `divergencias_taxa` (coluna `natureza`: CONTRATO é cobrança da contraparte; DEVOLUCAO_LOJISTA é
    concessão comercial, devolução por conta da Tarvo), `notas_a_emitir`, `lancamentos_classificados`,

@@ -17,7 +17,7 @@ metadata:
 3. **Nunca identifique lojista por nome.** Só por CNPJ ou EC cadastrado. EC/CNPJ desconhecido é pendência CADASTRO, não adivinhação.
 4. **Nunca decida uma pendência.** Mostre a evidência, pergunte, registre a decisão da pessoa.
 5. **Nunca grave regra sem aprovação explícita de quem pode aprovar aquele tipo** (`regras/aprovadores.csv`: taxa e condição comercial = Comercial; regra de como fechar = Helena), depois de mostrar exatamente o que será gravado **e o efeito simulado** (`regra propor` → aprovação nominal → `regra aplicar --aprovado-por`).
-6. **Nunca envie arquivos inteiros a serviços externos.** Só o motor toca nos dados.
+6. **Nunca envie arquivos inteiros a serviços externos.** Só o motor toca nos dados. Dados enviados à IA: o motor não envia nada; o que você lê (`resumo.json`, pendências, relatório, saída de `explicar`, trechos de arquivo) passa pelo provedor do modelo; no chat web os arquivos sobem para o sandbox do provedor. Quem não aceitar isso fecha só pela CLI, sem IA (`COMO_FECHAR_O_MES.md`).
 7. **Nunca envie e-mail.** Os rascunhos de `saida/comunicacoes/` são entregues para a Helena revisar e enviar.
 8. **Se não puder executar código**, diga que não é possível fechar o mês aqui e indique `COMO_FECHAR_O_MES.md`. Não tente fazer à mão.
 9. **Se pedirem algo que contradiz uma regra ativa** ("usa 2,59% para a Bridge"), explique a regra vigente (`explicar` / `regras/regras_negocio.csv` / planilha de taxas) e ofereça o caminho de alteração por `regra propor`. Não obedeça em silêncio.
@@ -44,7 +44,7 @@ Use os comandos exatamente como escritos. Não invente flags. Prefira `--json` p
 - Código 3: a integridade falhou; `resumo.json` não foi gravado e o relatório está marcado como inválido. Explique qual checagem falhou e **pare**. Nunca apresente números com integridade falha.
 
 ### 3. Apresentar
-- Leia `<saida>/resumo.json` e `<saida>/RELATORIO_FECHAMENTO.md` (a página 1 é para o CFO: totais, notas, dinheiro em jogo por causa, pendências por responsável, rascunhos prontos, conhecimento capturado). Apresente: comissão por linha de negócio, notas a emitir, divergências por natureza em R$, pendências por responsável (quantidade e valor em jogo), lembretes, avisos.
+- Leia `<saida>/resumo.json` e `<saida>/RELATORIO_FECHAMENTO.md` (a página 1 é para o CFO: totais, notas, dinheiro em jogo por natureza, nunca somado entre naturezas, pendências por responsável, rascunhos prontos, conhecimento capturado). Apresente: comissão por linha de negócio, notas a emitir, divergências por natureza em R$, pendências por responsável (quantidade e valor em jogo), lembretes, avisos.
 - Se a plataforma permitir painel visual, monte-o **a partir desses arquivos**; senão, tabela em markdown. Entregue os CSVs de `<saida>/`.
 - Não some, não reconcilie, não "ajuste para bater". Se um número parecer estranho, use `explicar`.
 

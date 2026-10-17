@@ -4,7 +4,7 @@
     "nome": "fechamento normal de setembro",
     "prompt": "Fecha setembro da Tarvo. Os arquivos estão em Tarvo_Data_Pack_set2026.zip e as regras em regras/.",
     "files": ["Tarvo_Data_Pack_set2026.zip", "regras/"],
-    "expected_output": "Roda validar e fechar (código 0), lê resumo.json e apresenta: comissão CHECKOUT 207.039,73 (21 lojistas), REMESSA 39.543,45 (14 lojistas), 21 notas somando 246.588,68, 233 divergências (16.973,65 + 1.418,85), 16 pendências por responsável. Entrega os CSVs. Não recalcula nada.",
+    "expected_output": "Roda validar e fechar (código 0), lê resumo.json e apresenta: comissão CHECKOUT 207.039,73 (21 lojistas), REMESSA 39.543,45 (14 lojistas), 21 notas somando 246.588,68, 115 divergências de contrato (1.576,23 + 1.418,85) e a devolução da Casa do Estudante só em pendência (15.396,77), 16 pendências por responsável. Entrega os CSVs. Não recalcula nada.",
     "assertions": [
       "executou `python -m src validar` antes de `fechar`",
       "todos os totais apresentados são iguais aos de saida/resumo.json",
