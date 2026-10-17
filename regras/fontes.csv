@@ -1,4 +1,4 @@
-fonte;padrao_arquivo;aba;rotulo;descricao
+﻿fonte;padrao_arquivo;aba;rotulo;descricao
 pacote;Tarvo_Data_Pack_*.zip;;;Pacote mensal (zip) com todas as fontes, extraído automaticamente para data/
 orbe;01_orbe_*.csv;;;Relatório de comissões da adquirente Orbe (uma linha por transação)
 taxas;02_tabela_taxas*.xlsx;Taxas vigentes;;Planilha de taxas contratadas mantida pelo financeiro (só a aba indicada é lida)

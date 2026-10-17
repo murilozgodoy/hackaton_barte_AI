@@ -9,6 +9,9 @@ __pycache__/
 Tarvo_Data_Pack_*.zip
 data/
 
+# instruções originais do case (não são necessárias para rodar)
+01_instrucoes_participantes.docx
+docs/
 # arquivos internos do agente (não são entregáveis)
 .claude/
 .Codex/
