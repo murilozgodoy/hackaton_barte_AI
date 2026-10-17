@@ -7,8 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import checkout, conciliacao, divergencias, extratos, notas, pendencias, relatorio, remessa
-from .dinheiro import soma
-from .notas import primeiro_dia
+from .notas import primeiro_dia  # noqa: F401  (usado em executar)
 from .saida import escrever_csv
 from .validacao import (Checagem, checar_destinos, checar_lancamentos, checar_notas, checar_rastro,
                         checar_saldo_extratos)
@@ -98,8 +97,11 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
                       ext.em_transito, pend.pendencias, rastro, conc, checagens, list(config.avisos) + ext.avisos)
 
 
-def escrever(f: Fechamento, pasta: Path, config) -> dict[str, Path]:
-    """Grava os 6 CSVs, o RELATORIO_FECHAMENTO.md e, só se a integridade passou, o resumo.json."""
+def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None) -> tuple[dict[str, Path], dict]:
+    """Grava os 6 CSVs, o RELATORIO_FECHAMENTO.md e, só se a integridade passou, o resumo.json.
+
+    Devolve (arquivos gravados, dicionário do resumo).
+    """
     pasta = Path(pasta)
     pasta.mkdir(parents=True, exist_ok=True)
     arquivos = {
@@ -111,7 +113,7 @@ def escrever(f: Fechamento, pasta: Path, config) -> dict[str, Path]:
         "pendencias": escrever_csv(f.pendencias, pasta / "pendencias.csv", "pendencias.csv"),
         "rastro": escrever_csv(f.rastro, pasta / "rastro.csv", "rastro.csv"),
     }
-    res = relatorio.resumo(f, config, arquivos, pasta)
+    res = relatorio.resumo(f, config, arquivos, entrada)
     arquivos["relatorio"] = relatorio.escrever_relatorio(relatorio.markdown(f, config, res),
                                                          pasta / "RELATORIO_FECHAMENTO.md")
     resumo_path = pasta / "resumo.json"
@@ -119,22 +121,5 @@ def escrever(f: Fechamento, pasta: Path, config) -> dict[str, Path]:
         arquivos["resumo"] = relatorio.escrever_resumo(res, resumo_path)
     elif resumo_path.exists():
         resumo_path.unlink()   # um resumo antigo não pode passar por válido
-    return arquivos
-
-
-def totais(f: Fechamento) -> dict:
-    """Totais em string decimal (sem float), para o JSON da CLI."""
-    div_chk = f.divergencias[f.divergencias["linha_negocio"] == "CHECKOUT"]
-    div_rem = f.divergencias[f.divergencias["linha_negocio"] == "REMESSA"]
-    return {
-        "comissao_checkout_brl": str(soma(f.comissoes_checkout["comissao_brl"])),
-        "comissao_remessa_brl": str(soma(f.comissoes_remessa["comissao_brl"])),
-        "notas": {"quantidade": int(len(f.notas)), "valor_total_brl": str(soma(f.notas["valor_brl"]))},
-        "divergencias": {
-            "checkout": {"linhas": int(len(div_chk)), "valor_brl": str(soma(div_chk["diferenca_brl"]))},
-            "remessa": {"linhas": int(len(div_rem)), "valor_brl": str(soma(div_rem["diferenca_brl"]))},
-        },
-        "pendencias": {"quantidade": int(len(f.pendencias)),
-                       "por_responsavel": {str(q): int(n) for q, n in f.pendencias["quem_decide"].value_counts().items()}},
-        "lancamentos": {m: int(n) for m, n in f.lancamentos["metodo"].value_counts().items()},
-    }
+    res["arquivos"] = {k: Path(v).name for k, v in arquivos.items()}
+    return arquivos, res

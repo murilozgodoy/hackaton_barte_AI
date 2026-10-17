@@ -87,7 +87,7 @@ ESQUEMA = {
     "CLASSIFICAR_CONTA": ({"banco", "contem", "conta", "prioridade"},
                           {"sinal", "gera_pendencia", "tipo_pendencia", "subtipo", "transitoria", "papel"}),
     "DONO_PENDENCIA": ({"tipo_pendencia"}, set()),
-    "MANUAL": (set(), {"banco", "contem", "cnpj", "linha_negocio"}),
+    "MANUAL": (set(), {"banco", "contem", "cnpj", "linha_negocio", "assunto"}),
 }
 
 COLUNAS_REGRAS = ["id", "situacao", "como_identificar", "tipo", "parametros", "o_que_fazer",
@@ -324,6 +324,23 @@ class Config:
 
     def lembretes(self, em: date) -> list[Regra]:
         return [r for r in self.por_tipo("MANUAL") if r.vigente_em(em)]
+
+    def lembrete_por_assunto(self, assunto: str, em: date) -> Regra | None:
+        return next((r for r in self.lembretes(em) if r.params.get("assunto") == assunto), None)
+
+    def verificar_cobertura(self, datas: list[date]) -> list[str]:
+        """Parâmetros e donos de pendência precisam estar vigentes em todas as datas do mês fechado."""
+        erros = []
+        for d in datas:
+            for nome in sorted(PARAMETROS):
+                if not any(nome in r.params and r.vigente_em(d) for r in self.por_tipo("PARAMETRO")):
+                    erros.append(f"regras_negocio.csv: nenhuma regra PARAMETRO '{nome}' ativa e vigente em {d}. "
+                                 "Como corrigir: ajuste vigencia_de/vigencia_ate ou crie a regra para esse período")
+            for tp in sorted(PENDENCIAS_DO_MOTOR):
+                if not any(r.params["tipo_pendencia"] == tp and r.vigente_em(d) for r in self.por_tipo("DONO_PENDENCIA")):
+                    erros.append(f"regras_negocio.csv: nenhuma regra DONO_PENDENCIA para '{tp}' ativa e vigente em {d}. "
+                                 "Como corrigir: ajuste a vigência ou crie a regra para esse período")
+        return sorted(set(erros))
 
     def contas_transitorias(self) -> set[str]:
         """Contas marcadas transitoria=true nas regras CLASSIFICAR_CONTA (transferências entre contas próprias)."""
@@ -699,6 +716,10 @@ def _validar_params(regra: Regra, erro, avisos, onde, ctx: _Contexto):
             p["linha_negocio"] = normalizar(p["linha_negocio"])
             if p["linha_negocio"] not in PRODUTOS:
                 erro(f"linha_negocio '{p['linha_negocio']}' inválida", "use CHECKOUT ou REMESSA")
+        if "assunto" in p:
+            p["assunto"] = p["assunto"].strip().lower()
+            if not re.fullmatch(r"[a-z][a-z0-9_]*", p["assunto"]):
+                erro(f"assunto '{p['assunto']}' inválido", "use letras minúsculas e _, ex.: conciliacao_adquirente")
 
 
 def _validar_banco_contem(p: dict, erro, bancos: set[str]):

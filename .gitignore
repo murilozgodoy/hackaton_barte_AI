@@ -1,5 +1,6 @@
-# ambiente e caches
+# ambiente, caches e pacote gerado da skill
 .venv/
+dist/
 __pycache__/
 *.pyc
 .pytest_cache/

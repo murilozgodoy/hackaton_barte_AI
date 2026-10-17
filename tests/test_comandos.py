@@ -1,0 +1,147 @@
+"""Comandos de apoio: explicar, pendencias, regra propor/aplicar, base de regras em zip, empacotar-skill."""
+import json
+import shutil
+import zipfile
+from pathlib import Path
+
+import pytest
+
+from src.cli import main
+
+RAIZ = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(scope="module")
+def saida(dados, tmp_path_factory):
+    pasta = tmp_path_factory.mktemp("saida")
+    assert main(["fechar", "--saida", str(pasta), "--sem-ia"]) == 0
+    return pasta
+
+
+def test_explicar_comissao_com_rastro_e_regra(saida, capsys):
+    assert main(["explicar", "COM-CHK-0002", "--saida", str(saida), "--json"]) == 0   # Fluente: só planilha
+    e = json.loads(capsys.readouterr().out)
+    assert e["arquivo"] == "comissoes_por_lojista.csv" and e["bate"] is True
+    assert e["rastro_linhas"] == int(e["linha"]["qtd_transacoes"]) and e["rastro_soma"] == e["linha"]["comissao_brl"]
+    assert all(l["regra_id"].startswith("planilha:") for l in e["rastro"])
+    assert main(["explicar", "COM-CHK-0001", "--saida", str(saida), "--json"]) == 0   # Casa: regra X-01
+    e = json.loads(capsys.readouterr().out)
+    assert "X-01" in e["regras"] and e["regras"]["X-01"]["tipo"] == "TAXA_EXCECAO"
+
+
+def test_explicar_pendencia_mostra_origem_e_regra(saida, capsys):
+    assert main(["explicar", "PEN-0001", "--saida", str(saida), "--entrada", "data/Tarvo_Data_Pack_set2026"]) == 0
+    txt = capsys.readouterr().out
+    assert "TARIFA_ZERO_COBRADA" in txt and "X-01" in txt and "Regras envolvidas" in txt
+    assert "valor_bruto=" in txt and "bate" in txt
+
+
+def test_explicar_id_inexistente_codigo_4(saida, capsys):
+    assert main(["explicar", "COM-CHK-9999", "--saida", str(saida)]) == 4
+    assert "não existe" in capsys.readouterr().err
+
+
+def test_pendencias_filtros(saida, capsys):
+    assert main(["pendencias", "--saida", str(saida), "--json"]) == 0
+    res = json.loads(capsys.readouterr().out)
+    assert res["total"] == 16 and {g["quem_decide"] for g in res["por_responsavel"]} == {
+        "Helena (Financeiro)", "Helena (Financeiro) + Comercial", "Comercial", "Financeiro"}
+    assert main(["pendencias", "--saida", str(saida), "--quem", "comercial", "--json"]) == 0
+    res = json.loads(capsys.readouterr().out)
+    assert res["total"] == 2
+    assert main(["pendencias", "--saida", str(saida), "--tipo", "SPREAD_NEGATIVO"]) == 0
+    assert "4 pendência(s)" in capsys.readouterr().out
+
+
+def test_regra_propor_e_aplicar_classificar_conta(saida, tmp_path, capsys):
+    regras = tmp_path / "regras"
+    shutil.copytree(RAIZ / "regras", regras)
+    proposta = tmp_path / "p.json"
+    assert main(["regra", "propor", "--regras", str(regras), "--saida", str(saida), "--tipo", "CLASSIFICAR_CONTA",
+                 "--campos", "situacao=Café do escritório", "como_identificar=compra de café no cartão",
+                 "parametros=banco=AURORA | contem=CAFE | sinal=debito | conta=4.2.04 | prioridade=50",
+                 "o_que_fazer=Despesa do mês", "quem_decide=Financeiro", "informado_por=teste",
+                 "--entrada", "data/Tarvo_Data_Pack_set2026", "--proposta", str(proposta), "--json"]) == 0
+    p = json.loads(capsys.readouterr().out)
+    assert p["ok"] and p["linha"]["id"] == "C-27" and p["linha"]["status"] == "ATIVA"
+    assert any("casaria 0 lançamento" in e for e in p["efeito"])
+    antes = (regras / "regras_negocio.csv").read_text(encoding="utf-8")
+    assert "C-27" not in antes   # propor não grava
+    assert main(["regra", "aplicar", "--regras", str(regras), "--proposta", str(proposta), "--aprovado-por", "Helena",
+                 "--entrada", "data/Tarvo_Data_Pack_set2026"]) == 0
+    depois = (regras / "regras_negocio.csv").read_text(encoding="utf-8")
+    assert depois.count("\nC-27;") == 1 and depois.startswith("﻿")
+    hist = (regras / "historico_alteracoes.csv").read_text(encoding="utf-8")
+    assert ";Helena;C-27;CRIOU;;CLASSIFICAR_CONTA: banco=AURORA" in hist
+    # a base alterada continua válida e fecha o mês
+    assert main(["validar", "--regras", str(regras)]) == 0
+
+
+def test_regra_propor_invalida_codigo_2(tmp_path, saida, capsys):
+    assert main(["regra", "propor", "--regras", str(RAIZ / "regras"), "--saida", str(saida), "--tipo", "CLASSIFICAR_CONTA",
+                 "--campos", "situacao=x", "parametros=banco=AURORA | contem=PIX ENVIADO | sinal=debito | conta=4.2.04 | prioridade=90",
+                 "quem_decide=Financeiro", "informado_por=teste", "--json"]) == 2
+    p = json.loads(capsys.readouterr().out)
+    assert not p["ok"] and any("ativas ao mesmo tempo" in e for e in p["erros"])
+    assert main(["regra", "propor", "--regras", str(RAIZ / "regras"), "--saida", str(saida), "--tipo", "CLASSIFICAR_CONTA",
+                 "--campos", "situacao=x", "parametros=banco=AURORA | contem=CAFE | conta=9.9.99 | prioridade=50",
+                 "quem_decide=Financeiro", "informado_por=teste", "--entrada", "data/Tarvo_Data_Pack_set2026"]) == 2
+    assert "não existe no plano de contas" in capsys.readouterr().out
+
+
+def test_regra_propor_complemento_para_ec_novo(tmp_path, saida, capsys):
+    regras = tmp_path / "regras"
+    shutil.copytree(RAIZ / "regras", regras)
+    proposta = tmp_path / "c.json"
+    assert main(["regra", "propor", "--regras", str(regras), "--saida", str(saida), "--tipo", "COMPLEMENTO",
+                 "--campos", "cnpj=11.111.111/0001-91", "ec_orbe=9999999999", "status=ATIVO",
+                 "informado_por=Helena, Slack 17/10", "observacao=Loja nova", "--proposta", str(proposta), "--json"]) == 0
+    p = json.loads(capsys.readouterr().out)
+    assert p["alvo"] == "complemento_cadastro.csv" and p["linha"]["cnpj"] == "11111111000191"
+    assert main(["regra", "aplicar", "--regras", str(regras), "--proposta", str(proposta), "--aprovado-por", "Helena"]) == 0
+    assert "11111111000191;9999999999;ATIVO" in (regras / "complemento_cadastro.csv").read_text(encoding="utf-8")
+    assert "complemento:11111111000191" in (regras / "historico_alteracoes.csv").read_text(encoding="utf-8")
+
+
+def test_aplicar_sem_aprovador_ou_proposta_invalida(tmp_path, saida, capsys):
+    proposta = tmp_path / "ruim.json"
+    proposta.write_text(json.dumps({"alvo": "regras_negocio.csv", "linha": {"id": "C-01", "tipo": "CLASSIFICAR_CONTA",
+                                    "parametros": "banco=AURORA | contem=X | conta=4.2.04 | prioridade=50",
+                                    "situacao": "x", "quem_decide": "F", "informado_por": "t"}}), encoding="utf-8")
+    regras = tmp_path / "regras"
+    shutil.copytree(RAIZ / "regras", regras)
+    assert main(["regra", "aplicar", "--regras", str(regras), "--proposta", str(proposta), "--aprovado-por", "X"]) == 2
+    assert "já existe" in capsys.readouterr().err
+    assert main(["regra", "aplicar", "--regras", str(regras), "--proposta", str(proposta), "--aprovado-por", " "]) == 2
+
+
+def test_base_de_regras_em_zip(tmp_path, dados, capsys):
+    zip_path = tmp_path / "regras_tarvo.zip"
+    with zipfile.ZipFile(zip_path, "w") as z:
+        for p in (RAIZ / "regras").iterdir():
+            z.write(p, f"regras/{p.name}")
+    assert main(["validar", "--regras", str(zip_path)]) == 0
+    saida = tmp_path / "s"
+    assert main(["fechar", "--regras", str(zip_path), "--saida", str(saida), "--sem-ia"]) == 0
+    proposta = tmp_path / "p.json"
+    assert main(["regra", "propor", "--regras", str(zip_path), "--saida", str(saida), "--tipo", "MANUAL",
+                 "--campos", "situacao=Conferir extrato", "o_que_fazer=Conferir", "quem_decide=Financeiro",
+                 "informado_por=teste", "--proposta", str(proposta)]) == 0
+    assert main(["regra", "aplicar", "--regras", str(zip_path), "--proposta", str(proposta), "--aprovado-por", "Helena"]) == 0
+    out = capsys.readouterr().out
+    novos = list(tmp_path.glob("regras_tarvo_*.zip"))
+    assert len(novos) == 1 and "substitui o anterior" in out
+    with zipfile.ZipFile(novos[0]) as z:
+        assert "\nM-05;" in z.read("regras/regras_negocio.csv").decode("utf-8")
+    assert "M-05" not in zipfile.ZipFile(zip_path).read("regras/regras_negocio.csv").decode("utf-8")  # original intacto
+
+
+def test_empacotar_skill(tmp_path, capsys):
+    assert main(["empacotar-skill", "--destino", str(tmp_path / "dist")]) == 0
+    zip_path = tmp_path / "dist" / "fechamento-tarvo.zip"
+    assert zip_path.exists()
+    nomes = zipfile.ZipFile(zip_path).namelist()
+    assert "fechamento-tarvo/SKILL.md" in nomes
+    assert "fechamento-tarvo/scripts/src/__main__.py" in nomes
+    assert "fechamento-tarvo/assets/regras_iniciais/regras_negocio.csv" in nomes
+    assert not any("__pycache__" in n for n in nomes)

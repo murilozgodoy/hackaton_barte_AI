@@ -1,6 +1,7 @@
 """CLI do fechamento Tarvo: python -m src <comando> ...
 
-Comandos desta versão: validar, fechar. Sem subcomando, equivale a `fechar`.
+Comandos: validar, fechar, explicar, pendencias, regra propor, regra aplicar, empacotar-skill.
+Sem subcomando, equivale a `fechar`. `--regras` aceita uma pasta ou um .zip da base de regras.
 Códigos de saída: 0 ok · 1 entrada · 2 regras · 3 integridade · 4 id inexistente.
 """
 from __future__ import annotations
@@ -9,22 +10,27 @@ import argparse
 import json
 import re
 import sys
+import tempfile
+import zipfile
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
 
+from . import comandos
 from .dinheiro import brl, soma
-from .fechamento import Fechamento, escrever, executar, totais
+from .fechamento import Fechamento, escrever, executar
 from .fontes import carregar_config_fontes, localizar, preparar_entrada
 from .leitores import carregar_todas
 from .leitores.comum import ErroLeitura
-from .regras import Config, ErroConfig, carregar_config
+from .notas import primeiro_dia
+from .regras import Config, ErroConfig, _Contexto, carregar_config
 from .relatorio import valor_em_jogo
 from .validacao import Checagem, validar_leitores
 
 RAIZ = Path(__file__).resolve().parents[1]
-COMANDOS = ("validar", "fechar")
+COMANDOS = ("validar", "fechar", "explicar", "pendencias", "regra", "empacotar-skill")
 SAIDA_OK, SAIDA_ENTRADA, SAIDA_REGRAS, SAIDA_INTEGRIDADE, SAIDA_ID = 0, 1, 2, 3, 4
 _RE_COMPETENCIA = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
@@ -46,17 +52,55 @@ class Contexto:
     checagens: list[Checagem]
 
 
+# --------------------------------------------------------------------------- base de regras (pasta ou zip)
+
+@dataclass
+class BaseRegras:
+    pasta: Path                 # pasta com os CSVs (extraída, se veio de zip)
+    zip_origem: Path | None     # zip de onde veio, se veio
+
+    raiz_extracao: Path | None = None   # onde o zip foi extraído (para gravar o novo com o mesmo layout)
+
+    def gravar_zip_novo(self, hoje: date) -> Path:
+        """Em modo zip, a base alterada vira um zip novo ao lado do original (o original não é tocado)."""
+        destino = self.zip_origem.with_name(f"{self.zip_origem.stem.split('_20')[0]}_{hoje.isoformat()}.zip")
+        raiz = self.raiz_extracao or self.pasta
+        with zipfile.ZipFile(destino, "w", zipfile.ZIP_DEFLATED) as z:
+            for p in sorted(self.pasta.rglob("*")):
+                if p.is_file():
+                    z.write(p, p.relative_to(raiz).as_posix())
+        return destino
+
+
+def resolver_regras(caminho: Path) -> BaseRegras:
+    caminho = Path(caminho)
+    if caminho.is_dir():
+        return BaseRegras(caminho, None)
+    if caminho.is_file() and caminho.suffix.lower() == ".zip":
+        pasta = Path(tempfile.mkdtemp(prefix="regras_"))
+        with zipfile.ZipFile(caminho) as z:
+            for m in z.infolist():
+                if m.filename.startswith("/") or ".." in Path(m.filename).parts:
+                    raise Parada(SAIDA_REGRAS, f"{caminho.name}: caminho suspeito no zip: {m.filename}")
+            z.extractall(pasta)
+        candidatos = list(pasta.rglob("regras_negocio.csv"))
+        if len(candidatos) != 1:
+            raise Parada(SAIDA_REGRAS, f"{caminho.name}: esperava exatamente um regras_negocio.csv no zip, "
+                                       f"achei {len(candidatos)}")
+        return BaseRegras(candidatos[0].parent, caminho, pasta)
+    raise Parada(SAIDA_REGRAS, f"--regras {caminho} não é uma pasta nem um .zip")
+
+
+# --------------------------------------------------------------------------- carga
+
 def inferir_competencia(dados) -> str:
     """Mês mais frequente nas datas de movimento da Orbe, no formato AAAA-MM."""
     return dados["orbe"]["data_movimento"].dt.strftime("%Y-%m").mode().iloc[0]
 
 
-def carregar_contexto(args) -> Contexto:
-    """Lê entradas, roda as checagens dos leitores e carrega a base de regras."""
-    if args.competencia and not _RE_COMPETENCIA.match(args.competencia):
-        raise Parada(SAIDA_ENTRADA, f"--competencia '{args.competencia}' inválida: use AAAA-MM (ex.: 2026-10)")
+def carregar_dados(args, base: BaseRegras):
     try:
-        fontes = carregar_config_fontes(args.regras)
+        fontes = carregar_config_fontes(base.pasta)
         pasta = preparar_entrada(args.entrada, RAIZ, RAIZ / "data", fontes)
         arquivos = localizar(pasta, fontes)
         dados = carregar_todas(arquivos, fontes)
@@ -64,22 +108,44 @@ def carregar_contexto(args) -> Contexto:
         raise Parada(SAIDA_ENTRADA, f"Entrada com problema: {e}") from None
     except ErroConfig as e:
         raise Parada(SAIDA_REGRAS, str(e)) from None
+    return fontes, pasta, arquivos, dados
 
+
+def carregar_contexto(args, base: BaseRegras) -> Contexto:
+    """Lê entradas, roda as checagens dos leitores e carrega a base de regras."""
+    if getattr(args, "competencia", None) and not _RE_COMPETENCIA.match(args.competencia):
+        raise Parada(SAIDA_ENTRADA, f"--competencia '{args.competencia}' inválida: use AAAA-MM (ex.: 2026-10)")
+    fontes, pasta, arquivos, dados = carregar_dados(args, base)
     checagens = validar_leitores(dados)
     falhas = [c for c in checagens if c.nivel == "ERRO" and not c.ok]
     if falhas:
         detalhe = "\n  - ".join(f"{c.fonte}: {c.nome} ({c.detalhe})" for c in falhas)
         raise Parada(SAIDA_ENTRADA, f"Arquivos de entrada não fecham:\n  - {detalhe}")
-
     try:
         bancos = {f["rotulo"] for f in fontes.values() if f.get("rotulo")}
-        config = carregar_config(args.regras, dados["taxas"], dados["plano_contas"], bancos)
+        config = carregar_config(base.pasta, dados["taxas"], dados["plano_contas"], bancos)
     except ErroConfig as e:
         raise Parada(SAIDA_REGRAS, str(e)) from None
+    competencia = getattr(args, "competencia", None) or inferir_competencia(dados)
+    primeiro = primeiro_dia(competencia)
+    ultimo = (pd.Timestamp(primeiro) + pd.offsets.MonthEnd(0)).date()
+    faltas = config.verificar_cobertura([primeiro, ultimo])
+    if faltas:
+        raise Parada(SAIDA_REGRAS, "Base de regras não cobre a competência " + competencia + ":\n  - " + "\n  - ".join(faltas))
+    return Contexto(pasta, arquivos, dados, config, competencia, not getattr(args, "competencia", None), checagens)
 
-    competencia = args.competencia or inferir_competencia(dados)
-    return Contexto(pasta, arquivos, dados, config, competencia, not args.competencia, checagens)
 
+def contexto_validacao(args, base: BaseRegras) -> tuple[_Contexto | None, dict | None]:
+    """Para regra propor/aplicar: com --entrada, confere contas e CNPJs contra os arquivos do mês."""
+    if not getattr(args, "entrada", None):
+        return None, None
+    ctx = carregar_contexto(args, base)
+    plano = ctx.dados["plano_contas"]
+    return _Contexto(contas_ok=set(plano.loc[plano["aceita_lancto"], "cod_conta"]), contas_todas=set(plano["cod_conta"]),
+                     cnpjs=set(ctx.config.cadastro["cnpj"]), bancos={"AURORA", "MERIDIANO"}), ctx.dados
+
+
+# --------------------------------------------------------------------------- impressão
 
 def resumo_contexto(ctx: Contexto) -> dict:
     cad = ctx.config.cadastro
@@ -96,6 +162,7 @@ def resumo_contexto(ctx: Contexto) -> dict:
                    "lojistas_por_origem": {k: int(v) for k, v in cad["origem"].value_counts().items()},
                    "ativas_por_tipo": {k: int(v) for k, v in por_tipo.items()},
                    "nao_ativas": [r.id for r in ctx.config.todas if r.status != "ATIVA"],
+                   "ultima_alteracao_historico": str(ctx.config.historico_ultima_alteracao or ""),
                    "avisos": list(ctx.config.avisos)},
     }
 
@@ -114,7 +181,8 @@ def imprimir_contexto(ctx: Contexto) -> None:
     print("\nBase de regras:")
     origem = ", ".join(f"{n} {o}" for o, n in r["lojistas_por_origem"].items())
     print(f"  cadastro: {r['lojistas']} lojistas ({origem})")
-    print("  regras ativas: " + ", ".join(f"{t} {n}" for t, n in r["ativas_por_tipo"].items()))
+    print("  regras ativas: " + ", ".join(f"{t} {n}" for t, n in r["ativas_por_tipo"].items())
+          + f"; última alteração registrada: {r['ultima_alteracao_historico'] or 'não informada'}")
     if r["nao_ativas"]:
         print(f"  regras não ativas (ignoradas): {', '.join(r['nao_ativas'])}")
     for aviso in r["avisos"]:
@@ -174,9 +242,9 @@ def imprimir_conciliacao(f: Fechamento) -> None:
     c = f.conciliacao
     print("\nConciliação entre fontes (informativo, não gera pendência):")
     o = c["orbe_banco"]
-    print(f"  Adquirente x banco: {o['limitacao']}.")
-    print(f"    totais informativos: recebido da adquirente {brl(o['recebido_da_adquirente'])} ({o['qtd_recebimentos']} créditos); "
-          f"repassado a lojistas {brl(o['repassado_a_lojistas'])} ({o['qtd_repasses']} lançamentos)")
+    print("  Adquirente x banco: não conciliável com os arquivos do mês (ver lembrete no relatório).")
+    print(f"    totais informativos, que não se comparam entre si: recebido da adquirente {brl(o['recebido_da_adquirente'])} "
+          f"({o['qtd_recebimentos']} créditos); repassado a lojistas {brl(o['repassado_a_lojistas'])} ({o['qtd_repasses']} lançamentos)")
     r = c["remessa_banco"]
     print(f"  Remessa x banco: recursos recebidos de lojistas {brl(r['recursos_recebidos'])} ({r['qtd_recursos']}); "
           f"liquidado no parceiro {brl(r['liquidado_na_ponte'])} ({r['qtd_liquidacoes']}); "
@@ -184,20 +252,28 @@ def imprimir_conciliacao(f: Fechamento) -> None:
     print(f"    recursos - liquidado = {brl(r['recursos_menos_liquidado'])}; "
           f"liquidado - operações = {brl(r['liquidado_menos_operacoes'])}")
     p = c["ponte"]
+    if p["diferenca"] is None:
+        return
     print(f"  Parceiro de câmbio: spread total declarado {brl(p['spread_total_declarado'])} (com repetições e negativos); "
           f"operações únicas {brl(p['spread_operacoes_unicas'])}")
     print(f"    repasse pelo total declarado x participação = {brl(p['repasse_pelo_total_declarado'])}; "
           f"comissão calculada = {brl(p['comissao_calculada'])}; diferença = {brl(p['diferenca'])}")
-    print(f"    = {brl(p['efeito_excluidas'])} das {p['qtd_excluidas']} operações excluídas "
-          f"+ {brl(p['efeito_duplicatas'])} das {p['qtd_duplicatas']} repetições "
-          f"+ {brl(p['efeito_arredondamento'])} de arredondamento por operação")
+    partes = [f"{brl(d['efeito'])} de {d['qtd']} {destino}" for destino, d in p["efeitos_por_destino"].items()]
+    partes.append(f"{brl(p['residual'])} de " + ("arredondamento por operação" if p["residual_e_arredondamento"]
+                                                 else "diferença NÃO explicada por arredondamento"))
+    print("    = " + " + ".join(partes))
 
+
+def _json(obj: dict) -> None:
+    print(json.dumps(obj, ensure_ascii=False, indent=2, default=str))
+
+
+# --------------------------------------------------------------------------- comandos
 
 def cmd_validar(args) -> int:
-    ctx = carregar_contexto(args)
+    ctx = carregar_contexto(args, resolver_regras(args.regras))
     if args.json:
-        print(json.dumps({"comando": "validar", "ok": True, "codigo": SAIDA_OK, **resumo_contexto(ctx)},
-                         ensure_ascii=False, indent=2, default=str))
+        _json({"comando": "validar", "ok": True, "codigo": SAIDA_OK, **resumo_contexto(ctx)})
     else:
         imprimir_contexto(ctx)
         print("\nEntradas e base de regras válidas. Nada foi calculado (use `fechar`).")
@@ -205,22 +281,19 @@ def cmd_validar(args) -> int:
 
 
 def cmd_fechar(args) -> int:
-    ctx = carregar_contexto(args)
-    fech = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=not args.sem_ia)
-    arquivos = escrever(fech, args.saida, ctx.config)
+    ctx = carregar_contexto(args, resolver_regras(args.regras))
+    entrada = {"arquivos": {f: p.name for f, p in ctx.arquivos.items()}, "competencia_inferida": ctx.competencia_inferida}
+    try:
+        fech = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=not args.sem_ia)
+        arquivos, res = escrever(fech, args.saida, ctx.config, entrada)
+    except ErroConfig as e:
+        raise Parada(SAIDA_REGRAS, str(e)) from None
     codigo = SAIDA_OK if fech.integro else SAIDA_INTEGRIDADE
     if args.json:
-        print(json.dumps({
-            "comando": "fechar", "ok": fech.integro, "codigo": codigo,
-            "status_integridade": "OK" if fech.integro else "FALHA",
-            **resumo_contexto(ctx), "totais": totais(fech),
-            "orbe_destinos": {k: int(v) for k, v in fech.destinos_orbe.items()},
-            "ponte_destinos": {k: int(v) for k, v in fech.destinos_ponte.items()},
-            "integridade": [{"nome": c.nome, "ok": c.ok, "detalhe": c.detalhe} for c in fech.checagens],
-            "avisos": fech.avisos, "arquivos": {k: str(v) for k, v in arquivos.items()},
-        }, ensure_ascii=False, indent=2, default=str))
+        # mesmo formato do resumo.json, mais o contexto de carga
+        _json({"comando": "fechar", "ok": fech.integro, "codigo": codigo, **res, "contexto": resumo_contexto(ctx),
+               "arquivos_gravados": {k: str(v) for k, v in arquivos.items()}})
         return codigo
-
     imprimir_contexto(ctx)
     imprimir_fechamento(fech)
     imprimir_conciliacao(fech)
@@ -230,20 +303,159 @@ def cmd_fechar(args) -> int:
     return codigo
 
 
+def cmd_explicar(args) -> int:
+    base = resolver_regras(args.regras)
+    dados = carregar_dados(args, base)[3] if args.entrada else None
+    try:
+        e = comandos.explicar(args.id_saida, args.saida, comandos.regras_cruas(base.pasta), dados)
+    except comandos.ErroComando as err:
+        raise Parada(err.codigo, err.mensagem) from None
+    if args.json:
+        _json({"comando": "explicar", "ok": True, "codigo": SAIDA_OK, **e})
+    else:
+        comandos.imprimir_explicacao(e)
+    return SAIDA_OK
+
+
+def cmd_pendencias(args) -> int:
+    try:
+        res = comandos.listar_pendencias(args.saida, args.quem, args.tipo)
+    except comandos.ErroComando as err:
+        raise Parada(err.codigo, err.mensagem) from None
+    if args.json:
+        _json({"comando": "pendencias", "ok": True, "codigo": SAIDA_OK, **res})
+    else:
+        comandos.imprimir_pendencias(res)
+    return SAIDA_OK
+
+
+def _campos(lista: list[str]) -> dict[str, str]:
+    out = {}
+    for item in lista or []:
+        if "=" not in item:
+            raise Parada(SAIDA_REGRAS, f"--campos espera chave=valor, recebi '{item}'")
+        k, v = item.split("=", 1)
+        out[k.strip()] = v.strip()
+    return out
+
+
+def cmd_regra(args) -> int:
+    base = resolver_regras(args.regras)
+    ctx_val, _dados = contexto_validacao(args, base)
+    hoje = date.today()
+    if args.acao == "propor":
+        lanc = None
+        caminho_lanc = Path(args.saida) / "lancamentos_classificados.csv"
+        if caminho_lanc.exists():
+            lanc = pd.read_csv(caminho_lanc, sep=";", dtype=str, keep_default_na=False, encoding="utf-8")
+        p = comandos.propor(base.pasta, args.tipo, _campos(args.campos), ctx_val, lanc, hoje)
+        destino = Path(args.proposta) if args.proposta else Path(args.saida) / "propostas" / f"{p.linha.get('id') or p.linha.get('cnpj') or 'proposta'}.json"
+        if p.valida:
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            comandos.gravar_proposta(p, destino)
+        codigo = SAIDA_OK if p.valida else SAIDA_REGRAS
+        if args.json:
+            _json({"comando": "regra propor", "ok": p.valida, "codigo": codigo, **p.para_json(),
+                   "arquivo_proposta": str(destino) if p.valida else None})
+            return codigo
+        print(f"Proposta para {p.alvo} ({'VÁLIDA' if p.valida else 'INVÁLIDA'}):")
+        print("  " + ";".join(str(p.linha.get(c, "")) for c in p.linha))
+        for k, v in p.linha.items():
+            if v:
+                print(f"  {k:<18} {v}")
+        for a in p.avisos:
+            print(f"  [aviso] {a}")
+        for e in p.erros:
+            print(f"  [erro] {e}")
+        if p.efeito:
+            print("Efeito esperado:")
+            for e in p.efeito:
+                print(f"  - {e}")
+        if p.valida:
+            print(f"\nNada foi gravado. Para aplicar: python -m src regra aplicar --regras {args.regras} "
+                  f"--proposta {destino} --aprovado-por \"<nome>\"")
+        return codigo
+
+    # aplicar
+    try:
+        proposta = comandos.ler_proposta(args.proposta)
+        res = comandos.aplicar(base.pasta, proposta, args.aprovado_por, ctx_val, hoje)
+    except comandos.ErroComando as err:
+        raise Parada(err.codigo, err.mensagem) from None
+    except (OSError, ValueError, KeyError) as err:
+        raise Parada(SAIDA_REGRAS, f"proposta ilegível: {err}") from None
+    if base.zip_origem is not None:
+        res["zip_novo"] = str(base.gravar_zip_novo(hoje))
+    if args.json:
+        _json({"comando": "regra aplicar", "ok": True, "codigo": SAIDA_OK, **res})
+    else:
+        print(f"Regra {res['id_regra']} gravada em {res['arquivo']} e registrada em {res['historico']} "
+              f"(aprovado por {args.aprovado_por}).")
+        if "zip_novo" in res:
+            print(f"Base em zip: gravei {res['zip_novo']}. Salve este arquivo na pasta compartilhada; ele substitui o anterior.")
+        print("Rode `python -m src fechar` de novo para o fechamento refletir a regra.")
+    return SAIDA_OK
+
+
+def cmd_empacotar(args) -> int:
+    from .empacotar import empacotar
+    try:
+        zip_path = empacotar(RAIZ, args.destino)
+    except FileNotFoundError as e:
+        raise Parada(SAIDA_ENTRADA, str(e)) from None
+    if args.json:
+        _json({"comando": "empacotar-skill", "ok": True, "codigo": SAIDA_OK, "zip": str(zip_path)})
+    else:
+        print(f"Skill empacotada em {zip_path}")
+    return SAIDA_OK
+
+
+# --------------------------------------------------------------------------- parser
+
+def _comuns(p: argparse.ArgumentParser, entrada=True, saida=True, regras=True, competencia=False):
+    if entrada:
+        p.add_argument("--entrada", type=Path, help="zip do pacote do mês ou pasta com os arquivos")
+    if regras:
+        p.add_argument("--regras", type=Path, default=RAIZ / "regras",
+                       help="pasta ou .zip da base de regras do financeiro (padrão: regras/)")
+    if saida:
+        p.add_argument("--saida", type=Path, default=RAIZ / "saida")
+    if competencia:
+        p.add_argument("--competencia", help="AAAA-MM; se omitido, é inferida dos dados")
+    p.add_argument("--json", action="store_true", help="saída em JSON (para agentes)")
+
+
 def construir_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="python -m src", description="Fechamento mensal Tarvo")
     sub = ap.add_subparsers(dest="comando")
-    for nome, ajuda in (("validar", "confere as 6 fontes e a base de regras; não calcula nada"),
-                        ("fechar", "fechamento completo: 6 CSVs, resumo.json e relatório")):
-        p = sub.add_parser(nome, help=ajuda)
-        p.add_argument("--entrada", type=Path, help="zip do pacote do mês ou pasta com os arquivos")
-        p.add_argument("--regras", type=Path, default=RAIZ / "regras",
-                       help="pasta da base de regras do financeiro (padrão: regras/)")
-        p.add_argument("--saida", type=Path, default=RAIZ / "saida")
-        p.add_argument("--competencia", help="AAAA-MM; se omitido, é inferida dos dados")
-        p.add_argument("--sem-ia", action="store_true",
-                       help="não consultar a IA para lançamentos sem regra, mesmo com ANTHROPIC_API_KEY")
-        p.add_argument("--json", action="store_true", help="saída em JSON (para agentes)")
+
+    p = sub.add_parser("validar", help="confere as 6 fontes e a base de regras; não calcula nada")
+    _comuns(p, competencia=True)
+    p = sub.add_parser("fechar", help="fechamento completo: 6 CSVs, resumo.json e relatório")
+    _comuns(p, competencia=True)
+    p.add_argument("--sem-ia", action="store_true",
+                   help="não consultar a IA para lançamentos sem regra, mesmo com ANTHROPIC_API_KEY")
+    p = sub.add_parser("explicar", help="de onde vem um número: rastro, regra e taxa usadas")
+    p.add_argument("id_saida")
+    _comuns(p)
+    p = sub.add_parser("pendencias", help="lista pendências por responsável")
+    p.add_argument("--quem", help="filtra pelo responsável (trecho do nome)")
+    p.add_argument("--tipo", help="filtra pelo tipo")
+    _comuns(p, entrada=False, regras=False)
+    p = sub.add_parser("regra", help="propor e aplicar regras na base do financeiro")
+    acao = p.add_subparsers(dest="acao", required=True)
+    pp = acao.add_parser("propor", help="monta, valida e mostra o efeito; não grava")
+    pp.add_argument("--tipo", required=True, help=f"um de {', '.join(comandos.TIPOS)} ou COMPLEMENTO")
+    pp.add_argument("--campos", nargs="+", metavar="chave=valor", required=True)
+    pp.add_argument("--proposta", type=Path, help="onde gravar a proposta (padrão: <saida>/propostas/<id>.json)")
+    _comuns(pp)
+    pa = acao.add_parser("aplicar", help="grava a proposta validada e registra no histórico")
+    pa.add_argument("--proposta", type=Path, required=True)
+    pa.add_argument("--aprovado-por", required=True, help="nome de quem aprovou")
+    _comuns(pa)
+    p = sub.add_parser("empacotar-skill", help="gera o zip autocontido da skill em dist/")
+    p.add_argument("--destino", type=Path, default=RAIZ / "dist")
+    p.add_argument("--json", action="store_true")
     return ap
 
 
@@ -252,12 +464,13 @@ def main(argv=None) -> int:
     if not argv or (argv[0] not in COMANDOS and argv[0] not in ("-h", "--help")):
         argv.insert(0, "fechar")  # sem subcomando = fechar com os padrões
     args = construir_parser().parse_args(argv)
+    handlers = {"validar": cmd_validar, "fechar": cmd_fechar, "explicar": cmd_explicar,
+                "pendencias": cmd_pendencias, "regra": cmd_regra, "empacotar-skill": cmd_empacotar}
     try:
-        return {"validar": cmd_validar, "fechar": cmd_fechar}[args.comando](args)
+        return handlers[args.comando](args)
     except Parada as p:
-        if args.json:
-            print(json.dumps({"comando": args.comando, "ok": False, "codigo": p.codigo, "erro": p.mensagem},
-                             ensure_ascii=False, indent=2))
+        if getattr(args, "json", False):
+            _json({"comando": args.comando, "ok": False, "codigo": p.codigo, "erro": p.mensagem})
         else:
             print(f"ERRO: {p.mensagem}", file=sys.stderr)
         return p.codigo

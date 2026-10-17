@@ -23,10 +23,12 @@ def test_conciliacao_ponte_decomposta(fech):
     p = fech.conciliacao["ponte"]
     assert p["repasse_pelo_total_declarado"] == D("39036.80") and p["comissao_calculada"] == D("39543.45")
     assert p["diferenca"] == D("506.65")
-    # 50% dos 4 negativos (−1.834,05) tirados da base e 50% da repetição (821,88) tirada da base
-    assert p["efeito_excluidas"] == D("917.025") and p["efeito_duplicatas"] == D("-410.94")
-    assert p["qtd_excluidas"] == 4 and p["qtd_duplicatas"] == 1
-    assert p["efeito_arredondamento"] == D("506.65") - D("917.025") + D("410.94")
+    # 50% dos 4 negativos (HALF_UP por operação: 343,76 + 254,61 + 146,14 + 172,52) e 50% da repetição
+    assert p["efeitos_por_destino"] == {"EXCLUIDO": {"qtd": 4, "efeito": D("917.03")},
+                                        "DUPLICATA_IGNORADA": {"qtd": 1, "efeito": D("-410.94")}}
+    assert p["residual"] == D("0.56") and p["residual_e_arredondamento"] is True
+    assert p["limite_arredondamento"] == D("1.145")   # (228 + 1) x 0,005
+    assert p["total_declarado_ref"] == "linha 241 do relatório (SPREAD TOTAL R$:)"
 
 
 def test_conciliacao_remessa_fecha_com_valor_mais_iof(fech):
@@ -38,7 +40,7 @@ def test_conciliacao_remessa_fecha_com_valor_mais_iof(fech):
 
 def test_conciliacao_adquirente_e_so_informativa(fech):
     o = fech.conciliacao["orbe_banco"]
-    assert o["conciliavel"] is False and "agenda de recebíveis" in o["limitacao"]
+    assert o["conciliavel"] is False and "limitacao" not in o   # a explicação é a regra M-04, não texto no código
     assert o["liquido_orbe"] == D("7264348.20") and o["recebido_da_adquirente"] == D("3557246.29")
     assert o["qtd_recebimentos"] == 21 and o["qtd_repasses"] == 45
     assert o["repassado_a_lojistas"] == D("4230267.61") - D("12400.00")

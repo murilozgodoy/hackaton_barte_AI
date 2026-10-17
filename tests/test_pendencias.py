@@ -49,7 +49,7 @@ def test_casa_do_estudante_tarifa_zero(fech):
     r = _por(fech, "TARIFA_ZERO_COBRADA").iloc[0]
     assert (r.cnpj, r.valor_brl, r.qtd_itens, r.regra_id) == (CASA, D("15397.42"), 118, "X-01")
     assert r.quem_decide == "Helena (Financeiro) + Comercial"
-    assert "R$ 15.396,77" in r.motivo and "R$ 0,65" in r.motivo and "truncamento" in r.motivo
+    assert "cobrou efetivamente R$ 15.396,77" in r.motivo and "R$ 0,65 a menos" in r.motivo and "trunca centavos" in r.motivo
     assert len(fech.rastro[fech.rastro.id_saida == r.id_saida]) == 118
 
 
@@ -107,12 +107,31 @@ def test_recurso_sem_operacao(fech):
 def test_repasse_ponte_divergente(fech):
     r = _por(fech, "REPASSE_PONTE_DIVERGENTE").iloc[0]
     assert (r.valor_brl, r.quem_decide, r.regra_id) == (D("506.65"), "Helena (Financeiro)", "DP-11")
-    assert "NF-0021" in r.motivo and "R$ 917,03" in r.motivo and "R$ 410,94" in r.motivo and "M-01" in r.motivo
+    assert "NF-0021" in r.motivo and "+ R$ 917,03" in r.motivo and "- R$ 410,94" in r.motivo and "M-01" in r.motivo
+    assert "+ R$ 0,56 de arredondamento" in r.motivo and ";" not in r.motivo
     rastro = fech.rastro[fech.rastro.id_saida == r.id_saida]
     assert len(rastro) == 6 and soma(rastro.valor) == D("506.65")
-    assert set(rastro.ref_origem) == {"PC-0926-0210", "PC-0926-0326", "PC-0926-0491", "PC-0926-0545", "PC-0926-0162",
-                                      "SPREAD TOTAL R$:"}
-    assert rastro[rastro.ref_origem == "SPREAD TOTAL R$:"].valor.iloc[0] == D("0.56")
+    ref_total = "linha 241 do relatório (SPREAD TOTAL R$:)"
+    assert set(rastro.ref_origem) == {"PC-0926-0210", "PC-0926-0326", "PC-0926-0491", "PC-0926-0545", "PC-0926-0162", ref_total}
+    assert rastro[rastro.ref_origem == ref_total].valor.iloc[0] == D("0.56") and r.ref_origem == ref_total
+
+
+def test_repasse_divergente_nao_chama_cadastro_de_arredondamento(dados, config):
+    """Operação de CNPJ sem cadastro fica fora da comissão: a diferença com a Ponte é dela, não arredondamento."""
+    ponte = dados["ponte"].copy()
+    ponte.loc[ponte.num_operacao == "PC-0926-0002", "cnpj"] = "99999999999999"
+    ponte.attrs = dict(dados["ponte"].attrs)
+    f = executar({**dados, "ponte": ponte}, config, "2026-09", usar_ia=False)
+    r = f.pendencias[f.pendencias.tipo == "REPASSE_PONTE_DIVERGENTE"].iloc[0]
+    assert "- R$ 131,01 de 1 operação(ões) de CNPJ sem cadastro" in r.motivo
+    assert "+ R$ 0,56 de arredondamento" in r.motivo or "+ R$ 0,55 de arredondamento" in r.motivo
+    assert "NÃO explicados" not in r.motivo and f.integro
+
+
+def test_textos_de_pendencia_sem_separador_e_com_acao(fech):
+    assert not fech.pendencias.motivo.str.contains(";").any()
+    for r in fech.pendencias.itertuples():
+        assert r.o_que_fazer and r.o_que_fazer.split(".")[0][:30] in r.motivo, r.id_saida
 
 
 def test_remessa_de_lojista_sem_contrato_vira_informativa(dados, config):
@@ -132,20 +151,23 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert res["status_integridade"] == "OK" and res["competencia"] == "2026-09"
     assert res["totais"]["comissao_checkout_brl"] == "207039.73" and res["totais"]["comissao_remessa_brl"] == "39543.45"
     assert res["totais"]["pendencias"]["quantidade"] == 16
-    assert res["totais"]["pendencias"]["por_responsavel"]["Comercial"] == {"quantidade": 1, "valor_em_jogo_brl": "7876.05"}
-    assert res["totais"]["pendencias"]["por_responsavel"]["Financeiro"]["valor_em_jogo_brl"] == "337990.00"
+    assert res["totais"]["pendencias"]["por_responsavel"]["Comercial"] == {"quantidade": 1, "valor_brl": "7876.05"}
+    assert res["totais"]["pendencias"]["por_responsavel"]["Financeiro"]["valor_brl"] == "337990.00"
     assert res["arquivos"]["pendencias"] == "pendencias.csv"
+    assert res["conciliacao"]["parceiro_cambio"]["efeitos_por_destino"]["EXCLUIDO"]["efeito"] == "917.03"
+    assert res["entrada"]["competencia_inferida"] is True and "orbe" in res["entrada"]["arquivos"]
     assert res["lancamentos"] == {"REGRA": 184, "IA": 0, "HUMANO": 0}
     assert res["conciliacao"]["adquirente_x_banco"]["conciliavel"] is False
-    assert res["base_de_regras"]["ultima_alteracao_historico"] == "2026-10-16"
-    assert [l["regra_id"] for l in res["lembretes"]] == ["M-01", "M-02", "M-03"]
+    assert res["base_de_regras"]["ultima_alteracao_historico"] == "2026-10-17"
+    assert [l["regra_id"] for l in res["lembretes"]] == ["M-01", "M-02", "M-03", "M-04"]
     assert all(isinstance(c["ok"], bool) for c in res["integridade"])
     rel = (tmp_path / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
     assert rel.startswith("# Fechamento Tarvo — competência 09/2026") and "Integridade: OK" in rel
     assert "R$ 207.039,73" in rel and "Ponte Câmbio S.A." in rel and "### Comercial" in rel
-    assert "não conciliável" in rel and "3.707" not in rel and "repassou" not in rel.lower()
+    assert "não se comparam" in rel and "agenda de recebíveis" in rel and "3.707" not in rel and "repassou" not in rel.lower()
     assert "M-01" in rel and "5 dias úteis" in rel
-    assert "pendencias.csv" in rel
+    assert "pendencias.csv" in rel and "saldo negativo sem nota" in rel and "R$ 5,50" in rel
+    assert "1.5%–1.5%" not in rel and "+ -R$" not in rel
 
 
 def test_integridade_falha_nao_escreve_resumo(dados, tmp_path, capsys):

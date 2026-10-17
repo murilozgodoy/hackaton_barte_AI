@@ -1,0 +1,21 @@
+# Glossário (linguagem do financeiro)
+
+- **Subadquirente**: a Tarvo. Fica entre o lojista e a adquirente (Orbe); recebe dos alunos pelo lojista e repassa, ficando com a taxa.
+- **EC (código de estabelecimento)**: identificador do lojista na adquirente. Um lojista tem um EC; o mesmo EC aparece com nomes diferentes no relatório da Orbe, por isso a chave é o EC/CNPJ, nunca o nome.
+- **MDR**: a taxa percentual sobre cada venda no cartão/Pix. Varia por produto: débito, crédito à vista, parcelado 2–6x, parcelado 7–12x, Pix.
+- **Antecipação**: o lojista recebe antes do prazo e paga uma taxa de antecipação sobre o valor antecipado. **Reversão de antecipação** desfaz uma antecipação e anula só a taxa dela.
+- **Estorno**: devolução de uma venda. Entra com sinal negativo no mês em que ocorre, com a taxa vigente na data da venda original (um estorno em setembro de venda de agosto abate em setembro).
+- **Taxa contratada × taxa aplicada**: a contratada está na planilha de taxas (ou numa exceção comercial); a aplicada é a que a adquirente cobrou. A comissão da Tarvo é sempre pela contratada; a diferença é **divergência**.
+- **Truncamento da Orbe**: a adquirente corta o valor da taxa na segunda casa decimal; a Tarvo arredonda ao centavo (meio centavo para cima). Diferença de centavo por isso **não** é divergência.
+- **Competência**: o mês ao qual uma operação pertence. Checkout: data do movimento. Remessa: data de contratação (mesmo que liquide no mês seguinte).
+- **Remessa**: pagamento de escola no exterior via parceiro de câmbio (Ponte Câmbio). O lojista deposita reais na conta de remessas (Meridiano); a Tarvo liquida com a Ponte.
+- **Spread**: diferença entre a taxa de câmbio cobrada do cliente e a PTAX de referência. **Spread R$** = (Taxa Cliente − PTAX) × Valor em moeda estrangeira. **Spread %** = Taxa Cliente / PTAX − 1. A Tarvo recebe uma participação (50%) do spread realizado.
+- **PTAX**: taxa de câmbio de referência do Banco Central do dia.
+- **Spread negativo**: cliente pagou menos que a PTAX (taxa travada em pedido D-1 e trava vencida). Não é aceito: fica fora da comissão e vira contestação.
+- **IOF**: imposto sobre a operação de câmbio, pago pelo cliente; a Ponte liquida Valor R$ + IOF.
+- **Nota fiscal de intermediação**: checkout, uma por lojista pela comissão do mês (tomador = lojista); remessa, uma única para a Ponte Câmbio pela participação total.
+- **Contrapartida**: a conta contábil do "outro lado" do movimento bancário. Dinheiro que já estava registrado (provisão de folha, imposto a recolher, recebível) baixa a conta onde estava; só é receita/despesa quando não havia registro anterior.
+- **Provisionado**: despesa já reconhecida no mês anterior (folha de agosto paga em setembro). O pagamento baixa a obrigação, não é despesa de novo.
+- **Conta transitória**: onde fica uma transferência entre contas próprias enquanto não aparece no outro banco ("em trânsito").
+- **Rastro**: a lista das linhas de origem que compõem cada número de saída; a soma delas é igual ao número.
+- **Pendência**: tudo que o sistema não decide sozinho: com motivo, valor em jogo e quem decide.

@@ -82,7 +82,7 @@ def ler_ponte(caminho: Path, aba: str) -> pd.DataFrame:
     if faltando:
         raise ErroLeitura(f"{nome_anexo}/{ws.title}: colunas ausentes: {faltando}")
 
-    registros, totais, ignoradas = [], {}, []
+    registros, totais, totais_linhas, ignoradas = [], {}, {}, []
     for i in range(idx_cab + 1, len(linhas)):
         row = linhas[i]
         n_excel = i + 1
@@ -96,14 +96,19 @@ def ler_ponte(caminho: Path, aba: str) -> pd.DataFrame:
         elif isinstance(op, str) and op.strip().endswith(":"):
             valores = [v for v in row[colunas["num_operacao"] + 1:] if v is not None]
             totais[normalizar(op)] = decimal_de_celula(valores[0]) if valores else None
+            totais_linhas[normalizar(op)] = n_excel
         else:
             ignoradas.append({"linha": n_excel, "conteudo": [v for v in row if v is not None]})
 
     df = pd.DataFrame(registros)
     df["data_contratacao"] = pd.to_datetime(df["data_contratacao"])
     df["data_liquidacao"] = pd.to_datetime(df["data_liquidacao"])
-    df.attrs.update(arquivo=caminho.name, anexo=nome_anexo, aba=ws.title,
-                    totais_declarados=totais, linhas_ignoradas=ignoradas, **meta)
+    # a linha de total do spread, exposta com chave neutra para quem consome (rótulo e linha são do relatório)
+    rotulo_spread = next((k for k in totais if "SPREAD" in k and "TOTAL" in k), None)
+    spread_total = ({"valor": totais[rotulo_spread], "rotulo": rotulo_spread, "linha": totais_linhas[rotulo_spread]}
+                    if rotulo_spread else None)
+    df.attrs.update(arquivo=caminho.name, anexo=nome_anexo, aba=ws.title, totais_declarados=totais,
+                    spread_total_declarado=spread_total, linhas_ignoradas=ignoradas, **meta)
     return df
 
 

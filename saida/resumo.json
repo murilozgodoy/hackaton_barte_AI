@@ -1,6 +1,17 @@
 {
   "competencia": "2026-09",
   "status_integridade": "OK",
+  "entrada": {
+    "arquivos": {
+      "orbe": "01_orbe_relatorio_comissoes_set2026.csv",
+      "taxas": "02_tabela_taxas_contratadas.xlsx",
+      "ponte": "03_email_ponte_cambio_relatorio_set2026.eml",
+      "plano_contas": "04_plano_de_contas_fenix_erp.csv",
+      "aurora": "05a_extrato_banco_aurora_cc4471_set2026.csv",
+      "meridiano": "05b_extrato_banco_meridiano_cc90233_set2026.ofx"
+    },
+    "competencia_inferida": true
+  },
   "totais": {
     "comissao_checkout_brl": "207039.73",
     "comissao_remessa_brl": "39543.45",
@@ -20,68 +31,69 @@
     },
     "pendencias": {
       "quantidade": 16,
+      "nota": "valor_brl por responsável e por tipo é a soma dos valores absolutos (valor em jogo); tipos podem se sobrepor (ex.: excesso e sua metade)",
       "por_responsavel": {
         "Helena (Financeiro) + Comercial": {
           "quantidade": 1,
-          "valor_em_jogo_brl": "15397.42"
+          "valor_brl": "15397.42"
         },
         "Helena (Financeiro)": {
           "quantidade": 10,
-          "valor_em_jogo_brl": "6050.74"
+          "valor_brl": "6050.74"
         },
         "Comercial": {
           "quantidade": 1,
-          "valor_em_jogo_brl": "7876.05"
+          "valor_brl": "7876.05"
         },
         "Financeiro": {
           "quantidade": 4,
-          "valor_em_jogo_brl": "337990.00"
+          "valor_brl": "337990.00"
         }
       },
       "por_tipo": {
         "TARIFA_ZERO_COBRADA": {
           "quantidade": 1,
-          "valor_em_jogo_brl": "15397.42"
+          "valor_brl": "15397.42"
         },
         "DIVERGENCIA_TAXA": {
           "quantidade": 3,
-          "valor_em_jogo_brl": "2995.08"
+          "valor_brl": "2995.08"
         },
         "EXCESSO_SPREAD_CONTESTADO": {
           "quantidade": 1,
-          "valor_em_jogo_brl": "709.46"
+          "valor_brl": "709.46"
         },
         "REPASSE_PONTE_DIVERGENTE": {
           "quantidade": 1,
-          "valor_em_jogo_brl": "506.65"
+          "valor_brl": "506.65"
         },
         "SPREAD_NEGATIVO": {
           "quantidade": 4,
-          "valor_em_jogo_brl": "1834.05"
+          "valor_brl": "1834.05"
         },
         "SEM_CONTRATO": {
           "quantidade": 1,
-          "valor_em_jogo_brl": "7876.05"
+          "valor_brl": "7876.05"
         },
         "SALDO_NEGATIVO_LOJISTA": {
           "quantidade": 1,
-          "valor_em_jogo_brl": "5.50"
+          "valor_brl": "5.50"
         },
         "RECURSO_SEM_OPERACAO": {
           "quantidade": 1,
-          "valor_em_jogo_brl": "18240.00"
+          "valor_brl": "18240.00"
         },
         "EXTRATO_NAO_IDENTIFICADO": {
           "quantidade": 1,
-          "valor_em_jogo_brl": "7350.00"
+          "valor_brl": "7350.00"
         },
         "DEVOLUCAO": {
           "quantidade": 1,
-          "valor_em_jogo_brl": "12400.00"
+          "valor_brl": "12400.00"
         },
         "EM_TRANSITO": {
           "quantidade": 1,
-          "valor_em_jogo_brl": "300000.00"
+          "valor_brl": "300000.00"
         }
       }
     }
@@ -103,9 +115,10 @@
   "conciliacao": {
     "adquirente_x_banco": {
       "conciliavel": false,
-      "limitacao": "não conciliável com os arquivos disponíveis: a adquirente liquida crédito parcelado em parcelas mensais (salvo antecipação); requer a agenda de recebíveis da adquirente",
       "recebido_da_adquirente_brl": "3557246.29",
-      "repassado_a_lojistas_brl": "4217867.61"
+      "qtd_recebimentos": 21,
+      "repassado_a_lojistas_brl": "4217867.61",
+      "qtd_repasses": 45
     },
     "remessa_x_banco": {
       "recursos_recebidos": "5629687.12",
@@ -118,15 +131,24 @@
     },
     "parceiro_cambio": {
       "spread_total_declarado": "78073.59",
+      "total_declarado_ref": "linha 241 do relatório (SPREAD TOTAL R$:)",
       "spread_operacoes_unicas": "77251.71",
       "repasse_pelo_total_declarado": "39036.80",
       "comissao_calculada": "39543.45",
       "diferenca": "506.65",
-      "efeito_excluidas": "917.02",
-      "qtd_excluidas": 4,
-      "efeito_duplicatas": "-410.94",
-      "qtd_duplicatas": 1,
-      "efeito_arredondamento": "0.56"
+      "efeitos_por_destino": {
+        "DUPLICATA_IGNORADA": {
+          "qtd": 1,
+          "efeito": "-410.94"
+        },
+        "EXCLUIDO": {
+          "qtd": 4,
+          "efeito": "917.03"
+        }
+      },
+      "residual": "0.56",
+      "residual_e_arredondamento": true,
+      "limite_arredondamento": "1.145"
     }
   },
   "lembretes": [
@@ -147,12 +169,18 @@
       "situacao": "Estorno da metade da Tarvo se a Ponte devolver excesso contestado",
       "o_que_fazer": "Se a Ponte devolver ao lojista o excesso de spread contestado, a metade da Tarvo sobre esse excesso é estornada no mês em que o ajuste ocorrer (não se reabre o mês faturado)",
       "quem_decide": "Helena (Financeiro)"
+    },
+    {
+      "regra_id": "M-04",
+      "situacao": "Conciliação adquirente x banco não é possível com os arquivos do mês",
+      "o_que_fazer": "A adquirente liquida crédito parcelado em parcelas mensais (D+30 por parcela, salvo antecipação), então o que entra no banco mistura parcelas de vendas de meses anteriores e deixa de fora parcelas futuras das vendas deste mês. Para conciliar, pedir à adquirente a agenda de recebíveis do mês e comparar parcela a parcela",
+      "quem_decide": "Financeiro"
     }
   ],
   "base_de_regras": {
-    "regras_ativas": 56,
+    "regras_ativas": 57,
     "lojistas": 25,
-    "ultima_alteracao_historico": "2026-10-16"
+    "ultima_alteracao_historico": "2026-10-17"
   },
   "integridade": [
     {

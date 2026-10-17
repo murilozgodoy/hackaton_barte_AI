@@ -52,9 +52,10 @@ def test_cli_fechar_gera_saidas_e_json(dados, tmp_path, capsys):
     assert j["totais"]["notas"] == {"quantidade": 21, "valor_total_brl": "246588.68"}
     assert j["totais"]["divergencias"] == {"checkout": {"linhas": 210, "valor_brl": "16973.65"},
                                            "remessa": {"linhas": 23, "valor_brl": "1418.85"}}
-    assert j["totais"]["lancamentos"] == {"REGRA": 184}
-    assert all(isinstance(c["ok"], bool) for c in j["integridade"] + j["checagens"])
+    assert j["lancamentos"] == {"REGRA": 184, "IA": 0, "HUMANO": 0}
+    assert all(isinstance(c["ok"], bool) for c in j["integridade"] + j["contexto"]["checagens"])
     assert all(c["ok"] for c in j["integridade"])
+    assert j["totais"]["pendencias"]["quantidade"] == 16 and j["arquivos"]["resumo"] == "resumo.json"
     for nome in ["comissoes_por_lojista.csv", "divergencias_taxa.csv", "notas_a_emitir.csv",
                  "lancamentos_classificados.csv", "rastro.csv"]:
         with open(tmp_path / nome, encoding="utf-8", newline="") as f:

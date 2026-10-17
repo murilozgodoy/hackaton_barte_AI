@@ -20,6 +20,7 @@ from decimal import Decimal
 
 import pandas as pd
 
+from .dinheiro import brl
 from .regras import Config
 
 PREFIXO_ID = "LAN-"
@@ -54,7 +55,7 @@ def classificar(extratos: list[pd.DataFrame], config: Config, plano: pd.DataFram
         if reg["metodo"] is None:
             reg.update(metodo="HUMANO", confianca=ZERO, conta_codigo="", tipo_pendencia="EXTRATO_NAO_IDENTIFICADO",
                        subtipo=reg["subtipo"] or "SEM_REGRA",
-                       motivo=reg["motivo"] or "nenhuma regra CLASSIFICAR_CONTA cobre este lançamento")
+                       motivo=reg["motivo"] or "Nenhuma regra de classificação cobre este lançamento")
 
     lanc = pd.DataFrame(registros, columns=COLUNAS)
     lanc["id_saida"] = [f"{PREFIXO_ID}{i:04d}" for i in range(1, len(lanc) + 1)]
@@ -79,7 +80,7 @@ def _classificar_linha(r, config: Config, descricao_conta: dict) -> dict:
     elif c.conflito:
         ids = ", ".join(f"{x.id} ({x.params['conta']})" for x in c.conflito)
         reg.update(subtipo="CONFLITO_DE_REGRAS",
-                   motivo=f"regras de mesma prioridade indicam contas diferentes: {ids}", regra_id=None)
+                   motivo=f"Regras de mesma prioridade indicam contas diferentes: {ids}", regra_id=None)
     return reg
 
 
@@ -109,8 +110,7 @@ def _sugerir_com_ia(registros: list, pendentes: list[int], plano: pd.DataFrame, 
         registros[i].update(conta_codigo=s["conta_codigo"], conta_descricao=descricao_conta[s["conta_codigo"]],
                             metodo="IA", confianca=s["confianca"], regra_id=None, tipo_pendencia="REVISAR_IA",
                             subtipo="SUGESTAO_IA", justificativa=s.get("justificativa"),
-                            motivo=f"conta sugerida pela IA (confiança {s['confianca']}); revisar e, se recorrente, "
-                                   "criar regra CLASSIFICAR_CONTA")
+                            motivo=f"Conta sugerida pela IA com confiança {s['confianca']}")
 
 
 def _em_transito(lanc: pd.DataFrame, contas_transitorias: set[str]) -> pd.DataFrame:
@@ -132,7 +132,7 @@ def _em_transito(lanc: pd.DataFrame, contas_transitorias: set[str]) -> pd.DataFr
             if par is None:
                 pendentes.append({**{k: d[k] for k in colunas[:-1]},
                                   "motivo": f"saiu do {d['banco']} em {d['data'].date()} e não há crédito de "
-                                            f"{-d['valor']} em outro banco até o fim do extrato"})
+                                            f"{brl(-d['valor'])} em outro banco até o fim do extrato"})
             else:
                 usados.add(par["id_saida"])
         for c in creditos:
