@@ -8,7 +8,7 @@ Base de regras: 68 regras ativas, 25 lojistas no cadastro (planilha de taxas + c
 
 ## Avisos desta execução
 
-- base de regras: 76 item(ns) ativo(s) sem aprovador em historico_alteracoes.csv (gravados fora de `regra aplicar`): P-01, P-02, P-03, P-04, P-05, P-06, P-07, P-08, P-09, P-10, X-01, D-01, E-01, E-02, E-03, E-04, C-01, C-02, C-03, C-04, C-05, C-06, C-07, C-08, C-09, C-10, C-11, C-12, C-13, C-14, C-15, C-16, C-17, C-18, C-19, C-20, C-21, C-22, C-23, C-24, C-25, C-26, DP-01, DP-02, DP-03, DP-04, DP-05, DP-06, DP-07, DP-08, DP-09, M-01, M-02, M-03, DP-11, M-04, M-05, P-11, DP-12, A-01, M-06, DP-13, DP-14, DP-15, DP-16, DP-17, J-01, J-02, complemento:07752116000126, complemento:78576234000179, complemento:66564512000199, complemento:39566044000119, complemento:22348118000148, aprovadores.csv, comunicacoes.csv, causas_divergencia.csv. Confirme com quem aprova cada tipo (regras/aprovadores.csv) e registre o aprovador; até lá, o fechamento usa a regra como está
+- base de regras: premissas em uso, sem aprovação do financeiro (32): P-03, P-10, E-02, E-04, C-01, C-02, C-03, C-04, C-05, C-13, C-17, C-19, C-20, C-22, C-23, C-24, C-25, C-26, DP-02, DP-05, DP-07, DP-08, DP-09, M-01, M-02, DP-11, A-01, DP-15, DP-16, DP-17, J-02, complemento:22348118000148. O motivo de cada uma está em HIPOTESES.md
 - base de regras: última alteração registrada em historico_alteracoes.csv em 2026-10-17
 
 ## Página 1 — o que o CFO precisa saber
@@ -63,15 +63,15 @@ O que fazer com cada dinheiro. Naturezas diferentes nunca são somadas (faturar,
 
 ### Conhecimento capturado
 
-- Base de regras: 103 alterações registradas em `historico_alteracoes.csv` desde 2026-09-01 (77 criou, 23 alterou, 1 inativou, 2 removeu), em 78 regras/arquivos. Cada linha traz quem aprovou, quem registrou e a fonte (pessoa, canal, hora). Últimas:
-  - 2026-10-17 · J-01 · CRIOU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta à Desbravadores 17/10 11h33 (“A Ponte manda o ajust
-  - 2026-10-17 · J-02 · CRIOU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Premissa do time MN AI
-  - 2026-10-17 · E-03 · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“Coloquem os dois na pendência
-  - 2026-10-17 · DP-14 · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta à Desbravadores 17/10 11h33 (“A Ponte manda o ajust
-  - 2026-10-17 · X-01 · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
-  - 2026-10-17 · causas_divergencia.csv · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
-  - 2026-10-17 · comunicacoes.csv · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
-  - 2026-10-17 · X-01 · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, ao Southlands 17/10 11h38 (“A devolução da Casa fica separad
+- Base de regras: 105 alterações registradas em `historico_alteracoes.csv` desde 2026-09-01 (79 criou, 23 alterou, 1 inativou, 2 removeu), em 80 regras/arquivos. Cada linha traz quem aprovou, quem registrou e a fonte (pessoa, canal, hora). Últimas:
+  - 2026-10-17 · E-03 · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h37 (resposta ao Theo), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“Coloquem os dois na pendência
+  - 2026-10-17 · DP-14 · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h33 (resposta à Desbravadores), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta à Desbravadores 17/10 11h33 (“A Ponte manda o ajust
+  - 2026-10-17 · X-01 · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h37 (resposta ao Theo) — X-01 é TAXA_EXCECAO: a Helena relata a concessão do Comercial, sem aprovação nominal do Comercial no Slack, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
+  - 2026-10-17 · causas_divergencia.csv · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h37 (resposta ao Theo), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
+  - 2026-10-17 · comunicacoes.csv · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h37 (resposta ao Theo), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
+  - 2026-10-17 · X-01 · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h38 (ao Southlands) e 11h49 (à Datarmos) — X-01 é TAXA_EXCECAO: a Helena relata a concessão do Comercial, sem aprovação nominal do Comercial no Slack, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, ao Southlands 17/10 11h38 (“A devolução da Casa fica separad
+  - 2026-10-17 · DP-16 · CRIOU · aprovado por PREMISSA MN AI (sem aprovação do financeiro), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Premissa do time MN AI, decisão de 17/10 13h (HIPOTESES.md, [PREMISSA])
+  - 2026-10-17 · DP-17 · CRIOU · aprovado por PREMISSA MN AI (sem aprovação do financeiro), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Premissa do time MN AI, decisão de 17/10 (HIPOTESES.md, [PREMISSA])
 - Pendências: sem `--anterior`, não dá para dizer quais são novas e quais são recorrentes.
 
 ---
