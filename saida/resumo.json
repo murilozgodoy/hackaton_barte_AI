@@ -21,12 +21,16 @@
     },
     "divergencias": {
       "checkout": {
-        "linhas": 210,
-        "valor_brl": "16973.65"
+        "linhas": 92,
+        "valor_brl": "1576.23"
       },
       "remessa": {
         "linhas": 23,
         "valor_brl": "1418.85"
+      },
+      "devolucao_lojista": {
+        "linhas": 118,
+        "valor_brl": "15397.42"
       }
     },
     "pendencias": {
@@ -34,8 +38,8 @@
       "nota": "valor_brl por responsável e por tipo é a soma dos valores absolutos (valor em jogo); tipos podem se sobrepor (ex.: excesso e sua metade)",
       "por_responsavel": {
         "Helena (Financeiro) + Comercial": {
-          "quantidade": 1,
-          "valor_brl": "15397.42"
+          "quantidade": 2,
+          "valor_brl": "251340.52"
         },
         "Helena (Financeiro)": {
           "quantidade": 10,
@@ -46,8 +50,8 @@
           "valor_brl": "7876.05"
         },
         "Financeiro": {
-          "quantidade": 4,
-          "valor_brl": "337990.00"
+          "quantidade": 3,
+          "valor_brl": "319750.00"
         }
       },
       "por_tipo": {
@@ -75,13 +79,13 @@
           "quantidade": 1,
           "valor_brl": "7876.05"
         },
+        "ALERTA_ANTECIPACAO": {
+          "quantidade": 1,
+          "valor_brl": "235943.10"
+        },
         "SALDO_NEGATIVO_LOJISTA": {
           "quantidade": 1,
           "valor_brl": "5.50"
-        },
-        "RECURSO_SEM_OPERACAO": {
-          "quantidade": 1,
-          "valor_brl": "18240.00"
         },
         "EXTRATO_NAO_IDENTIFICADO": {
           "quantidade": 1,
@@ -127,7 +131,8 @@
       "qtd_liquidacoes": 21,
       "operacoes_valor_mais_iof": "5611447.12",
       "recursos_menos_liquidado": "18240.00",
-      "liquidado_menos_operacoes": "0.00"
+      "liquidado_menos_operacoes": "0.00",
+      "observacao": "Recursos recebidos de lojistas superam o liquidado no parceiro em R$ 18.240,00: Recurso de lojista para remessa sem operação no mês. É dinheiro do lojista para uma remessa que ainda não foi contratada: fica em 2.1.02.001 (recursos de lojistas para remessas a liquidar). Conferir no fechamento do mês seguinte que a operação saiu no relatório do parceiro. Não é pendência nem devolução (regra M-05, Financeiro)"
     },
     "parceiro_cambio": {
       "spread_total_declarado": "78073.59",
@@ -175,10 +180,16 @@
       "situacao": "Conciliação adquirente x banco não é possível com os arquivos do mês",
       "o_que_fazer": "A adquirente liquida crédito parcelado em parcelas mensais (D+30 por parcela, salvo antecipação), então o que entra no banco mistura parcelas de vendas de meses anteriores e deixa de fora parcelas futuras das vendas deste mês. Para conciliar, pedir à adquirente a agenda de recebíveis do mês e comparar parcela a parcela",
       "quem_decide": "Financeiro"
+    },
+    {
+      "regra_id": "M-05",
+      "situacao": "Recurso de lojista para remessa sem operação no mês",
+      "o_que_fazer": "É dinheiro do lojista para uma remessa que ainda não foi contratada: fica em 2.1.02.001 (recursos de lojistas para remessas a liquidar). Conferir no fechamento do mês seguinte que a operação saiu no relatório do parceiro. Não é pendência nem devolução",
+      "quem_decide": "Financeiro"
     }
   ],
   "base_de_regras": {
-    "regras_ativas": 57,
+    "regras_ativas": 60,
     "lojistas": 25,
     "ultima_alteracao_historico": "2026-10-17"
   },
@@ -196,7 +207,7 @@
     {
       "nome": "1. soma do rastro = valor reportado (divergencias_taxa.csv)",
       "ok": true,
-      "detalhe": "233 ids conferidos"
+      "detalhe": "115 ids conferidos"
     },
     {
       "nome": "1. soma do rastro = valor reportado (notas_a_emitir.csv)",
@@ -216,7 +227,7 @@
     {
       "nome": "1. todo id do rastro existe nas saídas",
       "ok": true,
-      "detalhe": "489 ids no rastro"
+      "detalhe": "371 ids no rastro"
     },
     {
       "nome": "2. comissões de checkout com saldo > 0 = notas CHECKOUT",
