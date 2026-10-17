@@ -289,12 +289,25 @@ def _avisos(f, config, causas: dict) -> tuple[list[dict], list[str]]:
                                     + (f" (planilha de taxas, célula {g['vigencia_celula'].iloc[0]})" if g["vigencia_celula"].iloc[0] else ""),
                         "situacao": sit, "obs": str(g["obs"].iloc[0] or "") if pd.notna(g["obs"].iloc[0]) else "",
                         "obs_celula": str(g["obs_celula"].iloc[0] or "") if pd.notna(g["obs_celula"].iloc[0]) else ""})
+    def condicao_no_mes(cnpj, linha) -> bool:
+        """Há condição registrada (linha da planilha de taxas ou TAXA_EXCECAO) com vigência começando na competência."""
+        if any(r.params["cnpj"] == cnpj and r.params["linha_negocio"] == linha and r.vigencia_de
+               and ref <= r.vigencia_de < proximo for r in config.por_tipo("TAXA_EXCECAO")):
+            return True
+        if taxas is None or not len(taxas):
+            return False
+        de = tx.loc[(tx["cnpj"] == cnpj) & (tx["_linha"] == linha), "vigencia_de"].dropna()
+        return bool(((de >= pd.Timestamp(ref)) & (de < pd.Timestamp(proximo))).any())
+
+    # só entra na frase quem teve condição nova no mês; divergência sem condição nova (erro da contraparte) não é caso de aviso
     contestadas = []
     for (cnpj, linha), g in f.divergencias_contrato.groupby(["cnpj", "linha_negocio"], sort=False):
+        if not condicao_no_mes(cnpj, linha):
+            continue
         contestadas.append(f"{g['lojista'].iloc[0]} ({CONTRAPARTE_POR_LINHA[linha].title()}, "
                            f"comunicacoes/{CONTRAPARTE_POR_LINHA[linha].lower()}.md)")
     if contestadas and not regra_crit.valor:
-        notas.append(f"Condições já vigentes com divergência no mês seguem pela contestação, não por aviso (regra {regra_crit.id}): "
+        notas.append(f"Condições com vigência no mês e já com divergência seguem pela contestação, não por aviso (regra {regra_crit.id}): "
                      + "; ".join(contestadas) + ".")
     return out, notas
 

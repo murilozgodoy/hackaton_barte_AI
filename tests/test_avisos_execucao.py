@@ -175,7 +175,17 @@ def test_por_natureza_bate_com_os_arquivos_e_nao_tem_total_geral(tmp_path, capsy
         if nat == "CONTESTAR_PONTE":
             continue
         assert all(linhas[i]["natureza"] == nat for i in d["ids"] if i.startswith("PEN-"))
-        assert sum(abs(D(linhas[i]["valor_brl"])) for i in d["ids"]) == D(d["valor_brl"]) and len(d["ids"]) == d["quantidade"]
+        assert [i for pt in d["por_tipo"].values() for i in pt["ids"]] == d["ids"] and len(d["ids"]) == d["quantidade"]
+        for tipo, pt in d["por_tipo"].items():
+            assert all(linhas[i].get("tipo", "NOTA_A_EMITIR") == tipo for i in pt["ids"]) and len(pt["ids"]) == pt["quantidade"]
+            assert sum(abs(D(linhas[i]["valor_brl"])) for i in pt["ids"]) == D(pt["valor_brl"])
+        # tipos diferentes não se somam: total da natureza só com um tipo
+        if len(d["por_tipo"]) > 1:
+            assert d["valor_brl"] is None and d["motivo_sem_total"] == "tipos diferentes não se somam"
+        else:
+            assert sum(abs(D(linhas[i]["valor_brl"])) for i in d["ids"]) == D(d["valor_brl"]) and "motivo_sem_total" not in d
+    assert {n for n, d in pn.items() if d["valor_brl"] is None} == {"NAO_FATURAR", "ACOMPANHAR"}
+    assert set(pn["ACOMPANHAR"]["por_tipo"]) == {"CONFERIR_REPASSE_PONTE", "EXTRATO_NAO_IDENTIFICADO", "DEVOLUCAO"}
     assert pn["FATURAR"]["valor_brl"] == t["notas"]["valor_total_brl"] and pn["FATURAR"]["arquivo_origem"] == "notas_a_emitir.csv"
     # CONTESTAR_PONTE = o que se PEDE à Ponte: soma dos pedidos do anexo (a: excesso; b: diferença até o contratado; c: 0)
     cp = pn["CONTESTAR_PONTE"]
@@ -191,7 +201,8 @@ def test_por_natureza_bate_com_os_arquivos_e_nao_tem_total_geral(tmp_path, capsy
     # os valor_brl de pendencias.csv não mudam: o spread negativo segue o que aconteceu
     assert all(D(linhas[i]["valor_brl"]) < 0 for i in cp["pendencias"] if linhas[i]["tipo"] == "SPREAD_NEGATIVO")
     # demais naturezas de pendência: mesmas exclusões do por_responsavel
-    assert sum(D(d["valor_brl"]) for n, d in pn.items() if n not in ("FATURAR", "CONTESTAR_PONTE")) + sum(
+    assert sum(D(pt["valor_brl"]) for n, d in pn.items() if n not in ("FATURAR", "CONTESTAR_PONTE")
+               for pt in d["por_tipo"].values()) + sum(
         abs(D(linhas[i]["valor_brl"])) for i in cp["pendencias"]) == D(t["pendencias"]["em_jogo_brl"])
     fora = [x for d in pn.values() for x in d.get("fora_da_soma", [])]
     assert any("informativa" in x for x in fora) and any("incluída em" in x for x in fora)
@@ -242,3 +253,17 @@ def test_checagem_7_falha_se_o_anexo_da_ponte_nao_bate(tmp_path, capsys):
     anexo.write_text(anexo.read_text(encoding="utf-8").replace(";-1351.87;", ";-1351.00;"), encoding="utf-8")
     c = checar_por_natureza(f, tmp_path / "s")
     assert not c.ok and "CONTESTAR_PONTE pedido b" in c.detalhe
+
+
+def test_checagem_7_confere_por_tipo_quando_a_natureza_nao_tem_total(tmp_path, capsys):
+    from src.fechamento import executar
+    from src.relatorio import checar_por_natureza
+    from src import cli
+    assert main(["fechar", "--saida", str(tmp_path / "s"), "--sem-ia", "--json"]) == 0
+    capsys.readouterr()
+    ctx = cli.carregar_contexto(type("A", (), {"entrada": None, "competencia": None})(), cli.resolver_regras(None))
+    f = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=False)
+    pend = tmp_path / "s" / "pendencias.csv"
+    pend.write_text(pend.read_text(encoding="utf-8").replace(";L50;7350.00;", ";L50;7300.00;"), encoding="utf-8")
+    c = checar_por_natureza(f, tmp_path / "s")
+    assert not c.ok and "ACOMPANHAR/EXTRATO_NAO_IDENTIFICADO" in c.detalhe

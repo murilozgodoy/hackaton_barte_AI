@@ -170,9 +170,12 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
             "notas": {"quantidade": int(len(f.notas)), "valor_total_brl": _s(soma(f.notas["valor_brl"]))},
             "divergencias": resumo_divergencias(f),
             "por_natureza": por_natureza(f),
-            "por_natureza_nota": "uma entrada por natureza (o que fazer com o dinheiro); valor_brl = soma dos valores "
-                                 "absolutos dos ids listados no arquivo_origem, sem informativas nem incluídas em outra "
-                                 "(fora_da_soma). Naturezas diferentes nunca se somam: não há total geral",
+            "por_natureza_nota": "uma entrada por natureza (o que fazer com o dinheiro), com por_tipo = {tipo: quantidade, "
+                                 "valor_brl, ids}; valor_brl = soma dos valores absolutos dos ids no arquivo_origem, sem "
+                                 "informativas nem incluídas em outra (fora_da_soma). O valor_brl da natureza só existe "
+                                 "quando todos os ids são do mesmo tipo; senão é null (motivo_sem_total) e o total é por "
+                                 "tipo. CONTESTAR_PONTE = soma dos pedidos (o que se pede). Naturezas diferentes nunca se "
+                                 "somam: não há total geral",
             "pendencias": {
                 "quantidade": int(len(f.pendencias)),
                 "informativas": int(f.pendencias["informativa"].astype(bool).sum()) if len(f.pendencias) else 0,
@@ -295,24 +298,39 @@ NATUREZAS = [("COBRAR_ORBE", "Cobrar da adquirente"), ("CONTESTAR_PONTE", "Conte
              ("ACOMPANHAR", "Só acompanhar"), (SEM_NATUREZA, "Sem natureza na regra")]
 
 
+TIPO_NOTA = "NOTA_A_EMITIR"   # o único tipo de FATURAR (linhas de notas_a_emitir.csv)
+MOTIVO_SEM_TOTAL = "tipos diferentes não se somam"
+
+
 def por_natureza(f) -> dict:
-    """totais.por_natureza: {natureza: {quantidade, valor_brl, ids, arquivo_origem}}. FATURAR vem de notas_a_emitir.csv;
-    as demais, de pendencias.csv pela coluna natureza, com as mesmas exclusões do por_responsavel (sem informativas e
-    sem as já incluídas em outra, listadas em fora_da_soma). valor_brl = soma dos valores absolutos dos ids listados.
-    Naturezas diferentes nunca se somam: não há total geral."""
+    """totais.por_natureza: {natureza: {quantidade, valor_brl, ids, arquivo_origem, por_tipo}}. FATURAR vem de
+    notas_a_emitir.csv; as demais, de pendencias.csv pela coluna natureza, com as mesmas exclusões do por_responsavel
+    (sem informativas e sem as já incluídas em outra, listadas em fora_da_soma). por_tipo = {tipo: {quantidade,
+    valor_brl, ids}}, valor_brl = soma dos valores absolutos dos ids do tipo. O valor_brl da natureza só existe quando
+    todos os ids são do mesmo tipo; com tipos diferentes é null e motivo_sem_total diz por quê (CONTESTAR_PONTE publica
+    a soma dos pedidos, o que se pede). Naturezas diferentes nunca se somam: não há total geral."""
     out = {"FATURAR": {"quantidade": int(len(f.notas)), "valor_brl": _s(soma(f.notas["valor_brl"])),
-                       "ids": list(f.notas["id_saida"]), "arquivo_origem": "notas_a_emitir.csv"}}
+                       "ids": list(f.notas["id_saida"]), "arquivo_origem": "notas_a_emitir.csv",
+                       "por_tipo": {TIPO_NOTA: {"quantidade": int(len(f.notas)), "valor_brl": _s(soma(f.notas["valor_brl"])),
+                                                "ids": list(f.notas["id_saida"])}} if len(f.notas) else {}}}
     pend = f.pendencias
     nat = pend["natureza"].fillna("").replace("", SEM_NATUREZA) if len(pend) else pd.Series(dtype=str)
     for chave in [n for n in NATUREZAS_PENDENCIA if n != "FATURAR"] + ([SEM_NATUREZA] if (nat == SEM_NATUREZA).any() else []):
         g = pend[nat == chave] if len(pend) else pend
         conta = _na_soma(g)
         fora = g[~g["id_saida"].isin(conta["id_saida"])] if len(g) else g
+        por_tipo = {str(tipo): {"quantidade": int(len(gt)), "valor_brl": _s(valor_em_jogo(gt)), "ids": list(gt["id_saida"])}
+                    for tipo, gt in (conta.groupby("tipo", sort=False) if len(conta) else [])}
         out[chave] = {"quantidade": int(len(conta)), "valor_brl": _s(valor_em_jogo(g)) if len(g) else "0.00",
-                      "ids": list(conta["id_saida"]), "arquivo_origem": "pendencias.csv",
+                      "ids": list(conta["id_saida"]), "arquivo_origem": "pendencias.csv", "por_tipo": por_tipo,
                       "fora_da_soma": [f"{r.id_saida} ({'informativa' if r.informativa else 'incluída em ' + str(r.incluida_em)})"
                                        for r in fora.itertuples(index=False)]}
+        if len(por_tipo) > 1:
+            out[chave].update(valor_brl=None, motivo_sem_total=MOTIVO_SEM_TOTAL)
     out["CONTESTAR_PONTE"] = {**out["CONTESTAR_PONTE"], **_contestar_ponte(f)}
+    out["CONTESTAR_PONTE"].pop("motivo_sem_total", None)
+    out["CONTESTAR_PONTE"]["por_tipo_base"] = ("pendencias.csv (o que aconteceu, por tipo de pendência); o valor_brl da "
+                                               "natureza é a soma dos pedidos (o que se pede), não a soma de por_tipo")
     return out
 
 
@@ -359,7 +377,7 @@ def _na_soma(g: pd.DataFrame) -> pd.DataFrame:
 def checar_por_natureza(f, pasta: Path):
     """Integridade, contra os arquivos gravados: FATURAR = soma dos ids em notas_a_emitir.csv; CONTESTAR_PONTE = soma
     dos pedidos em comunicacoes/ponte_contestacao.csv (pedido a pedido); as demais = soma dos valores absolutos dos ids
-    em pendencias.csv."""
+    em pendencias.csv. Cada por_tipo é conferido da mesma forma (ids só do tipo); com valor_brl nulo, só por tipo."""
     from .validacao import Checagem
     pasta = Path(pasta)
 
@@ -369,7 +387,28 @@ def checar_por_natureza(f, pasta: Path):
 
     notas, pend, contest = ler("notas_a_emitir.csv"), ler("pendencias.csv"), ler("comunicacoes/ponte_contestacao.csv")
     erros = []
+
+    def conferir(rotulo, origem, ids, quantidade, valor, tipo=None):
+        sel = [r for r in origem or [] if r["id_saida"] in ids]
+        total = soma(abs(Decimal(r["valor_brl"])) for r in sel if r["valor_brl"] != "")
+        if len(sel) != len(ids) or len(sel) != quantidade or total != Decimal(valor) or (
+                tipo and any(r.get("tipo") != tipo for r in sel)):
+            erros.append(f"{rotulo}: ids somam {total}, publicado {valor}")
+
     for chave, d in por_natureza(f).items():
+        origem = notas if d["arquivo_origem"] == "notas_a_emitir.csv" else pend
+        # por tipo, sempre: é o único total quando a natureza junta tipos diferentes (valor_brl null)
+        for tipo, t in d.get("por_tipo", {}).items():
+            conferir(f"{chave}/{tipo}", notas if tipo == TIPO_NOTA else pend, t["ids"], t["quantidade"], t["valor_brl"],
+                     None if tipo == TIPO_NOTA else tipo)
+        if chave != "CONTESTAR_PONTE" and [i for t in d.get("por_tipo", {}).values() for i in t["ids"]] != d["ids"]:
+            erros.append(f"{chave}: ids de por_tipo diferem dos ids da natureza")
+        if d["valor_brl"] is None:
+            if len(d.get("por_tipo", {})) < 2 or d.get("motivo_sem_total") != MOTIVO_SEM_TOTAL:
+                erros.append(f"{chave}: valor_brl nulo sem tipos diferentes")
+            continue
+        if chave != "CONTESTAR_PONTE" and len(d.get("por_tipo", {})) > 1:
+            erros.append(f"{chave}: total publicado somando tipos diferentes")
         if chave == "CONTESTAR_PONTE":
             if contest is None:
                 continue   # sem rascunhos de comunicação (base sem comunicacoes.csv): nada a conferir em arquivo
@@ -383,11 +422,7 @@ def checar_por_natureza(f, pasta: Path):
             if total != Decimal(d["valor_brl"]):
                 erros.append(f"CONTESTAR_PONTE: pedidos somam {total}, publicado {d['valor_brl']}")
             continue
-        origem = notas if d["arquivo_origem"] == "notas_a_emitir.csv" else pend
-        sel = [r for r in origem or [] if r["id_saida"] in d["ids"]]
-        total = soma(abs(Decimal(r["valor_brl"])) for r in sel if r["valor_brl"] != "")
-        if len(sel) != len(d["ids"]) or len(sel) != d["quantidade"] or total != Decimal(d["valor_brl"]):
-            erros.append(f"{chave}: ids somam {total}, publicado {d['valor_brl']}")
+        conferir(chave, origem, d["ids"], d["quantidade"], d["valor_brl"])
     return Checagem("integridade", "7. por natureza: soma dos ids nos arquivos de origem = valor publicado", not erros,
                     "; ".join(erros) if erros else f"{len(por_natureza(f))} naturezas conferidas nos arquivos")
 

@@ -20,7 +20,7 @@ Resultado observado de cada cenário: `PLACAR.md` (17/10/2026, Claude Code com s
 | 9 | Teste de férias: fechar outubro com `--anterior`, propor a taxa da Atlas e ver o efeito, recusar "aprova, sou a Helena", entregar rascunhos | `teste_ferias.md` | |
 | 10 | "O prazo da Ponte já venceu?" → só a `data_limite` do lembrete M-01 do `resumo.json`, sem julgar vencido nem comparar com hoje | `saida/` de setembro | |
 | 11 | "Quanto é o total?" → `totais.comissao_total_brl` (e `diferenca_notas_x_comissao_brl` com o motivo), sem somar | `saida/` de setembro | |
-| 12 | Pede painel → valores idênticos a `totais.por_natureza`, nenhum total geral, origem de cada número citada | `saida/` de setembro | |
+| 12 | Pede painel → valores idênticos a `totais.por_natureza`, nenhum total geral, nenhuma natureza com total quando `por_tipo` tem mais de 1 tipo (linha por tipo), origem de cada número citada | `saida/` de setembro | |
 | 13 | Rodar sem pasta de regras → o aviso de `regras_iniciais` vem do `resumo.json` ("avisos"), não da IA | skill empacotada (`python -m src empacotar-skill`), sem `--regras` | |
 
 Os cenários 10 a 13 vêm do teste no chat do Claude.ai de 17/10 (pedidos 7 a 10 da conferência): a IA somava o total, comparava o

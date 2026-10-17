@@ -84,7 +84,36 @@
           "NF-0020",
           "NF-0021"
         ],
-        "arquivo_origem": "notas_a_emitir.csv"
+        "arquivo_origem": "notas_a_emitir.csv",
+        "por_tipo": {
+          "NOTA_A_EMITIR": {
+            "quantidade": 21,
+            "valor_brl": "243284.29",
+            "ids": [
+              "NF-0001",
+              "NF-0002",
+              "NF-0003",
+              "NF-0004",
+              "NF-0005",
+              "NF-0006",
+              "NF-0007",
+              "NF-0008",
+              "NF-0009",
+              "NF-0010",
+              "NF-0011",
+              "NF-0012",
+              "NF-0013",
+              "NF-0014",
+              "NF-0015",
+              "NF-0016",
+              "NF-0017",
+              "NF-0018",
+              "NF-0019",
+              "NF-0020",
+              "NF-0021"
+            ]
+          }
+        }
       },
       "COBRAR_ORBE": {
         "quantidade": 2,
@@ -94,6 +123,16 @@
           "PEN-0003"
         ],
         "arquivo_origem": "pendencias.csv",
+        "por_tipo": {
+          "DIVERGENCIA_TAXA": {
+            "quantidade": 2,
+            "valor_brl": "1576.23",
+            "ids": [
+              "PEN-0002",
+              "PEN-0003"
+            ]
+          }
+        },
         "fora_da_soma": []
       },
       "CONTESTAR_PONTE": {
@@ -130,6 +169,25 @@
           "PC-0926-0162"
         ],
         "arquivo_origem": "comunicacoes/ponte_contestacao.csv",
+        "por_tipo": {
+          "DIVERGENCIA_TAXA": {
+            "quantidade": 1,
+            "valor_brl": "1418.85",
+            "ids": [
+              "PEN-0004"
+            ]
+          },
+          "SPREAD_NEGATIVO": {
+            "quantidade": 4,
+            "valor_brl": "1834.05",
+            "ids": [
+              "PEN-0007",
+              "PEN-0008",
+              "PEN-0009",
+              "PEN-0010"
+            ]
+          }
+        },
         "fora_da_soma": [
           "PEN-0005 (incluída em DIVERGENCIA_TAXA)"
         ],
@@ -195,7 +253,8 @@
           "PEN-0009",
           "PEN-0010"
         ],
-        "base": "o que se pede ao parceiro (soma dos pedidos do anexo da contestação), não o que aconteceu"
+        "base": "o que se pede ao parceiro (soma dos pedidos do anexo da contestação), não o que aconteceu",
+        "por_tipo_base": "pendencias.csv (o que aconteceu, por tipo de pendência); o valor_brl da natureza é a soma dos pedidos (o que se pede), não a soma de por_tipo"
       },
       "DEVOLVER_LOJISTA": {
         "quantidade": 1,
@@ -204,34 +263,84 @@
           "PEN-0001"
         ],
         "arquivo_origem": "pendencias.csv",
+        "por_tipo": {
+          "TARIFA_ZERO_COBRADA": {
+            "quantidade": 1,
+            "valor_brl": "15396.77",
+            "ids": [
+              "PEN-0001"
+            ]
+          }
+        },
         "fora_da_soma": []
       },
       "NAO_FATURAR": {
         "quantidade": 2,
-        "valor_brl": "7881.55",
+        "valor_brl": null,
         "ids": [
           "PEN-0011",
           "PEN-0013"
         ],
         "arquivo_origem": "pendencias.csv",
-        "fora_da_soma": []
+        "por_tipo": {
+          "SEM_CONTRATO": {
+            "quantidade": 1,
+            "valor_brl": "7876.05",
+            "ids": [
+              "PEN-0011"
+            ]
+          },
+          "SALDO_NEGATIVO_LOJISTA": {
+            "quantidade": 1,
+            "valor_brl": "5.50",
+            "ids": [
+              "PEN-0013"
+            ]
+          }
+        },
+        "fora_da_soma": [],
+        "motivo_sem_total": "tipos diferentes não se somam"
       },
       "ACOMPANHAR": {
         "quantidade": 3,
-        "valor_brl": "20256.65",
+        "valor_brl": null,
         "ids": [
           "PEN-0006",
           "PEN-0014",
           "PEN-0015"
         ],
         "arquivo_origem": "pendencias.csv",
+        "por_tipo": {
+          "CONFERIR_REPASSE_PONTE": {
+            "quantidade": 1,
+            "valor_brl": "506.65",
+            "ids": [
+              "PEN-0006"
+            ]
+          },
+          "EXTRATO_NAO_IDENTIFICADO": {
+            "quantidade": 1,
+            "valor_brl": "7350.00",
+            "ids": [
+              "PEN-0014"
+            ]
+          },
+          "DEVOLUCAO": {
+            "quantidade": 1,
+            "valor_brl": "12400.00",
+            "ids": [
+              "PEN-0015"
+            ]
+          }
+        },
         "fora_da_soma": [
           "PEN-0012 (informativa)",
           "PEN-0016 (informativa)"
-        ]
+        ],
+        "motivo_sem_total": "tipos diferentes não se somam"
       }
     },
-    "por_natureza_nota": "uma entrada por natureza (o que fazer com o dinheiro); valor_brl = soma dos valores absolutos dos ids listados no arquivo_origem, sem informativas nem incluídas em outra (fora_da_soma). Naturezas diferentes nunca se somam: não há total geral",
+    "por_natureza_nota": "uma entrada por natureza (o que fazer com o dinheiro), com por_tipo = {tipo: quantidade, valor_brl, ids}; valor_brl = soma dos valores absolutos dos ids no arquivo_origem, sem informativas nem incluídas em outra (fora_da_soma). O valor_brl da natureza só existe quando todos os ids são do mesmo tipo; senão é null (motivo_sem_total) e o total é por tipo. CONTESTAR_PONTE = soma dos pedidos (o que se pede). Naturezas diferentes nunca se somam: não há total geral",
     "pendencias": {
       "quantidade": 16,
       "informativas": 2,

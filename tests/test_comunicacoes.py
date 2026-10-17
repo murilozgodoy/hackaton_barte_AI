@@ -106,14 +106,16 @@ def test_comercial(saida):
 
 def test_avisos_nova_condicao(saida):
     """Aviso só para condição com vigência depois da competência, ou no mês sem divergência (regra P-13). Bridge (vigência
-    15/09, com divergência) e Mundo Aberto (vigência jan/26) já estão em contestação: sem aviso atrasado e duplicado. A Casa
+    15/09, com divergência) segue pela contestação: sem aviso atrasado e duplicado. A frase da contestação só cita quem teve
+    condição registrada com vigência no mês: Rota Global (erro da Orbe) e Mundo Aberto (vigência jan/26) ficam fora. A Casa
     (X-01) é concessão absorvida pela Tarvo: a linha diz por que não há aviso."""
     md = (saida / "comunicacoes" / "avisos_nova_condicao.md").read_text(encoding="utf-8")
     assert md.count("### ") == 0 and "Nenhuma condição comercial nova a avisar na competência 09/2026." in md
     assert "- TAXA_EXCECAO X-01 não gera aviso à Orbe: concessão absorvida pela Tarvo" in md
     contestacao = next(l for l in md.splitlines() if "seguem pela contestação, não por aviso (regra P-13)" in l)
     assert "Escola Bridge de Idiomas Ltda (Orbe, comunicacoes/orbe.md)" in contestacao
-    assert "Mundo Aberto (Ponte, comunicacoes/ponte.md)" in contestacao
+    assert "Condições com vigência no mês e já com divergência" in contestacao and "já vigentes" not in md
+    assert "Rota Global" not in contestacao and "Mundo Aberto" not in contestacao
     assert "O aviso é controle de processo: quem deve é definido pelo contrato" in md and "não o aviso" not in md   # externo
 
 
