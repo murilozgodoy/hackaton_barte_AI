@@ -34,70 +34,92 @@
       }
     },
     "pendencias": {
-      "quantidade": 16,
-      "nota": "valor_brl por responsável e por tipo é a soma dos valores absolutos (valor em jogo); tipos podem se sobrepor (ex.: excesso e sua metade)",
+      "quantidade": 17,
+      "informativas": 2,
+      "em_jogo_brl": "52327.11",
+      "nota": "valor_brl por responsável e por tipo é a soma dos valores absolutos (valor em jogo), sem as pendências informativas; tipos podem se sobrepor (ex.: excesso e sua metade)",
       "por_responsavel": {
         "Helena (Financeiro) + Comercial": {
           "quantidade": 2,
-          "valor_brl": "251340.52"
+          "valor_brl": "15397.42",
+          "informativas": 1
         },
         "Helena (Financeiro)": {
-          "quantidade": 10,
-          "valor_brl": "6050.74"
+          "quantidade": 11,
+          "valor_brl": "9303.64",
+          "informativas": 0
         },
         "Comercial": {
           "quantidade": 1,
-          "valor_brl": "7876.05"
+          "valor_brl": "7876.05",
+          "informativas": 0
         },
         "Financeiro": {
           "quantidade": 3,
-          "valor_brl": "319750.00"
+          "valor_brl": "19750.00",
+          "informativas": 1
         }
       },
       "por_tipo": {
         "TARIFA_ZERO_COBRADA": {
           "quantidade": 1,
-          "valor_brl": "15397.42"
+          "valor_brl": "15397.42",
+          "informativas": 0
         },
         "DIVERGENCIA_TAXA": {
           "quantidade": 3,
-          "valor_brl": "2995.08"
+          "valor_brl": "2995.08",
+          "informativas": 0
         },
         "EXCESSO_SPREAD_CONTESTADO": {
           "quantidade": 1,
-          "valor_brl": "709.46"
+          "valor_brl": "709.46",
+          "informativas": 0
         },
-        "REPASSE_PONTE_DIVERGENTE": {
+        "CONTESTACAO_PONTE": {
           "quantidade": 1,
-          "valor_brl": "506.65"
+          "valor_brl": "3252.90",
+          "informativas": 0
+        },
+        "CONFERIR_REPASSE_PONTE": {
+          "quantidade": 1,
+          "valor_brl": "506.65",
+          "informativas": 0
         },
         "SPREAD_NEGATIVO": {
           "quantidade": 4,
-          "valor_brl": "1834.05"
+          "valor_brl": "1834.05",
+          "informativas": 0
         },
         "SEM_CONTRATO": {
           "quantidade": 1,
-          "valor_brl": "7876.05"
+          "valor_brl": "7876.05",
+          "informativas": 0
         },
         "ALERTA_ANTECIPACAO": {
           "quantidade": 1,
-          "valor_brl": "235943.10"
+          "valor_brl": "0.00",
+          "informativas": 1
         },
         "SALDO_NEGATIVO_LOJISTA": {
           "quantidade": 1,
-          "valor_brl": "5.50"
+          "valor_brl": "5.50",
+          "informativas": 0
         },
         "EXTRATO_NAO_IDENTIFICADO": {
           "quantidade": 1,
-          "valor_brl": "7350.00"
+          "valor_brl": "7350.00",
+          "informativas": 0
         },
         "DEVOLUCAO": {
           "quantidade": 1,
-          "valor_brl": "12400.00"
+          "valor_brl": "12400.00",
+          "informativas": 0
         },
         "EM_TRANSITO": {
           "quantidade": 1,
-          "valor_brl": "300000.00"
+          "valor_brl": "0.00",
+          "informativas": 1
         }
       }
     }
@@ -106,6 +128,12 @@
     "REGRA": 184,
     "IA": 0,
     "HUMANO": 0
+  },
+  "carteira_pendente": {
+    "linhas": 57,
+    "valor_bruto_brl": "262138.61",
+    "de_meses_anteriores": 0,
+    "faturadas_de_meses_anteriores": 0
   },
   "orbe_destinos": {
     "COMISSAO": 1886,
@@ -189,7 +217,7 @@
     }
   ],
   "base_de_regras": {
-    "regras_ativas": 60,
+    "regras_ativas": 61,
     "lojistas": 25,
     "ultima_alteracao_historico": "2026-10-17"
   },
@@ -222,12 +250,12 @@
     {
       "nome": "1. soma do rastro = valor reportado (pendencias.csv)",
       "ok": true,
-      "detalhe": "16 ids conferidos"
+      "detalhe": "17 ids conferidos"
     },
     {
       "nome": "1. todo id do rastro existe nas saídas",
       "ok": true,
-      "detalhe": "371 ids no rastro"
+      "detalhe": "372 ids no rastro"
     },
     {
       "nome": "2. comissões de checkout com saldo > 0 = notas CHECKOUT",
@@ -282,6 +310,7 @@
     "notas": "notas_a_emitir.csv",
     "lancamentos": "lancamentos_classificados.csv",
     "pendencias": "pendencias.csv",
-    "rastro": "rastro.csv"
+    "rastro": "rastro.csv",
+    "carteira": "carteira_pendente.csv"
   }
 }
