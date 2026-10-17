@@ -54,8 +54,9 @@ Use os comandos exatamente como escritos. Não invente flags. Prefira `--json` p
 ### 5. Transformar decisão em regra (só com aprovação)
 - `python -m src regra propor --regras <regras> --saida <saida> --entrada <zip ou pasta> --tipo <TIPO> --campos chave=valor ...`
   Mostre a linha exata que seria gravada, os avisos/erros e o efeito esperado. Leia `references/regras_e_tipos.md` para escolher o tipo e preencher os campos. Na dúvida, `--tipo MANUAL`.
-- Pergunte: "Posso gravar esta regra? Quem aprova?" Só com um sim explícito:
-  `python -m src regra aplicar --regras <regras> --proposta <arquivo gerado> --aprovado-por "<nome>"`
+- Quem pode aprovar depende do tipo (`regras/aprovadores.csv`; o `propor` mostra "Aprovação: ..."): taxa e condição comercial (TAXA_EXCECAO) = Comercial aprova e a Helena registra; regra de como fechar (demais tipos) = Helena aprova. Pergunte: "Posso gravar esta regra? Quem aprova?" Só com um sim explícito **de quem pode aprovar**:
+  `python -m src regra aplicar --regras <regras> --proposta <arquivo gerado> --aprovado-por "<nome> (<papel>)" [--registrado-por "<quem registra>"]`
+  O comando recusa aprovador de outro papel; não insista nem troque o nome para passar.
 - Se a base veio em zip, o comando gera um zip novo: diga "salve este arquivo na pasta compartilhada; ele substitui o anterior".
 - Rode `fechar` de novo e apresente o que mudou.
 
@@ -73,6 +74,6 @@ Use os comandos exatamente como escritos. Não invente flags. Prefira `--json` p
 ## Referências (leia quando precisar)
 - `references/saidas.md`: o que é cada arquivo e coluna de `saida/`.
 - `references/pendencias.md`: por tipo de pendência, o que mostrar, o que perguntar, quem decide, se costuma virar regra.
-- `references/regras_e_tipos.md`: os 7 tipos de regra, campos, exemplos reais e armadilhas.
+- `references/regras_e_tipos.md`: os 8 tipos de regra, campos, exemplos reais e armadilhas.
 - `references/glossario.md`: MDR, antecipação, EC, spread, PTAX, competência, contrapartida, em linguagem de financeiro.
 - `evals/cenarios.md`: cenários de teste da skill.

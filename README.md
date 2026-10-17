@@ -88,7 +88,7 @@ autocontido em `dist/`. Detalhes em "Dados enviados à IA", abaixo.
 | `python -m src explicar <id_saida> --saida saida [--entrada ... --regras ...]` | De onde vem um número: linhas do rastro, regra e taxa usadas, campos da linha original |
 | `python -m src pendencias --saida saida [--quem Helena] [--tipo SPREAD_NEGATIVO]` | Pendências por responsável, com valor em jogo |
 | `python -m src regra propor --regras regras --tipo <TIPO> --campos chave=valor ...` | Monta e valida uma regra, mostra o efeito; **não grava** |
-| `python -m src regra aplicar --regras regras --proposta <arquivo> --aprovado-por "<nome>"` | Grava a regra validada e registra em `historico_alteracoes.csv` |
+| `python -m src regra aplicar --regras regras --proposta <arquivo> --aprovado-por "<nome>" [--registrado-por "<nome>"]` | Grava a regra validada e registra em `historico_alteracoes.csv`; só aceita quem `regras/aprovadores.csv` diz que aprova aquele tipo (taxa = Comercial, resto = Helena) |
 | `python -m src empacotar-skill` | Gera `dist/fechamento-tarvo.zip` (skill autocontida com o motor e a base inicial) |
 
 Roteiro completo para a analista, sem IA: [COMO_FECHAR_O_MES.md](COMO_FECHAR_O_MES.md).
@@ -104,15 +104,17 @@ positivas; nota de remessa = soma da remessa; toda linha da Orbe e toda operaç�
 exatamente um destino (nada some); todo lançamento classificado; saldo do Aurora fecha.
 
 Setembro/2026: comissão CHECKOUT R$ 207.039,73 (21 lojistas), REMESSA R$ 39.543,45 (14),
-21 notas (R$ 246.588,68), 233 divergências (R$ 16.973,65 checkout + R$ 1.418,85 remessa),
-184 lançamentos classificados por regra, 16 pendências.
+21 notas (R$ 246.588,68), 115 divergências de contrato (R$ 1.576,23 checkout + R$ 1.418,85
+remessa) mais 118 transações da Casa do Estudante tratadas como devolução ao lojista
+(R$ 15.397,42, fora das divergências), 184 lançamentos classificados por regra, 16 pendências.
 
 ## Como funciona
 
 ```
 regras/                 base de conhecimento do financeiro (CSV que abre no Excel)
-  regras_negocio.csv      7 tipos: PARAMETRO, TAXA_EXCECAO, IGNORAR_DUPLICADO, EXCLUIR_E_PENDENCIA,
-                          CLASSIFICAR_CONTA, DONO_PENDENCIA, MANUAL — com vigência, status e fonte
+  regras_negocio.csv      8 tipos: PARAMETRO, TAXA_EXCECAO, IGNORAR_DUPLICADO, EXCLUIR_E_PENDENCIA,
+                          CLASSIFICAR_CONTA, DONO_PENDENCIA, ALERTA, MANUAL — com vigência, status e fonte
+  aprovadores.csv         quem aprova e quem registra cada tipo de regra
   complemento_cadastro.csv  só lacunas da planilha de taxas (EC em branco, lojista sem contrato)
   historico_alteracoes.csv  quem mudou o quê e por quê
   fontes.csv              padrões de nome dos arquivos e abas
