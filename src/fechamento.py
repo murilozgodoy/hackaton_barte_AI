@@ -133,7 +133,7 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
 
 
 def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None,
-             dir_regras: Path | None = None) -> tuple[dict[str, Path], dict]:
+             dir_regras: Path | None = None, pasta_anterior: Path | None = None) -> tuple[dict[str, Path], dict]:
     """Grava os 6 CSVs, a carteira, os rascunhos de comunicação, o RELATORIO_FECHAMENTO.md e, só se a
     integridade passou, o resumo.json. Devolve (arquivos gravados, dicionário do resumo)."""
     pasta = Path(pasta)
@@ -154,8 +154,13 @@ def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None,
         arquivos["comunicacoes"] = pasta / "comunicacoes"
         arquivos.update({f"comunicacoes/{k}": v for k, v in gerados.items()})
     res = relatorio.resumo(f, config, arquivos, entrada)
-    arquivos["relatorio"] = relatorio.escrever_relatorio(relatorio.markdown(f, config, res),
-                                                         pasta / "RELATORIO_FECHAMENTO.md")
+    pend_ant = relatorio.ler_pendencias_anteriores(pasta_anterior)
+    if pend_ant is not None and len(f.pendencias):
+        chaves = [relatorio._chave_pendencia(r) for r in f.pendencias.itertuples(index=False)]
+        rec = sum(1 for c in chaves if c in pend_ant)
+        res["totais"]["pendencias"]["recorrentes"], res["totais"]["pendencias"]["novas"] = rec, len(chaves) - rec
+    md = relatorio.markdown(f, config, res, relatorio.ler_causas(dir_regras), relatorio.ler_historico(dir_regras), pend_ant, arquivos)
+    arquivos["relatorio"] = relatorio.escrever_relatorio(md, pasta / "RELATORIO_FECHAMENTO.md")
     resumo_path = pasta / "resumo.json"
     if f.integro:
         arquivos["resumo"] = relatorio.escrever_resumo(res, resumo_path)

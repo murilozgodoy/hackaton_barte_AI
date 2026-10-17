@@ -350,7 +350,8 @@ def cmd_fechar(args) -> int:
     try:
         fech = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=not args.sem_ia, carteira=carteira,
                         contestacao_anterior=contestacao)
-        arquivos, res = escrever(fech, args.saida, ctx.config, entrada, dir_regras=resolver_regras(args.regras).pasta)
+        arquivos, res = escrever(fech, args.saida, ctx.config, entrada, dir_regras=resolver_regras(args.regras).pasta,
+                                 pasta_anterior=getattr(args, "anterior", None))
     except ErroConfig as e:
         raise Parada(SAIDA_REGRAS, str(e)) from None
     codigo = SAIDA_OK if fech.integro else SAIDA_INTEGRIDADE

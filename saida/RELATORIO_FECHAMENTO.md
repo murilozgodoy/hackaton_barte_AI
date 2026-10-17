@@ -6,6 +6,70 @@ Arquivos do mês: `01_orbe_relatorio_comissoes_set2026.csv`, `02_tabela_taxas_co
 
 Base de regras: 66 regras ativas, 25 lojistas no cadastro (planilha de taxas + complemento). Última alteração registrada no histórico de regras: 2026-10-17.
 
+## Página 1 — o que o CFO precisa saber
+
+### Totais do mês
+
+| Linha | Lojistas | Comissão (receita da Tarvo) | Notas a emitir |
+|---|---|---|---|
+| CHECKOUT | 21 | R$ 207.039,73 | 20 notas, R$ 207.045,23 (Casa do Estudante Viagens Ltda sem nota (-R$ 5,50)) |
+| REMESSA | 14 | R$ 39.543,45 | 1 nota, R$ 39.543,45 |
+| **Total** |  | **R$ 246.583,18** | **21 notas, R$ 246.588,68** |
+
+Divergências: 233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) + 118 de concessão comercial fora do contrato (R$ 15.397,42, devolução ao lojista por conta da Tarvo).
+
+### Dinheiro em jogo, por causa
+
+Cada pendência entra em uma linha só (nenhuma linha de origem conta duas vezes); as informativas e as já incluídas em outra ficam fora da soma.
+
+| Causa | Valor em jogo | O que é | Quem decide |
+|---|---|---|---|
+| Casa do Estudante Viagens Ltda (checkout) | R$ 15.397,42 | Concessão do Comercial fora do contrato, para segurar o cliente: a Orbe cobrou o que estava contratado e não há o que cobrar dela. A Tarvo abriu mão da receita, então a devolução ao lojista sai do nosso bolso (custo da Tarvo). TARIFA_ZERO_COBRADA em 118 linhas de origem | Helena (Financeiro) + Comercial |
+| Escola Bridge de Idiomas Ltda (checkout) | R$ 29,95 | Divergência de contrato: aditivo assinado com 2,19% a partir de 15/09 e a Orbe cobrou 2,59%. Contestar com a Orbe e ressarcir o lojista. O aviso à Orbe saiu atrasado (falha de processo nossa), mas o que decide é o contrato, não o aviso. DIVERGENCIA_TAXA em 5 linhas de origem | Helena (Financeiro) |
+| Rota Global Intercâmbio Ltda (checkout) | R$ 1.546,28 | Erro da Orbe: +0,50 p.p. no crédito desde 12/09 sem nenhuma mudança contratual. DIVERGENCIA_TAXA em 87 linhas de origem | Helena (Financeiro) |
+| Mundo Aberto (remessa) | R$ 1.418,85 | Divergência de contrato: spread de 1,20% negociado e registrado desde julho e a Ponte aplicou cerca de 1,50%. Contestar com a Ponte e ressarcir o lojista. A Ponte não foi avisada (falha de processo nossa), mas o que decide é o contrato, não o aviso. DIVERGENCIA_TAXA em 23 linhas de origem | Helena (Financeiro) |
+| Repasse do parceiro de câmbio a conferir (TED x nota) | R$ 506,65 | Conferir o TED do parceiro de câmbio previsto para 2026-10-06 (data do e-mail do parceiro) contra a nota NF-0021 (R$ 39.543,45). CONFERIR_REPASSE_PONTE em 6 linhas de origem | Helena (Financeiro) |
+| Spreads negativos no relatório do parceiro (trava vencida) | R$ 1.834,05 | Canguru; Dublin Hub Intercâmbio Ltda; Novo Horizonte Intercambio; Ponte Aérea Estudantil Ltda. SPREAD_NEGATIVO em 4 linhas de origem. o que aconteceu: -R$ 1.834,05; o que se pede ao parceiro: R$ 3.565,98 (até o spread contratado) | Helena (Financeiro) |
+| ATLAS IDIOMAS (checkout) | R$ 7.876,05 | Sem contrato assinado: taxa a confirmar pelo Comercial (vale desde 10/09 quando confirmar). SEM_CONTRATO em 57 linhas de origem. alerta ALERTA_ANTECIPACAO de R$ 179.592,82 (informativo) | Comercial |
+| Comissão negativa no mês (sem nota) | R$ 5,50 | Casa do Estudante Viagens Ltda. SALDO_NEGATIVO_LOJISTA em 119 linhas de origem | Helena (Financeiro) |
+| Lançamento de extrato sem identificação | R$ 7.350,00 | AURORA 2026-09-16: "PIX RECEBIDO 38686002000180 SEM IDENTIFICACAO" R$ 7.350,00, classificado em 1.1.09.002 (Créditos não identificados). EXTRATO_NAO_IDENTIFICADO em 1 linha de origem | Financeiro |
+| Repasse devolvido pelo banco | R$ 12.400,00 | AURORA 2026-09-23: "DEVOLUCAO PIX - MUNDO ABERTO INTERC" R$ 12.400,00, classificado em 2.1.01.001 (Repasses a lojistas a pagar). DEVOLUCAO em 1 linha de origem | Financeiro |
+
+**Total em jogo: R$ 48.364,75** (= soma das pendências não informativas, R$ 48.364,75).
+
+### Pendências por responsável
+
+- **Helena (Financeiro) + Comercial**: 2 pendência(s), R$ 15.397,42 em jogo (1 informativa): TARIFA_ZERO_COBRADA, ALERTA_ANTECIPACAO.
+- **Helena (Financeiro)**: 10 pendência(s), R$ 5.341,28 em jogo (1 já incluída em outra): DIVERGENCIA_TAXA, EXCESSO_SPREAD_CONTESTADO, CONFERIR_REPASSE_PONTE, SPREAD_NEGATIVO, SALDO_NEGATIVO_LOJISTA.
+- **Comercial**: 1 pendência(s), R$ 7.876,05 em jogo: SEM_CONTRATO.
+- **Financeiro**: 3 pendência(s), R$ 19.750,00 em jogo (1 informativa): EXTRATO_NAO_IDENTIFICADO, DEVOLUCAO, EM_TRANSITO.
+
+### Rascunhos prontos para revisão (nada foi enviado)
+
+- `comunicacoes/orbe_contestacao.csv`: anexo da contestação à adquirente.
+- `comunicacoes/orbe.md`: contestação à adquirente (divergências de contrato do checkout).
+- `comunicacoes/ponte_contestacao.csv`: anexo da contestação ao parceiro.
+- `comunicacoes/ponte.md`: contestação ao parceiro de câmbio, um pedido por assunto.
+- `comunicacoes/comercial.md`: o que depende do Comercial.
+- `comunicacoes/avisos_nova_condicao.md`: avisos de condição comercial nova às contrapartes.
+
+### Conhecimento capturado
+
+- Base de regras: 102 alterações registradas em `historico_alteracoes.csv` desde 2026-09-01 (77 criou, 22 alterou, 1 inativou, 2 removeu), em 78 regras/arquivos. Cada linha traz quem aprovou, quem registrou e a fonte (pessoa, canal, hora). Últimas:
+  - 2026-10-17 · P-12 · REMOVEU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta à Desbravadores 17/10 11h33 (“A Ponte manda o ajust
+  - 2026-10-17 · J-01 · CRIOU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta à Desbravadores 17/10 11h33 (“A Ponte manda o ajust
+  - 2026-10-17 · J-02 · CRIOU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Premissa do time MN AI
+  - 2026-10-17 · E-03 · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“Coloquem os dois na pendência
+  - 2026-10-17 · DP-14 · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta à Desbravadores 17/10 11h33 (“A Ponte manda o ajust
+  - 2026-10-17 · X-01 · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
+  - 2026-10-17 · causas_divergencia.csv · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
+  - 2026-10-17 · comunicacoes.csv · ALTEROU · aprovado por —, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
+- Pendências: sem `--anterior`, não dá para dizer quais são novas e quais são recorrentes.
+
+---
+
+## Anexo — detalhe do fechamento
+
 ## Totais do mês
 
 | Linha | Lojistas | Comissão |

@@ -8,6 +8,8 @@ checagens. Sem data de geração, para o mesmo fechamento gerar sempre o mesmo a
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 from decimal import Decimal
 from pathlib import Path
@@ -16,6 +18,23 @@ import pandas as pd
 
 from .dinheiro import CENTAVO, ZERO, brl, soma
 from .notas import competencia_texto, primeiro_dia
+
+# pendências cuja causa é a do lojista (regras/causas_divergencia.csv), não o tipo
+TIPOS_POR_CAUSA = {"DIVERGENCIA_TAXA", "TARIFA_ZERO_COBRADA", "SEM_CONTRATO"}
+# rótulos de apresentação dos tipos (texto, não regra de negócio)
+ROTULOS_TIPO = {
+    "CONFERIR_REPASSE_PONTE": "Repasse do parceiro de câmbio a conferir (TED x nota)",
+    "SPREAD_NEGATIVO": "Spreads negativos no relatório do parceiro (trava vencida)",
+    "SALDO_NEGATIVO_LOJISTA": "Comissão negativa no mês (sem nota)",
+    "EXTRATO_NAO_IDENTIFICADO": "Lançamento de extrato sem identificação",
+    "DEVOLUCAO": "Repasse devolvido pelo banco",
+    "CADASTRO": "Cadastro faltante (EC, CNPJ, taxa ou faixa)",
+    "DIVERGENCIA_TAXA": "Divergência de contrato", "TARIFA_ZERO_COBRADA": "Concessão comercial cobrada pela adquirente",
+    "SEM_CONTRATO": "Lojista sem contrato", "CONFERIR_AJUSTE_PONTE": "Ajuste do parceiro de câmbio",
+    "LINHA_NAO_INTERPRETADA": "Linha do relatório do parceiro não interpretada", "DUPLICATA_DIVERGENTE": "Operação repetida com valores diferentes",
+    "FORA_COMPETENCIA": "Linhas fora da competência", "COMPLIANCE": "Operação reprovada no compliance",
+    "RECURSO_SEM_OPERACAO": "Recurso de lojista sem operação", "REVISAR_IA": "Conta sugerida pela IA a revisar",
+}
 
 ASSUNTO_CONCILIACAO_ADQUIRENTE = "conciliacao_adquirente"
 ASSUNTO_RECURSO_SEM_OPERACAO = "recurso_sem_operacao"
@@ -169,6 +188,93 @@ def _carteira_json(f) -> dict:
             "faturadas_de_meses_anteriores": int((de_antes["destino"] == "COMISSAO").sum())}
 
 
+def ler_causas(dir_regras: Path | None) -> dict:
+    """{(cnpj, linha_negocio): causa} de regras/causas_divergencia.csv, na ordem do arquivo (vazio se não houver)."""
+    if dir_regras is None or not (Path(dir_regras) / "causas_divergencia.csv").exists():
+        return {}
+    from .regras import ler_csv_regras
+    out = {}
+    for _, r in ler_csv_regras(Path(dir_regras) / "causas_divergencia.csv", ["cnpj", "linha_negocio", "causa"]):
+        out[(r["cnpj"].strip(), r["linha_negocio"].strip().upper())] = r["causa"]
+    return out
+
+
+def ler_historico(dir_regras: Path | None) -> list[dict]:
+    """Linhas de regras/historico_alteracoes.csv (vazio se não houver)."""
+    if dir_regras is None or not (Path(dir_regras) / "historico_alteracoes.csv").exists():
+        return []
+    from .regras import ler_csv_regras
+    return [r for _, r in ler_csv_regras(Path(dir_regras) / "historico_alteracoes.csv", ["data", "quem", "id_regra", "acao"])]
+
+
+def ler_pendencias_anteriores(pasta_anterior: Path | None) -> set | None:
+    """Chaves (tipo, subtipo, cnpj ou ref_origem) das pendências da saída do mês anterior, para marcar nova x recorrente."""
+    if pasta_anterior is None or not (Path(pasta_anterior) / "pendencias.csv").exists():
+        return None
+    df = pd.read_csv(Path(pasta_anterior) / "pendencias.csv", sep=";", dtype=str, keep_default_na=False, encoding="utf-8")
+    return {(r.tipo, r.subtipo, r.cnpj or r.ref_origem) for r in df.itertuples(index=False)}
+
+
+def _chave_pendencia(r) -> tuple:
+    return (r.tipo, r.subtipo or "", r.cnpj or str(r.ref_origem))
+
+
+def dinheiro_em_jogo_por_causa(f, causas: dict) -> list[dict]:
+    """Uma linha por causa (regras/causas_divergencia.csv) ou, para o resto, por tipo de pendência. Cada pendência não
+    informativa e não incluída em outra entra em exatamente uma linha: a soma das linhas é o "em jogo" total."""
+    pend = f.pendencias
+    if pend.empty:
+        return []
+    ativas = pend[~pend["informativa"].astype(bool) & (pend["incluida_em"].isna() | (pend["incluida_em"] == ""))]
+    informativas = pend[pend["informativa"].astype(bool)]
+    linhas: dict = {}
+    ordem: list = []
+    for r in ativas.itertuples(index=False):
+        chave_causa = (r.cnpj, r.linha_negocio) if r.cnpj and r.linha_negocio else None
+        if r.tipo in TIPOS_POR_CAUSA and chave_causa in causas:
+            chave = ("causa",) + chave_causa
+        else:
+            chave = ("tipo", r.tipo)
+        if chave not in linhas:
+            linhas[chave] = {"valor": ZERO, "quem": [], "tipos": [], "lojistas": [], "n": 0, "ids": [],
+                             "spread_contratado": ZERO, "spread_relatorio": ZERO, "tem_dois_valores": True}
+            ordem.append(chave)
+        l = linhas[chave]
+        l["valor"] += abs(r.valor_brl) if r.valor_brl is not None else ZERO
+        l["n"] += int(r.qtd_itens) if r.qtd_itens is not None and not pd.isna(r.qtd_itens) else 0
+        l["ids"].append(r.id_saida)
+        for campo, v in (("quem", r.quem_decide), ("tipos", r.tipo), ("lojistas", r.lojista)):
+            if v and v not in l[campo]:
+                l[campo].append(v)
+        if getattr(r, "spread_contratado_brl", None) is not None and not pd.isna(r.spread_contratado_brl):
+            l["spread_contratado"] += r.spread_contratado_brl
+            l["spread_relatorio"] += r.spread_relatorio_brl
+        else:
+            l["tem_dois_valores"] = False
+    out = []
+    for chave in ordem:
+        l = linhas[chave]
+        if chave[0] == "causa":
+            cnpj, linha = chave[1], chave[2]
+            rotulo = f"{l['lojistas'][0] if l['lojistas'] else cnpj} ({linha.lower()})"
+            causa = causas[(cnpj, linha)]
+            alertas = informativas[informativas["cnpj"] == cnpj]
+            extra = "; ".join(f"alerta {a.tipo} de {brl(a.valor_brl)} (informativo)" for a in alertas.itertuples(index=False))
+        else:
+            tipo = chave[1]
+            rotulo = ROTULOS_TIPO.get(tipo, tipo.replace("_", " ").capitalize())
+            do_tipo = ativas[ativas["tipo"] == tipo]
+            lojistas = sorted({str(x) for x in do_tipo["lojista"] if x})
+            causa = "; ".join(lojistas) if lojistas else "; ".join(str(m).split(". ")[0][:140] for m in do_tipo["motivo"].head(3))
+            extra = ""
+            if tipo == "SPREAD_NEGATIVO" and l["tem_dois_valores"] and l["spread_contratado"] != ZERO:
+                extra = (f"o que aconteceu: {brl(l['spread_relatorio'])}; o que se pede ao parceiro: "
+                         f"{brl(l['spread_contratado'] - l['spread_relatorio'])} (até o spread contratado)")
+        out.append({"rotulo": rotulo, "causa": causa, "valor_brl": l["valor"], "quem_decide": " / ".join(l["quem"]),
+                    "tipos": ", ".join(l["tipos"]), "qtd": l["n"], "ids": l["ids"], "extra": extra})
+    return out
+
+
 def escrever_resumo(res: dict, caminho: Path) -> Path:
     Path(caminho).write_text(json.dumps(res, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8")
     return Path(caminho)
@@ -190,7 +296,88 @@ def _assinado(v: Decimal) -> str:
     return ("+ " if v >= 0 else "− ") + brl(abs(v))
 
 
-def markdown(f, config, res: dict) -> str:
+def _pagina_cfo(f, config, res: dict, causas: dict, historico: list[dict], pend_anteriores: set | None,
+                arquivos: dict) -> list[str]:
+    comp = competencia_texto(f.competencia)
+    ref = primeiro_dia(f.competencia)
+    t = res["totais"]
+    total_com, total_nf = soma(f.comissoes["comissao_brl"]), soma(f.notas["valor_brl"])
+    nf_chk, nf_rem = f.notas[f.notas["linha_negocio"] == "CHECKOUT"], f.notas[f.notas["linha_negocio"] == "REMESSA"]
+    sem = "; ".join(f"{r.lojista} sem nota ({brl(r.comissao_brl)})" for r in f.sem_nota.itertuples())
+    partes = ["## Página 1 — o que o CFO precisa saber", "",
+              "### Totais do mês", "",
+              _tabela(["Linha", "Lojistas", "Comissão (receita da Tarvo)", "Notas a emitir"], [
+                  ["CHECKOUT", len(f.comissoes_checkout), brl(soma(f.comissoes_checkout["comissao_brl"])),
+                   f"{len(nf_chk)} notas, {brl(soma(nf_chk['valor_brl']))}" + (f" ({sem})" if sem else "")],
+                  ["REMESSA", len(f.comissoes_remessa), brl(soma(f.comissoes_remessa["comissao_brl"])),
+                   f"{len(nf_rem)} nota, {brl(soma(nf_rem['valor_brl']))}" if len(nf_rem) else "sem nota (ver pendências)"],
+                  ["**Total**", "", f"**{brl(total_com)}**", f"**{len(f.notas)} notas, {brl(total_nf)}**"]]), "",
+              f"Divergências: {texto_divergencias(t['divergencias'])}.", ""]
+    linhas = dinheiro_em_jogo_por_causa(f, causas)
+    partes += ["### Dinheiro em jogo, por causa", "",
+               "Cada pendência entra em uma linha só (nenhuma linha de origem conta duas vezes); as informativas e as já "
+               "incluídas em outra ficam fora da soma.", ""]
+    if linhas:
+        partes.append(_tabela(["Causa", "Valor em jogo", "O que é", "Quem decide"], [
+            [l["rotulo"], brl(l["valor_brl"]),
+             (l["causa"] + (". " if l["causa"] and not l["causa"].endswith(".") else " ") if l["causa"] else "")
+             + (f"{l['tipos']} em {l['qtd']} linha{'s' if l['qtd'] != 1 else ''} de origem" if l["qtd"] else l["tipos"])
+             + (f". {l['extra']}" if l["extra"] else ""),
+             l["quem_decide"]] for l in linhas]))
+        partes.append("")
+        partes.append(f"**Total em jogo: {brl(soma(l['valor_brl'] for l in linhas))}** "
+                      f"(= soma das pendências não informativas, {brl(valor_em_jogo(f.pendencias))}).")
+    else:
+        partes.append("Nenhuma pendência com valor.")
+    partes += ["", "### Pendências por responsável", ""]
+    for quem, g in f.pendencias.groupby("quem_decide", sort=False):
+        n_inf = int(g["informativa"].astype(bool).sum())
+        n_inc = int(g["incluida_em"].notna().sum())
+        notas_g = [f"{n_inf} informativa{'s' if n_inf > 1 else ''}"] * bool(n_inf) + [f"{n_inc} já incluída{'s' if n_inc > 1 else ''} em outra"] * bool(n_inc)
+        tipos = ", ".join(dict.fromkeys(g["tipo"]))
+        partes.append(f"- **{quem}**: {len(g)} pendência(s), {brl(valor_em_jogo(g))} em jogo"
+                      + (f" ({', '.join(notas_g)})" if notas_g else "") + f": {tipos}.")
+    if f.pendencias.empty:
+        partes.append("Nenhuma.")
+    rascunhos = {k: v for k, v in arquivos.items() if k.startswith("comunicacoes/")}
+    if rascunhos:
+        partes += ["", "### Rascunhos prontos para revisão (nada foi enviado)", ""]
+        descr = {"orbe_md": "contestação à adquirente (divergências de contrato do checkout)",
+                 "ponte_md": "contestação ao parceiro de câmbio, um pedido por assunto",
+                 "comercial_md": "o que depende do Comercial", "avisos_md": "avisos de condição comercial nova às contrapartes",
+                 "orbe_contestacao": "anexo da contestação à adquirente", "ponte_contestacao": "anexo da contestação ao parceiro"}
+        for k, v in rascunhos.items():
+            nome = k.split("/", 1)[1]
+            partes.append(f"- `{Path(v).parent.name}/{Path(v).name}`: {descr.get(nome, nome)}.")
+    # conhecimento capturado
+    partes += ["", "### Conhecimento capturado", ""]
+    recentes = [h for h in historico if h.get("data", "") >= ref.isoformat()]
+    if recentes:
+        por_acao = {}
+        for h in recentes:
+            por_acao[h["acao"]] = por_acao.get(h["acao"], 0) + 1
+        partes.append(f"- Base de regras: {len(recentes)} alterações registradas em `historico_alteracoes.csv` desde {ref} "
+                      f"({', '.join(f'{v} {k.lower()}' for k, v in por_acao.items())}), em "
+                      f"{len({h['id_regra'] for h in recentes})} regras/arquivos. Cada linha traz quem aprovou, quem registrou e a fonte "
+                      f"(pessoa, canal, hora). Últimas:")
+        for h in recentes[-8:]:
+            partes.append(f"  - {h['data']} · {h['id_regra']} · {h['acao']} · aprovado por {h.get('aprovado_por') or '—'}, registrado por "
+                          f"{h.get('registrado_por') or h.get('quem') or '—'} · fonte: {(h.get('fonte') or '')[:110]}")
+    else:
+        partes.append("- Base de regras: nenhuma alteração registrada desde o início da competência.")
+    if pend_anteriores is not None and len(f.pendencias):
+        chaves = [_chave_pendencia(r) for r in f.pendencias.itertuples(index=False)]
+        rec = sum(1 for c in chaves if c in pend_anteriores)
+        partes.append(f"- Pendências: {len(chaves) - rec} novas e {rec} recorrentes em relação à saída anterior (`--anterior`); "
+                      f"as recorrentes estão marcadas no anexo.")
+    else:
+        partes.append("- Pendências: sem `--anterior`, não dá para dizer quais são novas e quais são recorrentes.")
+    partes += ["", "---", "", "## Anexo — detalhe do fechamento", ""]
+    return partes
+
+
+def markdown(f, config, res: dict, causas: dict | None = None, historico: list[dict] | None = None,
+             pend_anteriores: set | None = None, arquivos: dict | None = None) -> str:
     comp = competencia_texto(f.competencia)
     ref = primeiro_dia(f.competencia)
     t = res["totais"]
@@ -209,6 +396,7 @@ def markdown(f, config, res: dict) -> str:
     partes += ["", f"Base de regras: {b['regras_ativas']} regras ativas, {b['lojistas']} lojistas no cadastro "
                f"(planilha de taxas + complemento). Última alteração registrada no histórico de regras: "
                f"{b['ultima_alteracao_historico'] or 'não informada'}.", ""]
+    partes += _pagina_cfo(f, config, res, causas or {}, historico or [], pend_anteriores, arquivos or {})
 
     total_com = soma(f.comissoes["comissao_brl"])
     total_nf = soma(f.notas["valor_brl"])
@@ -276,6 +464,8 @@ def markdown(f, config, res: dict) -> str:
         for r in g.itertuples():
             valor = brl(r.valor_brl) if r.valor_brl is not None else "sem valor"
             marca = " (informativa)" if r.informativa else (f" (já incluída em {r.incluida_em})" if r.incluida_em else "")
+            if pend_anteriores is not None:
+                marca += " (recorrente)" if _chave_pendencia(r) in pend_anteriores else " (nova)"
             partes.append(f"- **{r.id_saida} · {r.tipo}{(' / ' + r.subtipo) if r.subtipo else ''}**{marca} "
                           f"({r.ref_origem}, {valor}): {r.motivo}")
         incl = g[g["incluida_em"].notna()]
