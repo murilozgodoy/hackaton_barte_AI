@@ -69,6 +69,12 @@ class Fechamento:
         return self.ponte_linhas["destino"].value_counts().to_dict()
 
 
+def checar_arquivos(arquivos: dict) -> Checagem:
+    faltando = [Path(v).name for v in arquivos.values() if not Path(v).exists()]
+    return Checagem("integridade", "8. todo arquivo listado em \"arquivos\" existe na pasta de saída", not faltando,
+                    f"faltam: {', '.join(faltando)}" if faltando else f"{len(arquivos)} arquivos e pastas")
+
+
 def extratos_de(dados: dict[str, pd.DataFrame]) -> list[pd.DataFrame]:
     """Os DataFrames de extrato bancário (os que têm coluna `banco`), na ordem de regras/fontes.csv."""
     return [df for df in dados.values() if "banco" in df.columns]
@@ -158,14 +164,24 @@ def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None,
         gerados = comunicacoes.gerar(f, config, dir_regras, pasta, competencia_texto(f.competencia), f.meta_ponte)
         arquivos["comunicacoes"] = pasta / "comunicacoes"
         arquivos.update({f"comunicacoes/{k}": v for k, v in gerados.items()})
-    res = relatorio.resumo(f, config, arquivos, entrada)
+    arquivos["relatorio"] = pasta / "RELATORIO_FECHAMENTO.md"   # gravado abaixo; listado no resumo como os demais
     pend_ant = relatorio.ler_pendencias_anteriores(pasta_anterior)
-    if pend_ant is not None and len(f.pendencias):
-        chaves = [relatorio._chave_pendencia(r) for r in f.pendencias.itertuples(index=False)]
-        rec = sum(1 for c in chaves if c in pend_ant)
-        res["totais"]["pendencias"]["recorrentes"], res["totais"]["pendencias"]["novas"] = rec, len(chaves) - rec
-    md = relatorio.markdown(f, config, res, relatorio.ler_causas(dir_regras, internas=True), relatorio.ler_historico(dir_regras), pend_ant, arquivos)
-    arquivos["relatorio"] = relatorio.escrever_relatorio(md, pasta / "RELATORIO_FECHAMENTO.md")
+
+    def gravar_relatorio() -> dict:
+        res = relatorio.resumo(f, config, arquivos, entrada)
+        if pend_ant is not None and len(f.pendencias):
+            chaves = [relatorio._chave_pendencia(r) for r in f.pendencias.itertuples(index=False)]
+            rec = sum(1 for c in chaves if c in pend_ant)
+            res["totais"]["pendencias"]["recorrentes"], res["totais"]["pendencias"]["novas"] = rec, len(chaves) - rec
+        md = relatorio.markdown(f, config, res, relatorio.ler_causas(dir_regras, internas=True),
+                                relatorio.ler_historico(dir_regras), pend_ant, arquivos)
+        relatorio.escrever_relatorio(md, arquivos["relatorio"])
+        return res
+
+    gravar_relatorio()
+    # entrega: todo arquivo listado em "arquivos" existe na pasta de saída (o relatório sai de novo com a checagem)
+    f.checagens.append(checar_arquivos(arquivos))
+    res = gravar_relatorio()
     resumo_path = pasta / "resumo.json"
     if f.integro:
         arquivos["resumo"] = relatorio.escrever_resumo(res, resumo_path)

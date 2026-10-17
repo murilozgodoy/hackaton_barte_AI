@@ -193,3 +193,20 @@ def test_tipo_sem_natureza_vira_aviso_e_natureza_fora_da_lista_e_erro(pasta_dado
     p.write_text(t.replace("natureza=ACOMPANHAR", "natureza=GUARDAR", 1), encoding="utf-8")
     assert main(["validar", "--entrada", str(pasta_dados), "--regras", str(regras), "--json"]) == 2
     assert "natureza 'GUARDAR' desconhecida" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- integridade de entrega
+
+def test_resumo_lista_o_relatorio_e_todo_arquivo_listado_existe(tmp_path, capsys):
+    assert main(["fechar", "--saida", str(tmp_path / "s"), "--sem-ia", "--json"]) == 0
+    res = json.loads((tmp_path / "s" / "resumo.json").read_text(encoding="utf-8"))
+    assert res["arquivos"]["relatorio"] == "RELATORIO_FECHAMENTO.md"
+    assert all((tmp_path / "s" / v).exists() for v in res["arquivos"].values())
+    assert any(c["nome"].startswith("8. todo arquivo listado") and c["ok"] for c in res["integridade"])
+
+
+def test_arquivo_listado_que_nao_existe_falha_a_checagem(tmp_path):
+    from src.fechamento import checar_arquivos
+    (tmp_path / "a.csv").write_text("x")
+    c = checar_arquivos({"a": tmp_path / "a.csv", "b": tmp_path / "sumiu.csv"})
+    assert not c.ok and c.nivel == "ERRO" and "sumiu.csv" in c.detalhe

@@ -447,6 +447,11 @@
       "nome": "7. por natureza: soma dos ids listados = valor publicado",
       "ok": true,
       "detalhe": "6 naturezas conferidas"
+    },
+    {
+      "nome": "8. todo arquivo listado em \"arquivos\" existe na pasta de saída",
+      "ok": true,
+      "detalhe": "15 arquivos e pastas"
     }
   ],
   "avisos": [
@@ -467,6 +472,7 @@
     "comunicacoes/ponte_contestacao": "comunicacoes/ponte_contestacao.csv",
     "comunicacoes/ponte_md": "comunicacoes/ponte.md",
     "comunicacoes/comercial_md": "comunicacoes/comercial.md",
-    "comunicacoes/avisos_md": "comunicacoes/avisos_nova_condicao.md"
+    "comunicacoes/avisos_md": "comunicacoes/avisos_nova_condicao.md",
+    "relatorio": "RELATORIO_FECHAMENTO.md"
   }
 }
