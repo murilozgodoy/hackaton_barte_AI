@@ -32,6 +32,12 @@ def arquivos(fontes):
 
 
 @pytest.fixture(scope="session")
+def pasta_dados(arquivos) -> Path:
+    """Pasta com os 6 arquivos do mês (extraídos do zip da raiz), para comandos que recebem --entrada."""
+    return arquivos["orbe"].parent
+
+
+@pytest.fixture(scope="session")
 def dados(arquivos, fontes):
     return carregar_todas(arquivos, fontes)
 

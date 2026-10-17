@@ -137,9 +137,17 @@ def test_exclusoes_duplicado_e_donos(config):
     assert config.regra_duplicado("ponte", SET).params["chave"] == "num_operacao"
     assert config.regra_duplicado("orbe", SET) is None
     assert config.dono("CADASTRO", SET).quem_decide == "Financeiro/Comercial"
+    assert config.dono("CADASTRO", SET, subtipo="CNPJ_PONTE").id == "DP-12" and config.dono("CADASTRO", SET, subtipo="CNPJ_PONTE").quem_decide == "Comercial"
+    assert config.dono("CADASTRO", SET, subtipo="EC_ORBE").id == "DP-04"    # sem dono específico, vale o geral
+    assert config.parametro("remessa_cnpj_sem_cadastro", SET) == "COMISSAO"
     assert config.dono("DIVERGENCIA_TAXA", SET).quem_decide == "Helena (Financeiro)"
     lembretes = config.lembretes(SET)
-    assert [r.id for r in lembretes] == ["M-01", "M-02", "M-03", "M-04"]
+    assert [r.id for r in lembretes] == ["M-01", "M-02", "M-03", "M-04", "M-05"]
+    alertas = config.por_tipo("ALERTA")
+    assert [r.id for r in alertas] == ["A-01"] and alertas[0].params["criterio"] == "antecipacao_acima_das_vendas"
+    assert alertas[0].params["so_para"] == {"SEM_CONTRATO", "PRIMEIRO_MES"} and alertas[0].tipo_pendencia == "ALERTA_ANTECIPACAO"
+    assert alertas[0].quem_decide == "Helena (Financeiro) + Comercial"
+    assert config.regra("DP-10").status == "INATIVA" and config.dono_se_houver("RECURSO_SEM_OPERACAO", SET) is None
     assert all(r.tipo == "MANUAL" and r.quem_decide for r in lembretes)
     assert lembretes[2].params == {"linha_negocio": "REMESSA", "cnpj": "17217888000111"}
     assert config.lembrete_por_assunto("conciliacao_adquirente", SET).id == "M-04"

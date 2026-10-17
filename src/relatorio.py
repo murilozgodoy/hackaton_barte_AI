@@ -18,6 +18,22 @@ from .dinheiro import CENTAVO, ZERO, brl, soma
 from .notas import competencia_texto, primeiro_dia
 
 ASSUNTO_CONCILIACAO_ADQUIRENTE = "conciliacao_adquirente"
+ASSUNTO_RECURSO_SEM_OPERACAO = "recurso_sem_operacao"
+
+
+def observacao_recursos(f, config) -> str | None:
+    """Texto para a diferença recursos - liquidado na conciliação de remessa, quando há diferença."""
+    rb = f.conciliacao["remessa_banco"]
+    if rb["recursos_menos_liquidado"] == ZERO:
+        return None
+    ref = primeiro_dia(f.competencia)
+    lembrete = config.lembrete_por_assunto(ASSUNTO_RECURSO_SEM_OPERACAO, ref)
+    if lembrete is not None:
+        return (f"Recursos recebidos de lojistas superam o liquidado no parceiro em {brl(rb['recursos_menos_liquidado'])}: "
+                f"{lembrete.situacao}. {lembrete.o_que_fazer} (regra {lembrete.id}, {lembrete.quem_decide})")
+    if config.dono_se_houver("RECURSO_SEM_OPERACAO", ref) is not None:
+        return "ver pendência RECURSO_SEM_OPERACAO"
+    return None
 
 
 def _s(v) -> str | None:
@@ -63,6 +79,7 @@ def _conciliacao_json(conc: dict) -> dict:
 def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) -> dict:
     div_chk = f.divergencias[f.divergencias["linha_negocio"] == "CHECKOUT"]
     div_rem = f.divergencias[f.divergencias["linha_negocio"] == "REMESSA"]
+    fora = f.divergencias_fora_contrato
     met = f.lancamentos["metodo"].value_counts().to_dict()
     ref = primeiro_dia(f.competencia)
     return {
@@ -76,6 +93,8 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
             "divergencias": {
                 "checkout": {"linhas": int(len(div_chk)), "valor_brl": _s(soma(div_chk["diferenca_brl"]))},
                 "remessa": {"linhas": int(len(div_rem)), "valor_brl": _s(soma(div_rem["diferenca_brl"]))},
+                # fora das divergências de contrato, por regra TAXA_EXCECAO (ex.: isenção que não chegou à adquirente)
+                "devolucao_lojista": {"linhas": int(len(fora)), "valor_brl": _s(soma(fora["diferenca_brl"]))},
             },
             "pendencias": {
                 "quantidade": int(len(f.pendencias)),
@@ -88,7 +107,9 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
         "lancamentos": {m: int(met.get(m, 0)) for m in ("REGRA", "IA", "HUMANO")},
         "orbe_destinos": {k: int(v) for k, v in f.destinos_orbe.items()},
         "ponte_destinos": {k: int(v) for k, v in f.destinos_ponte.items()},
-        "conciliacao": _conciliacao_json(f.conciliacao),
+        "conciliacao": {**_conciliacao_json(f.conciliacao),
+                        "remessa_x_banco": {**_conciliacao_json(f.conciliacao)["remessa_x_banco"],
+                                            "observacao": observacao_recursos(f, config)}},
         "lembretes": [{"regra_id": r.id, "situacao": r.situacao, "o_que_fazer": r.o_que_fazer,
                        "quem_decide": r.quem_decide} for r in config.lembretes(ref)],
         "base_de_regras": {"regras_ativas": len(config.regras), "lojistas": int(len(config.cadastro)),
@@ -180,6 +201,14 @@ def markdown(f, config, res: dict) -> str:
         partes.append("")
         partes.append("Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticamente: "
                       "cada caso é uma pendência para decisão.")
+    for (cnpj, natureza), g in f.divergencias_fora_contrato.groupby(["cnpj", "natureza"], sort=False):
+        partes.append("")
+        partes.append(f"**Fora das divergências de contrato** ({natureza.lower().replace('_', ' ')}, regra "
+                      f"{g['regra_id'].iloc[0]}): {len(g)} transações de {g['lojista'].iloc[0]} com condição especial "
+                      f"contratada ({_fmt_pct(g['taxa_contratada_pct'])}) em que a adquirente aplicou "
+                      f"{_fmt_pct(g['taxa_aplicada_pct'])}, {brl(soma(g['diferenca_brl']))} pela taxa. Não é cobrança da "
+                      f"adquirente: ver pendência {g['tipo_pendencia'].iloc[0]}. As transações não estão em "
+                      f"`divergencias_taxa.csv`; o rastro está na pendência.")
     partes.append("")
 
     partes += ["## Pendências por responsável", "",
@@ -212,10 +241,11 @@ def markdown(f, config, res: dict) -> str:
                   f"entre si**: recebido da adquirente {brl(ob['recebido_da_adquirente'])} ({ob['qtd_recebimentos']} "
                   f"créditos); repassado a lojistas {brl(ob['repassado_a_lojistas'])} ({ob['qtd_repasses']} lançamentos).")
     rb = c["remessa_banco"]
+    obs = observacao_recursos(f, config)
     partes.append(f"- **Remessa × banco:** liquidado no parceiro {brl(rb['liquidado_na_ponte'])}; operações do relatório "
                   f"(Valor R$ + IOF) {brl(rb['operacoes_valor_mais_iof'])}; diferença {brl(rb['liquidado_menos_operacoes'])}. "
                   f"Recursos recebidos de lojistas {brl(rb['recursos_recebidos'])}: {brl(rb['recursos_menos_liquidado'])} "
-                  f"acima do liquidado" + (" (ver pendência RECURSO_SEM_OPERACAO)." if rb["recursos_menos_liquidado"] != ZERO else "."))
+                  f"acima do liquidado" + (f" ({obs})." if obs else "."))
     pc = c["ponte"]
     if pc["diferenca"] is not None:
         partes_dif = [f"{_assinado(d['efeito'])} ({d['qtd']} {destino.lower().replace('_', ' ')})"

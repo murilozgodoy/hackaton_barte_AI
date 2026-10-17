@@ -34,8 +34,7 @@ def test_taxa_vigente_pela_data_da_venda_inclusiva_nas_duas_pontas(cfg):
     assert r.linhas.taxa_contratada_pct.tolist() == [D("2.59"), D("2.19"), D("2.19")]
     assert r.linhas.regra_id.tolist() == ["planilha:Taxas vigentes!E6", "planilha:Taxas vigentes!E7", "planilha:Taxas vigentes!E7"]
     assert r.linhas.comissao_brl.tolist() == [D("25.90"), D("21.90"), D("21.90")]
-    div, _ = divergencias.calcular(r.linhas, remessa.calcular(ponte_df([]), taxas_padrao(), cfg, "2026-09").linhas
-                                   if False else pd.DataFrame(columns=["destino", "diferenca_brl"]), cfg)
+    div = divergencias.calcular(r.linhas, pd.DataFrame(columns=["destino", "diferenca_brl"]), cfg).divergencias
     assert div.ref_origem.tolist() == ["TX000002"] and div.diferenca_brl.tolist() == [D("4.00")]
 
 
@@ -89,7 +88,7 @@ def test_half_up_meio_centavo_no_pipeline(cfg):
     r = checkout.calcular(orbe, taxas_padrao(), cfg, "2026-09")
     assert r.linhas.comissao_brl.tolist() == [D("0.01"), D("-0.01"), D("0.01")]
     assert r.linhas.valor_taxa_orbe.tolist()[0] == D("0.00")   # a Orbe truncou; a Tarvo não
-    div, _ = divergencias.calcular(r.linhas, pd.DataFrame(columns=["destino", "diferenca_brl"]), cfg)
+    div = divergencias.calcular(r.linhas, pd.DataFrame(columns=["destino", "diferenca_brl"]), cfg).divergencias
     assert div.diferenca_brl.tolist() == [D("0.01")]
 
 
@@ -225,5 +224,41 @@ def test_tolerancia_de_checkout_editavel(dados, tmp_path):
     cfg = carregar_config(regras, dados["taxas"], dados["plano_contas"], {"AURORA", "MERIDIANO"})
     f = executar(dados, cfg, "2026-09", usar_ia=False)
     chk = f.divergencias[f.divergencias.linha_negocio == "CHECKOUT"]
-    # Rota (+0,50 p.p., na borda) e Bridge (+0,40) somem; Casa (2,69 x 0) fica
-    assert set(chk.cnpj) == {CASA} and len(chk) == 118 and f.integro
+    # Rota (+0,50 p.p., na borda) e Bridge (+0,40) somem; Casa (2,69 x 0) fica, fora das divergências de contrato
+    # (X-01 divergencia=DEVOLUCAO_LOJISTA): só pendência, com as 118 transações no rastro
+    assert chk.empty and set(f.divergencias_fora_contrato.cnpj) == {CASA} and len(f.divergencias_fora_contrato) == 118
+    assert f.integro
+
+
+# ---------------------------------------------------------------- A0.5: alerta de antecipação acima das vendas (regra A-01)
+
+def test_alerta_antecipacao_so_para_lojista_sem_historico(tmp_path):
+    """Loja B (contrato desde 01/01, ATIVO) antecipa mais do que vendeu: sem alerta, porque antecipa vendas de meses
+    anteriores que não estão no arquivo. Loja C (primeira vigência e primeira transação no mês) e a Atlas
+    (SEM_CONTRATO) disparam. Rastro = as linhas de antecipação."""
+    from datetime import date
+    from src import pendencias
+    from tests.sintetico import lojista_taxas, taxas_df
+    LOJA_C, EC_C, ATLAS, EC_ATLAS = "33333333000153", "2000000003", "39566044000119", "1076801732"
+    taxas = taxas_df(*[l for l in [
+        lojista_taxas(6, "Loja B", LOJA_B, EC_B, ["1.00", "2.00", "3.00", "4.00", "0.50", "2.00"], vig_de="2026-01-01"),
+        lojista_taxas(7, "Loja C", LOJA_C, EC_C, ["1.00", "2.00", "3.00", "4.00", "0.50", "2.00"], vig_de="2026-09-10"),
+        lojista_taxas(9, "Casa", CASA, "1018325654", ["1.49", "2.69", "3.19", "3.79", "0.89", "2.10"], vig_de="2026-01-01"),
+    ]])
+    orbe = orbe_df([
+        linha_orbe(1, "2026-09-01", EC_B, "LOJA B", "100.00", "2.00"),
+        linha_orbe(2, "2026-09-02", EC_B, "LOJA B", "500.00", "2.00", tipo="ANTECIPACAO"),
+        linha_orbe(3, "2026-09-10", EC_C, "LOJA C", "100.00", "2.00"),
+        linha_orbe(4, "2026-09-12", EC_C, "LOJA C", "300.00", "2.00", tipo="ANTECIPACAO"),
+        linha_orbe(5, "2026-09-13", EC_C, "LOJA C", "250.00", "2.00", tipo="ANTECIPACAO"),
+        linha_orbe(6, "2026-09-11", EC_ATLAS, "ATLAS", "50.00", "3.49"),
+        linha_orbe(7, "2026-09-15", EC_ATLAS, "ATLAS", "900.00", "2.10", tipo="ANTECIPACAO"),
+    ])
+    cfg = config_para(regras_copia(tmp_path), taxas)    # cadastro com a Loja C (planilha) e a Atlas (complemento)
+    chk = checkout.calcular(orbe, taxas, cfg, "2026-09")
+    alertas = pendencias.alertas_antecipacao(chk.linhas, taxas, cfg, date(2026, 9, 1))
+    por_cnpj = {a["cnpj"]: a for a in alertas}
+    assert set(por_cnpj) == {LOJA_C, ATLAS}
+    assert por_cnpj[LOJA_C]["antecipado"] == D("550.00") and por_cnpj[LOJA_C]["vendido"] == D("100.00")
+    assert por_cnpj[LOJA_C]["data_estouro"] == date(2026, 9, 12) and por_cnpj[LOJA_C]["motivo_lojista"] == "PRIMEIRO_MES"
+    assert por_cnpj[ATLAS]["motivo_lojista"] == "SEM_CONTRATO" and len(por_cnpj[ATLAS]["linhas"]) == 1

@@ -14,7 +14,7 @@ from decimal import Decimal
 import pandas as pd
 
 from .dinheiro import ZERO, arredondar, brl, soma
-from .regras import Config, Regra
+from .regras import NATUREZA_CONTRATO, Config, Regra
 
 PREFIXO_ID = "PEN-"
 COLUNAS = ["id_saida", "tipo", "ref_origem", "valor_brl", "motivo", "quem_decide", "subtipo", "linha_negocio",
@@ -22,7 +22,8 @@ COLUNAS = ["id_saida", "tipo", "ref_origem", "valor_brl", "motivo", "quem_decide
 COLUNAS_RASTRO = ["id_saida", "arquivo_origem", "ref_origem", "valor", "regra_id", "taxa_pct"]
 # ordem de apresentação: o que mexe com dinheiro e nota primeiro, informativas depois
 ORDEM_TIPOS = ["TARIFA_ZERO_COBRADA", "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO", "REPASSE_PONTE_DIVERGENTE",
-               "SPREAD_NEGATIVO", "SEM_CONTRATO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO", "RECURSO_SEM_OPERACAO",
+               "SPREAD_NEGATIVO", "SEM_CONTRATO", "ALERTA_ANTECIPACAO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO",
+               "RECURSO_SEM_OPERACAO",
                "EXTRATO_NAO_IDENTIFICADO", "DEVOLUCAO", "EM_TRANSITO", "REVISAR_IA", "FORA_COMPETENCIA",
                "COMPLIANCE", "DUPLICATA_DIVERGENTE", "MANUAL"]
 
@@ -74,12 +75,14 @@ def _nomes(serie) -> str:
 
 
 def calcular(competencia_ref: date, chk_linhas, rem_linhas, divergencias, sem_nota, chk_rastro, lancamentos,
-             em_transito, conciliacao: dict, notas, config: Config) -> ResultadoPendencias:
+             em_transito, conciliacao: dict, notas, config: Config,
+             fora_contrato: pd.DataFrame | None = None, taxas: pd.DataFrame | None = None) -> ResultadoPendencias:
     c = _Coletor(config, competencia_ref)
-    _divergencias(c, divergencias, chk_linhas, rem_linhas)
+    _divergencias(c, divergencias, chk_linhas, rem_linhas, fora_contrato)
     _excesso_contestado(c, rem_linhas)
     _exclusoes(c, chk_linhas, "CHECKOUT", "transações", "valor_taxa_orbe", "cod_estabelecimento")
     _exclusoes(c, rem_linhas, "REMESSA", "operações", "spread_brl", "cnpj")
+    _alertas(c, chk_linhas, taxas)
     _cadastro(c, chk_linhas, rem_linhas)
     _fora_competencia(c, chk_linhas, "CHECKOUT", "valor_taxa_orbe")
     _fora_competencia(c, rem_linhas, "REMESSA", "spread_brl")
@@ -93,12 +96,38 @@ def calcular(competencia_ref: date, chk_linhas, rem_linhas, divergencias, sem_no
 
 # --------------------------------------------------------------------------- origens
 
-def _divergencias(c: _Coletor, div: pd.DataFrame, chk: pd.DataFrame, rem: pd.DataFrame) -> None:
-    if div.empty:
+NATUREZAS_TEXTO = {"DEVOLUCAO_LOJISTA": "devolução ao lojista"}
+_ROTULO_TIPOS = {"VENDA": "vendas", "ANTECIPACAO": "antecipações", "ESTORNO": "estornos",
+                 "REVERSAO ANTECIPACAO": "reversões de antecipação"}
+
+
+def _rotulo(tipos) -> str:
+    nomes = [_ROTULO_TIPOS.get(t, str(t).lower()) for t in sorted(set(tipos))]
+    return " e ".join(nomes) if nomes else "transações"
+
+
+def _liquido(g: pd.DataFrame, origem: pd.DataFrame, total) -> str:
+    """Venda e estorno se anulam: o que se cobra é a diferença líquida. Só aparece quando há sinal negativo."""
+    neg = g["diferenca_brl"] < 0
+    if not neg.any():
+        return f": {brl(total)}"
+    pos_v, neg_v = soma(g.loc[~neg, "diferenca_brl"]), soma(g.loc[neg, "diferenca_brl"])
+    tipos = origem["tipo_lancamento"].values
+    return (f", valor LÍQUIDO {brl(total)} = {brl(pos_v)} a maior em {int((~neg).sum())} {_rotulo(tipos[~neg.values])}"
+            f" − {brl(-neg_v)} devolvidos em {int(neg.sum())} {_rotulo(tipos[neg.values])} (venda e estorno se anulam: "
+            f"cobra-se da adquirente só a diferença líquida)")
+
+
+def _divergencias(c: _Coletor, div: pd.DataFrame, chk: pd.DataFrame, rem: pd.DataFrame,
+                  fora_contrato: pd.DataFrame | None = None) -> None:
+    partes = [d for d in (div.assign(natureza=NATUREZA_CONTRATO) if len(div) else None, fora_contrato)
+              if d is not None and len(d)]
+    if not partes:
         return
+    todas = pd.concat(partes, ignore_index=True)
     chk_por_ref = chk.set_index("ref_origem")
     rem_por_ref = rem[rem["destino"] == "COMISSAO"].set_index("ref_origem")
-    for (linha, cnpj, tipo), g in div.groupby(["linha_negocio", "cnpj", "tipo_pendencia"], sort=False):
+    for (linha, cnpj, tipo, natureza), g in todas.groupby(["linha_negocio", "cnpj", "tipo_pendencia", "natureza"], sort=False):
         regra = c.config.regra(g["regra_id"].iloc[0]) if tipo != "DIVERGENCIA_TAXA" else None
         if regra is None or regra.tipo != "TAXA_EXCECAO":
             regra = c.dono("DIVERGENCIA_TAXA" if tipo == "DIVERGENCIA_TAXA" else tipo)
@@ -107,13 +136,18 @@ def _divergencias(c: _Coletor, div: pd.DataFrame, chk: pd.DataFrame, rem: pd.Dat
             origem = chk_por_ref.loc[g["ref_origem"]]
             cobrado, contratado = soma(origem["valor_taxa_orbe"]), soma(origem["comissao_brl"])
             trunc = cobrado - contratado - total
-            motivo = (f"Divergência calculada pela taxa ({_pct(g['taxa_contratada_pct'])} contratada x "
-                      f"{_pct(g['taxa_aplicada_pct'])} aplicada pela adquirente) em {len(g)} transações de checkout: "
-                      f"{brl(total)}. A adquirente cobrou efetivamente {brl(cobrado)} (pela taxa contratada seria "
-                      f"{brl(contratado)})")
-            if trunc != 0:
-                motivo += (f", {brl(abs(trunc))} {'a menos' if trunc < 0 else 'a mais'} que a divergência calculada "
-                           f"porque a adquirente trunca centavos, o que não é divergência")
+            trunc_txt = (f", {brl(abs(trunc))} {'a menos' if trunc < 0 else 'a mais'} que a divergência calculada "
+                         f"porque a adquirente trunca centavos, o que não é divergência") if trunc != 0 else ""
+            taxas = f"{_pct(g['taxa_contratada_pct'])} contratada x {_pct(g['taxa_aplicada_pct'])} aplicada pela adquirente"
+            if natureza == NATUREZA_CONTRATO:
+                motivo = (f"Divergência calculada pela taxa ({taxas}) em {len(g)} transações de checkout"
+                          f"{_liquido(g, origem, total)}. A adquirente cobrou efetivamente {brl(cobrado)} "
+                          f"(pela taxa contratada seria {brl(contratado)}){trunc_txt}")
+            else:
+                motivo = (f"A adquirente cobrou efetivamente {brl(cobrado)} em {len(g)} transações de checkout com "
+                          f"condição especial ({taxas}): {brl(total)} pela taxa{trunc_txt}. Fica fora das divergências "
+                          f"de contrato com a adquirente, por regra ({regra.id}): "
+                          f"{NATUREZAS_TEXTO.get(natureza, natureza.lower().replace('_', ' '))}")
         else:
             origem = rem_por_ref.loc[g["ref_origem"]]
             metade = soma(origem["excesso_tarvo_brl"])
@@ -184,6 +218,77 @@ def _exclusoes(c: _Coletor, linhas: pd.DataFrame, linha_negocio: str, unidade: s
                   cnpj=gg["cnpj"].iloc[0] if gg["cnpj"].notna().any() else None, lojista=lojista, qtd_itens=len(gg))
 
 
+TIPOS_VENDA, TIPOS_ANTECIPACAO = {"VENDA"}, {"ANTECIPACAO"}
+TEXTO_SO_PARA = {"SEM_CONTRATO": "lojista SEM_CONTRATO no cadastro", "INATIVO": "lojista INATIVO no cadastro",
+                 "ATIVO": "lojista ATIVO no cadastro",
+                 "PRIMEIRO_MES": "primeira transação e primeira taxa vigente dentro do mês (sem histórico anterior)"}
+
+
+def _primeiro_mes(g: pd.DataFrame, cnpj: str, taxas: pd.DataFrame | None, ref: date) -> bool:
+    """Sem evidência de atividade antes do mês: nenhuma venda/estorno com data anterior e nenhuma taxa vigente antes."""
+    if (g["data_taxa"].dt.date < ref).any():
+        return False
+    if taxas is not None and len(taxas):
+        linhas = taxas[taxas["cnpj"] == cnpj]
+        if len(linhas) and (linhas["vigencia_de"].isna() | (linhas["vigencia_de"].dt.date < ref)).any():
+            return False
+    return True
+
+
+def alertas_antecipacao(chk: pd.DataFrame, taxas: pd.DataFrame | None, config: Config, ref: date) -> list[dict]:
+    """Critério antecipacao_acima_das_vendas das regras ALERTA (fonte orbe): por lojista, no fim de cada dia com
+    antecipação, a antecipação acumulada no mês supera as vendas acumuladas até a data. O filtro so_para da regra
+    limita a lojistas sem histórico no arquivo (os demais antecipam vendas de meses anteriores).
+    Devolve um item por (regra, lojista) com os números e as linhas de antecipação (rastro)."""
+    out = []
+    regras = [r for r in config.alertas("orbe", ref) if r.params["criterio"] == "antecipacao_acima_das_vendas"]
+    if not regras or chk.empty:
+        return out
+    base = chk[chk["cnpj"].notna() & chk["tipo_lancamento"].isin(TIPOS_VENDA | TIPOS_ANTECIPACAO)]
+    for cnpj, g in base.groupby("cnpj", sort=False):
+        status = g["status_cadastro"].iloc[0]
+        antecip = g[g["tipo_lancamento"].isin(TIPOS_ANTECIPACAO)]
+        if antecip.empty:
+            continue
+        acc_v = acc_a = ZERO
+        estouro = None
+        for dia, gd in g.sort_values("data_movimento").groupby(g["data_movimento"].dt.date, sort=True):
+            acc_v += soma(gd.loc[gd["tipo_lancamento"].isin(TIPOS_VENDA), "valor_bruto"])
+            a = soma(gd.loc[gd["tipo_lancamento"].isin(TIPOS_ANTECIPACAO), "valor_bruto"])
+            acc_a += a
+            if a and acc_a > acc_v and estouro is None:
+                estouro = (dia, acc_a, acc_v)
+        if estouro is None:
+            continue
+        for regra in regras:
+            so_para = regra.params["so_para"]
+            motivo_lojista = None
+            if not so_para or status in so_para:
+                motivo_lojista = status if so_para else "TODOS"
+            elif "PRIMEIRO_MES" in so_para and _primeiro_mes(g, cnpj, taxas, ref):
+                motivo_lojista = "PRIMEIRO_MES"
+            if motivo_lojista is None:
+                continue
+            out.append({"regra": regra, "cnpj": cnpj, "lojista": g["lojista"].iloc[0], "motivo_lojista": motivo_lojista,
+                        "antecipado": soma(antecip["valor_bruto"]),
+                        "vendido": soma(g.loc[g["tipo_lancamento"].isin(TIPOS_VENDA), "valor_bruto"]),
+                        "data_estouro": estouro[0], "acumulado_antecipado": estouro[1], "acumulado_vendido": estouro[2],
+                        "linhas": antecip})
+    return out
+
+
+def _alertas(c: _Coletor, chk: pd.DataFrame, taxas: pd.DataFrame | None) -> None:
+    for a in alertas_antecipacao(chk, taxas, c.config, c.ref):
+        regra, g = a["regra"], a["linhas"]
+        motivo = (f"{a['lojista']} ({TEXTO_SO_PARA.get(a['motivo_lojista'], a['motivo_lojista'])}) antecipou "
+                  f"{brl(a['antecipado'])} em {len(g)} antecipações no mês tendo vendido {brl(a['vendido'])}. Já em "
+                  f"{a['data_estouro']} a antecipação acumulada ({brl(a['acumulado_antecipado'])}) superava as vendas "
+                  f"acumuladas até a data ({brl(a['acumulado_vendido'])}). {regra.situacao}. {regra.o_que_fazer}")
+        c.add(regra.tipo_pendencia, a["cnpj"], a["antecipado"], motivo, regra,
+              _rastro(g, "valor_bruto", col_taxa="taxa_aplicada_pct"), subtipo=regra.subtipo,
+              linha_negocio="CHECKOUT", cnpj=a["cnpj"], lojista=a["lojista"], qtd_itens=len(g))
+
+
 def _cadastro(c: _Coletor, chk: pd.DataFrame, rem: pd.DataFrame) -> None:
     regra = c.dono("CADASTRO")
     sem = chk[chk["destino"] == "SEM_CADASTRO"]
@@ -194,13 +299,24 @@ def _cadastro(c: _Coletor, chk: pd.DataFrame, rem: pd.DataFrame) -> None:
                   f"complemento. {regra.o_que_fazer}")
         c.add("CADASTRO", ec, bruto, motivo, regra, _rastro(g, "valor_bruto"), subtipo="EC_ORBE",
               linha_negocio="CHECKOUT", lojista=_nomes(g["nome_orbe"]), qtd_itens=len(g))
+    regra_ponte = c.config.dono("CADASTRO", c.ref, subtipo="CNPJ_PONTE")
     sem = rem[rem["destino"] == "SEM_CADASTRO"]
     for cnpj, g in sem.groupby("cnpj", sort=False):
         bruto = soma(g["valor_brl"])
         motivo = (f"CNPJ {cnpj} aparece no parceiro de câmbio como {_nomes(g['cliente_ponte'])} ({len(g)} operações, "
                   f"{brl(bruto)}, spread {brl(soma(g['spread_brl']))}) e não está na planilha de taxas nem no complemento. "
-                  f"{regra.o_que_fazer}")
-        c.add("CADASTRO", cnpj, bruto, motivo, regra, _rastro(g, "valor_brl"), subtipo="CNPJ_PONTE",
+                  f"As operações ficaram fora da comissão (parâmetro remessa_cnpj_sem_cadastro=EXCLUIR). {regra_ponte.o_que_fazer}")
+        c.add("CADASTRO", cnpj, bruto, motivo, regra_ponte, _rastro(g, "valor_brl"), subtipo="CNPJ_PONTE",
+              linha_negocio="REMESSA", cnpj=cnpj, lojista=_nomes(g["cliente_ponte"]), qtd_itens=len(g))
+    # CNPJ sem cadastro que ENTROU na comissão (remessa_cnpj_sem_cadastro=COMISSAO): o parceiro paga, a nota bate
+    com = rem[(rem["destino"] == "COMISSAO") & (rem["subtipo"] == "CNPJ_PONTE")]
+    for cnpj, g in com.groupby("cnpj", sort=False):
+        valor = soma(g["comissao_brl"])
+        motivo = (f"CNPJ {cnpj} aparece no parceiro de câmbio como {_nomes(g['cliente_ponte'])} ({len(g)} operações, "
+                  f"{brl(soma(g['valor_brl']))}, spread {brl(soma(g['spread_brl']))}) e não está na planilha de taxas nem no "
+                  f"complemento. A comissão de {brl(valor)} entrou na comissão e na nota porque o parceiro paga a participação "
+                  f"sobre o spread realizado; sem spread contratado, não há conferência de divergência. {regra_ponte.o_que_fazer}")
+        c.add("CADASTRO", cnpj, valor, motivo, regra_ponte, _rastro(g, "comissao_brl", "regra_id"), subtipo="CNPJ_PONTE",
               linha_negocio="REMESSA", cnpj=cnpj, lojista=_nomes(g["cliente_ponte"]), qtd_itens=len(g))
     sem = chk[chk["destino"] == "SEM_TAXA"]
     for cnpj, g in sem.groupby("cnpj", sort=False):
@@ -291,7 +407,9 @@ def _recurso_sem_operacao(c: _Coletor, lanc: pd.DataFrame, conciliacao: dict) ->
     diferenca = rb["recursos_menos_liquidado"]
     if diferenca == ZERO or rb["qtd_liquidacoes"] == 0:
         return
-    regra = c.dono("RECURSO_SEM_OPERACAO")
+    regra = c.config.dono_se_houver("RECURSO_SEM_OPERACAO", c.ref)   # pendência opcional: sem dono, só lembrete MANUAL
+    if regra is None:
+        return
     recursos = lanc[lanc["papel"] == "recurso_remessa"]
     iguais = recursos[recursos["valor"] == diferenca]
     liquidado_txt = brl(rb["liquidado_na_ponte"])

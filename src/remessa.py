@@ -8,7 +8,10 @@ exatamente um destino:
   DUPLICATA_IGNORADA   repetição idêntica de uma operação já contada (regra IGNORAR_DUPLICADO)
   DUPLICATA_DIVERGENTE repetição com valores diferentes: nenhuma das linhas entra
   EXCLUIDO             regra EXCLUIR_E_PENDENCIA (ex.: spread negativo)
-  SEM_CADASTRO         CNPJ que não está na planilha de taxas nem no complemento
+  SEM_CADASTRO         CNPJ que não está na planilha de taxas nem no complemento, quando o
+                       parâmetro remessa_cnpj_sem_cadastro=EXCLUIR; com COMISSAO (padrão do
+                       financeiro) a operação entra na comissão e na nota, sem spread contratado,
+                       e vira pendência CADASTRO/CNPJ_PONTE
   FORA_COMPETENCIA     data de contratação fora do mês que está sendo fechado
 
 Spread contratado: coluna "Spread remessa" da planilha; vazio ou "padrão" usa o
@@ -122,16 +125,22 @@ def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Co
                 "motivo": f"data de contratação {data} fora da competência {competencia}"}
 
     lojista = config.lojista_por_cnpj(r.cnpj)
+    sem_cadastro = f"CNPJ {r.cnpj} ({r.cliente}) não está na planilha de taxas nem no complemento"
     if lojista is None:
-        return {**out, "destino": "SEM_CADASTRO", "tipo_pendencia": "CADASTRO", "subtipo": "CNPJ_PONTE",
-                "motivo": f"CNPJ {r.cnpj} ({r.cliente}) não está na planilha de taxas nem no complemento"}
-    out.update(lojista=lojista.nome or r.cliente, status_cadastro=lojista.status)
+        if config.parametro("remessa_cnpj_sem_cadastro", data) == "EXCLUIR":
+            return {**out, "destino": "SEM_CADASTRO", "tipo_pendencia": "CADASTRO", "subtipo": "CNPJ_PONTE",
+                    "motivo": sem_cadastro}
+        # entra na comissão (o parceiro paga a participação sobre o spread realizado) e vira pendência de cadastro
+        out.update(lojista=r.cliente, status_cadastro=None, tipo_pendencia="CADASTRO", subtipo="CNPJ_PONTE",
+                   motivo=sem_cadastro)
+    else:
+        out.update(lojista=lojista.nome or r.cliente, status_cadastro=lojista.status)
 
     for regra in config.regras_exclusao("ponte", data):
         crit = regra.params["criterio"]
         bate = ((crit == "spread_negativo" and r.spread_brl < 0)
                 or (crit == "status_compliance_fora" and r.status_compliance not in regra.params["aceitos"])
-                or (crit == "status_cadastro" and lojista.status in regra.params["status"]))
+                or (crit == "status_cadastro" and lojista is not None and lojista.status in regra.params["status"]))
         if bate:
             return {**out, "destino": "EXCLUIDO", "destino_regra": regra.id, "tipo_pendencia": regra.tipo_pendencia,
                     "subtipo": regra.subtipo, "motivo": regra.situacao}
@@ -142,7 +151,9 @@ def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Co
     comissao_realizado = arredondar(r.spread_brl * participacao, modo)
 
     excecao = config.excecao_taxa(r.cnpj, LINHA_NEGOCIO, PRODUTO_SPREAD, data)
-    if excecao is not None:
+    if lojista is None:
+        contratado, origem = None, "sem cadastro (CNPJ fora da planilha e do complemento): sem spread contratado"
+    elif excecao is not None:
         contratado, origem = excecao.params["taxa_pct"], excecao.id
     else:
         contratado, ref, situacao = tabela.contratado(r.cnpj, data)

@@ -80,3 +80,41 @@ def test_sem_chave_de_api_nao_chama_ia(dados, config, monkeypatch):
     r = classificar(extratos, config, dados["plano_contas"], usar_ia=True)
     assert r.lancamentos.iloc[0].metodo == "HUMANO"
     assert any("sem ANTHROPIC_API_KEY" in a for a in r.avisos)
+
+
+# ---------------------------------------------------------------- A0.7: provisões de QUALQUER mês (Helena 17/10 09h48: "Sempre")
+
+def test_nenhuma_regra_classificar_conta_depende_do_mes(config):
+    """Folha, ISS, INSS, FGTS, DARFs e repasse da Ponte são provisionados todo mês e pagos no seguinte:
+    nenhum `contem` pode ter mês, ano ou data, senão a regra só casaria o mês do exemplo."""
+    import re
+    padrao = re.compile(r"\d{2}/\d{4}|\b20\d{2}\b|\b(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)[A-Z]*\b")
+    ofensas = [(r.id, alt) for r in config.todas if r.tipo == "CLASSIFICAR_CONTA"
+               for alt in r.params["contem_alternativas"] if padrao.search(alt)]
+    assert ofensas == []
+
+
+@pytest.mark.parametrize("de, para", [("08/2026", "09/2026"), ("08/2026", "10/2026"), ("08/2026", "01/2027"),
+                                      ("09/2026", "12/2026")])
+def test_lancamentos_provisionados_caem_na_mesma_conta_em_qualquer_mes(dados, config, de, para):
+    extratos = [df.copy() for df in extratos_de(dados)]
+    base = classificar(extratos, config, dados["plano_contas"], usar_ia=False).lancamentos.set_index("ref_origem")
+    trocados = []
+    for df in extratos:
+        tem = df["descricao"].str.contains(de, regex=False)
+        trocados += df.loc[tem, "ref_origem"].tolist()
+        df["descricao"] = df["descricao"].str.replace(de, para, regex=False)
+    assert trocados, f"nenhuma descrição com {de}"
+    novo = classificar(extratos, config, dados["plano_contas"], usar_ia=False).lancamentos.set_index("ref_origem")
+    for ref in trocados:
+        assert (novo.loc[ref, "conta_codigo"], novo.loc[ref, "regra_id"]) == (base.loc[ref, "conta_codigo"], base.loc[ref, "regra_id"]), ref
+        assert novo.loc[ref, "metodo"] == "REGRA"
+    assert (novo.conta_codigo == base.conta_codigo).all() and (novo.regra_id == base.regra_id).all()
+
+
+def test_provisoes_vao_para_a_conta_da_obrigacao_e_nao_para_despesa(ext):
+    """O pagamento do mês seguinte baixa a provisão (conta 2.x), não vira despesa de novo (4.x)."""
+    lanc = ext.lancamentos.set_index("ref_origem")
+    for ref in ("L15", "L42", "L54", "L55", "L57", "L86", "L87"):     # folha, ISS, INSS, FGTS, IRRF, PIS, COFINS
+        assert lanc.loc[ref, "conta_codigo"].startswith("2.1.0"), (ref, lanc.loc[ref, "conta_codigo"])
+    assert lanc.loc["MRD2026090132", "conta_codigo"] == "1.1.03.002"   # repasse da Ponte: baixa do a receber provisionado

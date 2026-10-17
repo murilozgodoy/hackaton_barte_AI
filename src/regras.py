@@ -35,7 +35,7 @@ from .leitores.comum import ErroLeitura, ler_texto, normalizar, normalizar_ec
 SEPARADOR_PARAMETROS = "|"
 SEPARADOR_ALTERNATIVAS = " OU "
 TIPOS = ("PARAMETRO", "TAXA_EXCECAO", "IGNORAR_DUPLICADO", "EXCLUIR_E_PENDENCIA",
-         "CLASSIFICAR_CONTA", "DONO_PENDENCIA", "MANUAL")
+         "CLASSIFICAR_CONTA", "DONO_PENDENCIA", "ALERTA", "MANUAL")
 STATUS_REGRA = {"ATIVA", "PROPOSTA", "INATIVA"}
 STATUS_CADASTRO = {"ATIVO", "SEM_CONTRATO", "INATIVO"}
 
@@ -56,23 +56,36 @@ PARAMETROS = {
     "nota_remessa_tomador_nome": ("texto", None),
     "discriminacao_checkout": ("texto", None),
     "discriminacao_remessa": ("texto", None),
+    # operação do parceiro de câmbio cujo CNPJ não está na planilha nem no complemento:
+    # COMISSAO = entra na comissão e na nota (o parceiro paga) com pendência CADASTRO/CNPJ_PONTE; EXCLUIR = fica fora
+    "remessa_cnpj_sem_cadastro": ("escolha", {"COMISSAO", "EXCLUIR"}),
 }
 TIPOS_PENDENCIA = {
     "DIVERGENCIA_TAXA", "TARIFA_ZERO_COBRADA", "SEM_CONTRATO", "SPREAD_NEGATIVO",
     "EXCESSO_SPREAD_CONTESTADO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO", "EXTRATO_NAO_IDENTIFICADO",
     "DEVOLUCAO", "EM_TRANSITO", "REVISAR_IA", "MANUAL", "FORA_COMPETENCIA", "COMPLIANCE",
-    "DUPLICATA_DIVERGENTE", "RECURSO_SEM_OPERACAO", "REPASSE_PONTE_DIVERGENTE",
+    "DUPLICATA_DIVERGENTE", "RECURSO_SEM_OPERACAO", "REPASSE_PONTE_DIVERGENTE", "ALERTA_ANTECIPACAO",
 }
 # Pendências que o próprio motor gera (sem regra que as origine): precisam de DONO_PENDENCIA.
 PENDENCIAS_DO_MOTOR = {
     "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO",
     "EXTRATO_NAO_IDENTIFICADO", "EM_TRANSITO", "REVISAR_IA", "FORA_COMPETENCIA",
-    "DUPLICATA_DIVERGENTE", "RECURSO_SEM_OPERACAO", "REPASSE_PONTE_DIVERGENTE",
+    "DUPLICATA_DIVERGENTE", "REPASSE_PONTE_DIVERGENTE",
 }
+# Pendências opcionais: o motor só as gera se houver DONO_PENDENCIA ativa (sem dono, a situação
+# é tratada por lembrete MANUAL). Ligar/desligar é dado (status da regra), não código.
+PENDENCIAS_OPCIONAIS = {"RECURSO_SEM_OPERACAO"}
 CRITERIOS = {"orbe": {"status_cadastro"},
              "ponte": {"status_cadastro", "spread_negativo", "status_compliance_fora"}}
+# ALERTA: o motor calcula o critério e a regra diz para quem e para quais lojistas (nada sai da comissão)
+CRITERIOS_ALERTA = {"orbe": {"antecipacao_acima_das_vendas"}}
+# so_para: status do cadastro ou PRIMEIRO_MES (sem venda anterior ao mês nem taxa vigente antes dele)
+SO_PARA = STATUS_CADASTRO | {"PRIMEIRO_MES"}
 VALOR_PENDENCIA = {"orbe": {"valor_taxa", "valor_bruto"}, "ponte": {"spread_brl", "valor_brl"}}
 AGRUPAR = {"cnpj", "ec", "linha", "tudo"}
+# natureza da diferença entre taxa contratada e aplicada numa TAXA_EXCECAO (parâmetro `divergencia`)
+NATUREZA_CONTRATO = "CONTRATO"            # contratada ≠ aplicada: divergencias_taxa.csv (cobrança da adquirente)
+NATUREZAS_DIVERGENCIA = {NATUREZA_CONTRATO, "DEVOLUCAO_LOJISTA"}   # DEVOLUCAO_LOJISTA: só pendência, fora do CSV
 CHAVES_DUPLICADO = {"ponte": {"num_operacao"}, "orbe": {"id_transacao"}}
 # papel de um lançamento na conciliação entre fontes (CLASSIFICAR_CONTA, opcional)
 PAPEIS = {"recebimento_adquirente", "repasse_lojista", "recurso_remessa", "liquidacao_remessa"}
@@ -80,13 +93,14 @@ _RE_IDENT = re.compile(r"[A-Z][A-Z0-9_]*")
 
 # chaves obrigatórias e opcionais de `parametros`, por tipo
 ESQUEMA = {
-    "TAXA_EXCECAO": ({"cnpj", "linha_negocio", "produto", "taxa_pct"}, {"tipo_pendencia", "subtipo"}),
+    "TAXA_EXCECAO": ({"cnpj", "linha_negocio", "produto", "taxa_pct"}, {"tipo_pendencia", "subtipo", "divergencia"}),
     "IGNORAR_DUPLICADO": ({"fonte", "chave"}, set()),
     "EXCLUIR_E_PENDENCIA": ({"fonte", "criterio", "tipo_pendencia"},
                             {"status", "aceitos", "valor_pendencia", "agrupar", "subtipo"}),
     "CLASSIFICAR_CONTA": ({"banco", "contem", "conta", "prioridade"},
                           {"sinal", "gera_pendencia", "tipo_pendencia", "subtipo", "transitoria", "papel"}),
-    "DONO_PENDENCIA": ({"tipo_pendencia"}, set()),
+    "DONO_PENDENCIA": ({"tipo_pendencia"}, {"subtipo"}),
+    "ALERTA": ({"fonte", "criterio", "tipo_pendencia"}, {"so_para", "subtipo"}),
     "MANUAL": (set(), {"banco", "contem", "cnpj", "linha_negocio", "assunto"}),
 }
 
@@ -314,13 +328,25 @@ class Config:
         return next((r for r in self.por_tipo("IGNORAR_DUPLICADO")
                      if r.params["fonte"] == fonte and r.vigente_em(em)), None)
 
-    def dono(self, tipo_pendencia: str, em: date) -> Regra:
-        r = next((r for r in self.por_tipo("DONO_PENDENCIA")
-                  if r.params["tipo_pendencia"] == tipo_pendencia and r.vigente_em(em)), None)
+    def dono(self, tipo_pendencia: str, em: date, subtipo: str | None = None) -> Regra:
+        """Regra DONO_PENDENCIA do tipo; uma com `subtipo=` igual ao pedido vence a geral (sem subtipo)."""
+        donos = [r for r in self.por_tipo("DONO_PENDENCIA")
+                 if r.params["tipo_pendencia"] == tipo_pendencia and r.vigente_em(em)]
+        r = (next((r for r in donos if subtipo and r.params.get("subtipo") == subtipo), None)
+             or next((r for r in donos if not r.params.get("subtipo")), None))
         if r is None:
             raise ErroConfig([f"Nenhuma regra DONO_PENDENCIA ativa e vigente em {em} para "
                               f"'{tipo_pendencia}'. Como corrigir: crie a regra em regras_negocio.csv"])
         return r
+
+    def dono_se_houver(self, tipo_pendencia: str, em: date) -> Regra | None:
+        """Para pendências opcionais: None quando não há DONO_PENDENCIA ativa (o motor não gera a pendência)."""
+        return next((r for r in self.por_tipo("DONO_PENDENCIA")
+                     if r.params["tipo_pendencia"] == tipo_pendencia and r.vigente_em(em)
+                     and not r.params.get("subtipo")), None)
+
+    def alertas(self, fonte: str, em: date) -> list[Regra]:
+        return [r for r in self.por_tipo("ALERTA") if r.params["fonte"] == fonte and r.vigente_em(em)]
 
     def lembretes(self, em: date) -> list[Regra]:
         return [r for r in self.por_tipo("MANUAL") if r.vigente_em(em)]
@@ -337,7 +363,8 @@ class Config:
                     erros.append(f"regras_negocio.csv: nenhuma regra PARAMETRO '{nome}' ativa e vigente em {d}. "
                                  "Como corrigir: ajuste vigencia_de/vigencia_ate ou crie a regra para esse período")
             for tp in sorted(PENDENCIAS_DO_MOTOR):
-                if not any(r.params["tipo_pendencia"] == tp and r.vigente_em(d) for r in self.por_tipo("DONO_PENDENCIA")):
+                if not any(r.params["tipo_pendencia"] == tp and r.vigente_em(d) and not r.params.get("subtipo")
+                           for r in self.por_tipo("DONO_PENDENCIA")):
                     erros.append(f"regras_negocio.csv: nenhuma regra DONO_PENDENCIA para '{tp}' ativa e vigente em {d}. "
                                  "Como corrigir: ajuste a vigência ou crie a regra para esse período")
         return sorted(set(erros))
@@ -629,6 +656,12 @@ def _validar_params(regra: Regra, erro, avisos, onde, ctx: _Contexto):
             erro("taxa_pct negativa", "use 0 ou um percentual positivo")
         if regra.vigencia_de is None:
             erro("exceção comercial sem vigencia_de", "informe a data de início do acordo")
+        p["divergencia"] = normalizar(p.get("divergencia", NATUREZA_CONTRATO)).replace(" ", "_")
+        if p["divergencia"] not in NATUREZAS_DIVERGENCIA:
+            erro(f"divergencia '{p['divergencia']}' inválida", f"use {' ou '.join(sorted(NATUREZAS_DIVERGENCIA))}")
+        elif p["divergencia"] != NATUREZA_CONTRATO and "tipo_pendencia" not in p:
+            erro(f"divergencia={p['divergencia']} sem tipo_pendencia",
+                 "informe tipo_pendencia=... para a diferença virar pendência (ela fica fora de divergencias_taxa.csv)")
 
     elif tipo == "IGNORAR_DUPLICADO":
         fonte = p["fonte"].lower()
@@ -702,6 +735,20 @@ def _validar_params(regra: Regra, erro, avisos, onde, ctx: _Contexto):
         if not regra.quem_decide:
             erro("DONO_PENDENCIA sem quem_decide", "preencha a coluna quem_decide")
 
+    elif tipo == "ALERTA":
+        fonte, criterio = p["fonte"].lower(), p["criterio"].lower()
+        if fonte not in CRITERIOS_ALERTA:
+            return erro(f"fonte '{p['fonte']}' inválida", f"use {' ou '.join(CRITERIOS_ALERTA)}")
+        if criterio not in CRITERIOS_ALERTA[fonte]:
+            return erro(f"critério '{p['criterio']}' não existe para {fonte}",
+                        f"use um destes: {', '.join(sorted(CRITERIOS_ALERTA[fonte]))}. Se não houver, use MANUAL")
+        p["fonte"], p["criterio"] = fonte, criterio
+        p["so_para"] = set(lista(p["so_para"])) if p.get("so_para") else set()
+        if not p["so_para"] <= SO_PARA:
+            erro(f"so_para {sorted(p['so_para'] - SO_PARA)} inválido", f"use {', '.join(sorted(SO_PARA))} (vazio = todos)")
+        if not regra.quem_decide:
+            erro("ALERTA sem quem_decide", "preencha a coluna quem_decide")
+
     elif tipo == "MANUAL":
         if "contem" in p or "banco" in p:
             if not {"contem", "banco"} <= p.keys():
@@ -754,7 +801,9 @@ def _chave_conflito(r: Regra):
     if r.tipo == "CLASSIFICAR_CONTA":
         return ("CLASSIFICAR_CONTA", p["banco"], tuple(p["contem_alternativas"]), p.get("sinal"))
     if r.tipo == "DONO_PENDENCIA":
-        return ("DONO_PENDENCIA", p["tipo_pendencia"])
+        return ("DONO_PENDENCIA", p["tipo_pendencia"], p.get("subtipo"))
+    if r.tipo == "ALERTA":
+        return ("ALERTA", p["fonte"], p["criterio"])
     return None
 
 
@@ -779,7 +828,7 @@ def validar_conjunto(regras: list[Regra], erros: list[str]):
     for nome in sorted(set(PARAMETROS) - nomes):
         erros.append(f"regras_negocio.csv: falta a regra PARAMETRO ativa '{nome}'. "
                      f"Como corrigir: crie uma linha tipo PARAMETRO com parametros {nome}=...")
-    donos = {r.params["tipo_pendencia"] for r in ativas if r.tipo == "DONO_PENDENCIA"}
+    donos = {r.params["tipo_pendencia"] for r in ativas if r.tipo == "DONO_PENDENCIA" and not r.params.get("subtipo")}
     for tp in sorted(PENDENCIAS_DO_MOTOR - donos):
         erros.append(f"regras_negocio.csv: falta a regra DONO_PENDENCIA ativa para '{tp}' (diz quem decide). "
                      f"Como corrigir: crie uma linha tipo DONO_PENDENCIA com parametros tipo_pendencia={tp}")

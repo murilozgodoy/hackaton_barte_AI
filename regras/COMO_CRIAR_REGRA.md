@@ -27,9 +27,22 @@ Não é nenhum dos quatro? → `MANUAL`. O sistema não executa nada: só repete
 relatório de cada fechamento, o seu texto de `o_que_fazer` como lembrete para quem
 está em `quem_decide`.
 
-Dois tipos de apoio: `IGNORAR_DUPLICADO` (linha repetida num relatório conta uma vez)
-e `DONO_PENDENCIA` (diz quem decide cada tipo de pendência que o sistema gera sozinho,
-como divergência de taxa ou cadastro faltante).
+Três tipos de apoio: `IGNORAR_DUPLICADO` (linha repetida num relatório conta uma vez),
+`DONO_PENDENCIA` (diz quem decide cada tipo de pendência que o sistema gera sozinho,
+como divergência de taxa ou cadastro faltante; com `subtipo=` dá um dono específico, ex.:
+CNPJ da Ponte sem cadastro → Comercial) e `ALERTA` (o sistema calcula um critério e avisa
+quem está em `quem_decide`, sem tirar nada da comissão; ex.: A-01, antecipação acima do que
+o lojista vendeu, só para lojista sem contrato ou novo no mês).
+
+## Quem aprova cada regra
+
+`aprovadores.csv` diz quem aprova por tipo: **taxa e condição comercial** (`TAXA_EXCECAO`,
+e a planilha de taxas) = Comercial aprova, Helena registra; **regra de como fechar** (todos
+os outros tipos e o complemento de cadastro) = Helena aprova. O comando
+`python -m src regra aplicar --aprovado-por "<nome> (Comercial)" --registrado-por "Helena (Financeiro)"`
+recusa, com a mensagem em português, aprovador de outro papel, e grava `aprovado_por` e
+`registrado_por` no `historico_alteracoes.csv`. Substituto de férias: acrescente na coluna
+`quem_aprova` com " OU " (ex.: `Helena OU Marcos`).
 
 ## Quatro exemplos reais de setembro/2026
 
@@ -43,9 +56,12 @@ decide, até alguém transformar a situação em regra automática.
 **Acordo comercial (X-01).** A Casa do Estudante não paga tarifa no checkout de
 01/09 a 31/12/2026.
 `tipo` = TAXA_EXCECAO · `vigencia_de` = 2026-09-01 · `vigencia_ate` = 2026-12-31
-`parametros` = `cnpj=00520815000100 | linha_negocio=CHECKOUT | produto=TODOS | taxa_pct=0 | tipo_pendencia=TARIFA_ZERO_COBRADA`
-Tudo o que a Orbe cobrar nesse período aparece como divergência, e a pendência vai
-para quem está em `quem_decide`.
+`parametros` = `cnpj=00520815000100 | linha_negocio=CHECKOUT | produto=TODOS | taxa_pct=0 | tipo_pendencia=TARIFA_ZERO_COBRADA | divergencia=DEVOLUCAO_LOJISTA`
+Tudo o que a Orbe cobrar nesse período vira a pendência TARIFA_ZERO_COBRADA para quem está
+em `quem_decide`, com o valor e o rastro de cada transação. `divergencia=DEVOLUCAO_LOJISTA`
+diz que não é divergência de contrato com a Orbe (ela cobrou certo pelo que sabia): as
+transações ficam **fora** de `divergencias_taxa.csv`. Sem esse parâmetro (ou com
+`divergencia=CONTRATO`), elas entram em `divergencias_taxa.csv` como qualquer divergência.
 
 **Lançamento de extrato (C-03).** O PIX para a Contabilidade Exata não é repasse a lojista.
 `tipo` = CLASSIFICAR_CONTA
@@ -60,6 +76,18 @@ existir no plano do Fênix e aceitar lançamento.
 `tipo` = EXCLUIR_E_PENDENCIA
 `parametros` = `fonte=ponte | criterio=spread_negativo | valor_pendencia=spread_brl | agrupar=linha | tipo_pendencia=SPREAD_NEGATIVO`
 A operação sai da comissão e da nota e vira pendência para quem está em `quem_decide`.
+
+**Alerta (A-01).** Antecipação maior do que o lojista vendeu, só para lojista sem contrato
+ou novo no mês (os outros antecipam vendas de meses anteriores, que não estão no arquivo).
+`tipo` = ALERTA
+`parametros` = `fonte=orbe | criterio=antecipacao_acima_das_vendas | so_para=SEM_CONTRATO,PRIMEIRO_MES | tipo_pendencia=ALERTA_ANTECIPACAO`
+Gera a pendência para quem está em `quem_decide`, com as linhas de antecipação no rastro.
+Nada sai da comissão. `so_para` vazio = todos os lojistas.
+
+**Lembrete que substitui uma pendência (M-05).** Dinheiro de lojista na conta de remessas
+sem operação no mês é normal (a operação sai no mês seguinte): a regra DP-10, que gerava a
+pendência RECURSO_SEM_OPERACAO, está INATIVA e o lembrete M-05 aparece na conciliação. Para
+voltar a ter a pendência, basta reativar DP-10 (é dado, não código).
 
 ## Lojista sem EC ou sem contrato
 

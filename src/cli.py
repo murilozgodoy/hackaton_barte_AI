@@ -27,6 +27,7 @@ from .leitores import carregar_todas
 from .leitores.comum import ErroLeitura
 from .notas import competencia_texto, primeiro_dia
 from .regras import Config, ErroConfig, _Contexto, carregar_config
+from . import relatorio
 from .relatorio import valor_em_jogo
 from .validacao import Checagem, validar_leitores
 
@@ -212,6 +213,9 @@ def imprimir_fechamento(f: Fechamento) -> None:
         print("  nenhuma")
     for (linha, _cnpj), g in f.divergencias.groupby(["linha_negocio", "cnpj"], sort=False):
         print(f"  {linha:<9}{str(g['lojista'].iloc[0])[:40]:<42}{len(g):>5} linhas  {brl(soma(g['diferenca_brl'])):>16}")
+    for (_cnpj, natureza), g in f.divergencias_fora_contrato.groupby(["cnpj", "natureza"], sort=False):
+        print(f"  fora das divergências de contrato ({natureza.lower().replace('_', ' ')}, regra {g['regra_id'].iloc[0]}): "
+              f"{str(g['lojista'].iloc[0])[:40]}, {len(g)} linhas, {brl(soma(g['diferenca_brl']))} pela taxa")
 
     print("\nNotas a emitir:")
     for r in f.notas.itertuples(index=False):
@@ -239,7 +243,7 @@ def imprimir_fechamento(f: Fechamento) -> None:
         print(f"  [aviso] {aviso}")
 
 
-def imprimir_conciliacao(f: Fechamento) -> None:
+def imprimir_conciliacao(f: Fechamento, config: Config) -> None:
     c = f.conciliacao
     print("\nConciliação entre fontes (informativo, não gera pendência):")
     o = c["orbe_banco"]
@@ -252,6 +256,9 @@ def imprimir_conciliacao(f: Fechamento) -> None:
           f"operações do relatório (Valor R$ + IOF) {brl(r['operacoes_valor_mais_iof'])}")
     print(f"    recursos - liquidado = {brl(r['recursos_menos_liquidado'])}; "
           f"liquidado - operações = {brl(r['liquidado_menos_operacoes'])}")
+    obs = relatorio.observacao_recursos(f, config)
+    if obs:
+        print(f"    {obs}")
     p = c["ponte"]
     if p["diferenca"] is None:
         return
@@ -278,10 +285,12 @@ def imprimir_resumo_final(f: Fechamento, res: dict, arquivos: dict[str, Path], c
           f"{int(rem['qtd_operacoes'].sum())} operações da Ponte)")
     print(f"Comissão total:    {brl(soma(f.comissoes['comissao_brl'])):>16}")
     print(f"Notas a emitir: {t['notas']['quantidade']}, somando {brl(Decimal(t['notas']['valor_total_brl']))}")
-    dc, dr = t["divergencias"]["checkout"], t["divergencias"]["remessa"]
+    dc, dr, dl = t["divergencias"]["checkout"], t["divergencias"]["remessa"], t["divergencias"]["devolucao_lojista"]
     print(f"Divergências de taxa: {dc['linhas'] + dr['linhas']} ({brl(Decimal(dc['valor_brl']) + Decimal(dr['valor_brl']))})"
           f" = {dc['linhas']} de checkout ({brl(Decimal(dc['valor_brl']))}) + {dr['linhas']} de remessa "
-          f"({brl(Decimal(dr['valor_brl']))})")
+          f"({brl(Decimal(dr['valor_brl']))})"
+          + (f"; fora delas, devolução ao lojista: {dl['linhas']} transações ({brl(Decimal(dl['valor_brl']))})"
+             if dl["linhas"] else ""))
     l = res["lancamentos"]
     print(f"Lançamentos classificados: {sum(l.values())} (REGRA {l['REGRA']}, IA {l['IA']}, HUMANO {l['HUMANO']})")
     print(f"Pendências: {t['pendencias']['quantidade']}, por responsável:")
@@ -330,7 +339,7 @@ def cmd_fechar(args) -> int:
         return codigo
     imprimir_contexto(ctx)
     imprimir_fechamento(fech)
-    imprimir_conciliacao(fech)
+    imprimir_conciliacao(fech, ctx.config)
     imprimir_resumo_final(fech, res, arquivos, ctx)
     if not fech.integro:
         print("\nINTEGRIDADE FALHOU: os números acima não podem ser apresentados como válidos.", file=sys.stderr)
@@ -405,15 +414,19 @@ def cmd_regra(args) -> int:
             print("Efeito esperado:")
             for e in p.efeito:
                 print(f"  - {e}")
+        if p.aprovacao and p.aprovacao.get("quem_aprova"):
+            print(f"Aprovação: {p.aprovacao['quem_aprova']} (registro: {p.aprovacao['quem_registra']}), "
+                  f"conforme regras/aprovadores.csv")
         if p.valida:
+            qa = (p.aprovacao or {}).get("quem_aprova") or "<nome>"
             print(f"\nNada foi gravado. Para aplicar: python -m src regra aplicar --regras {args.regras} "
-                  f"--proposta {destino} --aprovado-por \"<nome>\"")
+                  f"--proposta {destino} --aprovado-por \"<nome> ({qa})\" [--registrado-por \"<quem registra>\"]")
         return codigo
 
     # aplicar
     try:
         proposta = comandos.ler_proposta(args.proposta)
-        res = comandos.aplicar(base.pasta, proposta, args.aprovado_por, ctx_val, hoje)
+        res = comandos.aplicar(base.pasta, proposta, args.aprovado_por, ctx_val, hoje, args.registrado_por)
     except comandos.ErroComando as err:
         raise Parada(err.codigo, err.mensagem) from None
     except (OSError, ValueError, KeyError) as err:
@@ -424,7 +437,7 @@ def cmd_regra(args) -> int:
         _json({"comando": "regra aplicar", "ok": True, "codigo": SAIDA_OK, **res})
     else:
         print(f"Regra {res['id_regra']} gravada em {res['arquivo']} e registrada em {res['historico']} "
-              f"(aprovado por {args.aprovado_por}).")
+              f"(aprovado por {res['aprovado_por']}, registrado por {res['registrado_por']}).")
         if "zip_novo" in res:
             print(f"Base em zip: gravei {res['zip_novo']}. Salve este arquivo na pasta compartilhada; ele substitui o anterior.")
         print("Rode `python -m src fechar` de novo para o fechamento refletir a regra.")
@@ -485,7 +498,8 @@ def construir_parser() -> argparse.ArgumentParser:
     _comuns(pp)
     pa = acao.add_parser("aplicar", help="grava a proposta validada e registra no histórico")
     pa.add_argument("--proposta", type=Path, required=True)
-    pa.add_argument("--aprovado-por", required=True, help="nome de quem aprovou")
+    pa.add_argument("--aprovado-por", required=True, help="nome de quem aprovou (quem pode: regras/aprovadores.csv)")
+    pa.add_argument("--registrado-por", help="quem registrou a regra, se não for quem aprovou (ex.: Helena registra taxa aprovada pelo Comercial)")
     _comuns(pa)
     p = sub.add_parser("empacotar-skill", help="gera o zip autocontido da skill em dist/")
     p.add_argument("--destino", type=Path, default=RAIZ / "dist")

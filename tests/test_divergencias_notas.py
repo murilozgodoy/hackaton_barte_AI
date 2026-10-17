@@ -15,28 +15,34 @@ CASA, ROTA, BRIDGE, MUNDO_ABERTO = "00520815000100", "95927868000148", "22224579
 def partes(dados, config):
     chk = checkout.calcular(dados["orbe"], dados["taxas"], config, "2026-09")
     rem = remessa.calcular(dados["ponte"], dados["taxas"], config, "2026-09")
-    div, rastro_div = divergencias.calcular(chk.linhas, rem.linhas, config)
+    d = divergencias.calcular(chk.linhas, rem.linhas, config)
     nf, rastro_nf, sem_nota = notas.calcular(chk.comissoes, rem.comissoes, chk.rastro, rem.rastro, config, "2026-09")
-    return dict(chk=chk, rem=rem, div=div, rastro_div=rastro_div, nf=nf, rastro_nf=rastro_nf, sem_nota=sem_nota)
+    return dict(chk=chk, rem=rem, div=d.divergencias, rastro_div=d.rastro, fora=d.fora_contrato, nf=nf, rastro_nf=rastro_nf,
+                sem_nota=sem_nota)
 
 
 def test_divergencias_por_lojista(partes):
     div = partes["div"]
     por = div.groupby(["linha_negocio", "cnpj"]).agg(n=("id_saida", "size"), valor=("diferenca_brl", soma))
-    assert por.loc[("CHECKOUT", CASA)].tolist() == [118, D("15397.42")]
+    assert CASA not in set(div.cnpj)    # isenção não repassada à adquirente: devolução ao lojista, não divergência de contrato
     assert por.loc[("CHECKOUT", ROTA)].tolist() == [87, D("1546.28")]
     assert por.loc[("CHECKOUT", BRIDGE)].tolist() == [5, D("29.95")]
     assert por.loc[("REMESSA", MUNDO_ABERTO)].tolist() == [23, D("1418.85")]
-    assert len(div) == 233 and len(por) == 4
-    assert div.id_saida.tolist() == [f"DIV-{i:04d}" for i in range(1, 234)]
+    assert len(div) == 115 and len(por) == 3
+    assert soma(div[div.linha_negocio == "CHECKOUT"].diferenca_brl) == D("1576.23")
+    assert div.id_saida.tolist() == [f"DIV-{i:04d}" for i in range(1, 116)]
     assert (div[div.linha_negocio == "CHECKOUT"].index < div[div.linha_negocio == "REMESSA"].index.min()).all()
 
 
 def test_divergencia_casa_do_estudante_e_tarifa_zero(partes):
-    div = partes["div"]
-    casa = div[div.cnpj == CASA]
+    """Helena (17/10 09h44): a adquirente cobrou certo pelo que sabia; não há o que cobrar dela. Por regra
+    (X-01, divergencia=DEVOLUCAO_LOJISTA) as linhas ficam fora de divergencias_taxa.csv, mas continuam
+    rastreadas para a pendência TARIFA_ZERO_COBRADA."""
+    fora = partes["fora"]
+    casa = fora[fora.cnpj == CASA]
+    assert len(casa) == 118 == len(fora) and set(fora.natureza) == {"DEVOLUCAO_LOJISTA"}
     assert set(casa.taxa_contratada_pct) == {D("0")} and set(casa.tipo_pendencia) == {"TARIFA_ZERO_COBRADA"}
-    assert set(casa.regra_id) == {"X-01"}
+    assert set(casa.regra_id) == {"X-01"} and "id_saida" not in fora.columns
     assert "TX88445133" not in set(casa.ref_origem)     # estorno de agosto: 1,49% contratado = 1,49% aplicado
     # a Orbe cobrou 15.396,77 (truncado); a divergência por linha HALF_UP soma 15.397,42: 0,65 de truncamento
     assert soma(casa.diferenca_brl) - D("15396.77") == D("0.65")

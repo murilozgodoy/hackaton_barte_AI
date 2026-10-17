@@ -136,12 +136,42 @@ def test_duplicata_com_valores_diferentes_fica_fora(dados, config):
     assert soma(r.comissoes.comissao_brl) == D("39543.45") - D("410.94")
 
 
-def test_cnpj_desconhecido_vira_cadastro(dados, config):
+def test_cnpj_desconhecido_entra_na_comissao_e_vira_cadastro(dados, config):
+    """Helena (17/10 09h45, à Desbravadores): a Ponte paga a metade do spread mesmo sem o CNPJ na planilha, e a
+    nota precisa bater com o repasse: a operação ENTRA na comissão e na nota, com pendência CADASTRO/CNPJ_PONTE
+    para o Comercial (parâmetro remessa_cnpj_sem_cadastro=COMISSAO). Sem spread contratado, não há divergência."""
     ponte = dados["ponte"].copy()
     alvo = ponte.cnpj == PONTE_AEREA
     ponte.loc[alvo, "cnpj"] = "99999999999999"
     r = calcular(ponte, dados["taxas"], config, "2026-09")
+    sem = r.linhas[r.linhas.cnpj == "99999999999999"]
+    assert len(sem) == 15 and sem.destino.value_counts().to_dict() == {"COMISSAO": 14, "EXCLUIDO": 1}   # spread negativo segue excluído
+    com = sem[sem.destino == "COMISSAO"]
+    assert set(com.tipo_pendencia) == {"CADASTRO"} and set(com.subtipo) == {"CNPJ_PONTE"} and com.status_cadastro.isna().all()
+    assert com.spread_contratado_pct.isna().all() and com.diferenca_brl.isna().all() and "PONTE AÉREA" in com.lojista.iloc[0]
+    assert soma(r.comissoes.comissao_brl) == D("39543.45") and len(r.comissoes) == 14   # nada muda no total
+    assert "99999999999999" in set(r.comissoes.cnpj) and "não está na planilha" in com.motivo.iloc[0]
+    assert com.spread_contratado_origem.iloc[0].startswith("sem cadastro")
+
+
+def test_cnpj_desconhecido_fica_fora_se_o_parametro_mandar(dados, regras_tmp_excluir):
+    from src.regras import carregar_config
+    cfg = carregar_config(regras_tmp_excluir, dados["taxas"], dados["plano_contas"], {"AURORA", "MERIDIANO"})
+    ponte = dados["ponte"].copy()
+    ponte.loc[ponte.cnpj == PONTE_AEREA, "cnpj"] = "99999999999999"
+    r = calcular(ponte, dados["taxas"], cfg, "2026-09")
     sem = r.linhas[r.linhas.destino == "SEM_CADASTRO"]
-    # 15 linhas da Ponte Aérea: 14 que estavam em comissão + 1 spread negativo (cadastro vem antes da exclusão)
-    assert len(sem) == 15 and set(sem.tipo_pendencia) == {"CADASTRO"} and set(sem.subtipo) == {"CNPJ_PONTE"}
-    assert "PONTE AÉREA" in sem.motivo.iloc[0] and len(r.comissoes) == 13
+    assert len(sem) == 15 and set(sem.subtipo) == {"CNPJ_PONTE"} and len(r.comissoes) == 13
+
+
+@pytest.fixture
+def regras_tmp_excluir(tmp_path):
+    import shutil
+    from pathlib import Path
+    destino = tmp_path / "regras"
+    shutil.copytree(Path(__file__).resolve().parents[1] / "regras", destino)
+    p = destino / "regras_negocio.csv"
+    t = p.read_text(encoding="utf-8")
+    assert "remessa_cnpj_sem_cadastro=COMISSAO" in t
+    p.write_text(t.replace("remessa_cnpj_sem_cadastro=COMISSAO", "remessa_cnpj_sem_cadastro=EXCLUIR"), encoding="utf-8")
+    return destino

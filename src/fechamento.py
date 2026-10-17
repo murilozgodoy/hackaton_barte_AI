@@ -19,7 +19,8 @@ class Fechamento:
     orbe_linhas: pd.DataFrame
     ponte_linhas: pd.DataFrame
     comissoes: pd.DataFrame          # CHECKOUT + REMESSA, formato de saída
-    divergencias: pd.DataFrame
+    divergencias: pd.DataFrame           # natureza CONTRATO (divergencias_taxa.csv)
+    divergencias_fora_contrato: pd.DataFrame   # por regra TAXA_EXCECAO (ex.: devolução ao lojista): só pendência
     notas: pd.DataFrame
     sem_nota: pd.DataFrame           # comissões de checkout com saldo <= 0
     lancamentos: pd.DataFrame
@@ -60,14 +61,15 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
     ref = primeiro_dia(competencia)
     chk = checkout.calcular(dados["orbe"], dados["taxas"], config, competencia)
     rem = remessa.calcular(dados["ponte"], dados["taxas"], config, competencia)
-    div, rastro_div = divergencias.calcular(chk.linhas, rem.linhas, config)
+    dv = divergencias.calcular(chk.linhas, rem.linhas, config)
+    div, rastro_div = dv.divergencias, dv.rastro
     nf, rastro_nf, sem_nota = notas.calcular(chk.comissoes, rem.comissoes, chk.rastro, rem.rastro, config, competencia)
     bancos = extratos_de(dados)
     ext = extratos.classificar(bancos, config, dados["plano_contas"], usar_ia=usar_ia)
     conc = conciliacao.calcular(dados, rem.linhas, rem.comissoes, ext.lancamentos,
                                 config.parametro("participacao_spread", ref), config.parametro("arredondamento", ref))
     pend = pendencias.calcular(ref, chk.linhas, rem.linhas, div, sem_nota, chk.rastro, ext.lancamentos,
-                               ext.em_transito, conc, nf, config)
+                               ext.em_transito, conc, nf, config, fora_contrato=dv.fora_contrato, taxas=dados["taxas"])
 
     colunas_com = ["id_saida", "cnpj", "lojista", "linha_negocio", "comissao_brl"]
     comissoes = pd.concat([chk.comissoes, rem.comissoes], ignore_index=True)
@@ -93,8 +95,9 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
     checagens += checar_lancamentos(ext.lancamentos, bancos)
     checagens += checar_saldo_extratos(bancos)
 
-    return Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, nf, sem_nota, ext.lancamentos,
-                      ext.em_transito, pend.pendencias, rastro, conc, checagens, list(config.avisos) + ext.avisos)
+    return Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, dv.fora_contrato, nf, sem_nota,
+                      ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, checagens,
+                      list(config.avisos) + ext.avisos)
 
 
 def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None) -> tuple[dict[str, Path], dict]:

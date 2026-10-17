@@ -25,7 +25,9 @@ ARQUIVOS_COM_ID = {
     "notas_a_emitir.csv": "valor_brl", "lancamentos_classificados.csv": "valor", "pendencias.csv": "valor_brl",
 }
 PREFIXOS = {"PARAMETRO": "P", "TAXA_EXCECAO": "X", "IGNORAR_DUPLICADO": "D", "EXCLUIR_E_PENDENCIA": "E",
-            "CLASSIFICAR_CONTA": "C", "DONO_PENDENCIA": "DP", "MANUAL": "M"}
+            "CLASSIFICAR_CONTA": "C", "DONO_PENDENCIA": "DP", "ALERTA": "A", "MANUAL": "M"}
+COLUNAS_APROVADORES = ["tipo", "quem_aprova", "quem_registra", "informado_por", "data"]
+COLUNAS_HISTORICO = ["data", "quem", "id_regra", "acao", "antes", "depois", "motivo", "fonte", "aprovado_por", "registrado_por"]
 
 
 class ErroComando(Exception):
@@ -182,13 +184,43 @@ class Proposta:
     avisos: list[str]
     erros: list[str]
     efeito: list[str]
+    aprovacao: dict | None = None   # {"quem_aprova", "quem_registra"} de regras/aprovadores.csv
 
     @property
     def valida(self) -> bool:
         return not self.erros
 
     def para_json(self) -> dict:
-        return {"alvo": self.alvo, "linha": self.linha, "avisos": self.avisos, "erros": self.erros, "efeito": self.efeito}
+        return {"alvo": self.alvo, "linha": self.linha, "avisos": self.avisos, "erros": self.erros, "efeito": self.efeito,
+                "aprovacao": self.aprovacao}
+
+
+# --------------------------------------------------------------------------- quem aprova (regras/aprovadores.csv)
+
+def quem_aprova(dir_regras: Path, tipo: str) -> tuple[str, str]:
+    """(quem aprova, quem registra) para um tipo de regra (ou COMPLEMENTO), de regras/aprovadores.csv.
+
+    Linha com tipo igual vence; senão vale a linha '*'. Sem arquivo, qualquer pessoa aprova (como antes)."""
+    caminho = Path(dir_regras) / "aprovadores.csv"
+    if not caminho.exists():
+        return ("", "")
+    linhas = {normalizar(r["tipo"]): r for _, r in ler_csv_regras(caminho, COLUNAS_APROVADORES)}
+    r = linhas.get(normalizar(tipo)) or linhas.get("*")
+    if r is None:
+        return ("", "")
+    return (r["quem_aprova"], r["quem_registra"] or r["quem_aprova"])
+
+
+def _aprovador_bate(aprovado_por: str, quem_aprova: str) -> bool:
+    """O nome dado contém o identificador de quem aprova (primeira palavra de cada alternativa ' OU ')."""
+    if not quem_aprova:
+        return True
+    dado = normalizar(aprovado_por)
+    for alternativa in normalizar(quem_aprova).split(" OU "):
+        chave = alternativa.replace("(", " ").split()[0] if alternativa.strip() else ""
+        if chave and chave in dado:
+            return True
+    return False
 
 
 def _proximo_id(regras: list[dict], tipo: str) -> str:
@@ -255,7 +287,8 @@ def propor(dir_regras: Path, tipo: str, campos: dict[str, str], contexto: _Conte
         # só interessam conflitos que envolvem a regra nova
         erros += [e for e in conjunto if regra.id in e]
     efeito = _efeito(regra, lancamentos) if regra is not None and not erros else []
-    return Proposta("regras_negocio.csv", linha, avisos, erros, efeito)
+    qa, qr = quem_aprova(dir_regras, tipo_norm)
+    return Proposta("regras_negocio.csv", linha, avisos, erros, efeito, {"quem_aprova": qa, "quem_registra": qr})
 
 
 def _conta_de(campos: dict) -> str | None:
@@ -332,7 +365,12 @@ def _efeito(regra: Regra, lancamentos: pd.DataFrame | None) -> list[str]:
         return [f"linhas da fonte {p['fonte']} que caírem no critério {p['criterio']} saem da comissão e viram "
                 f"pendência {p['tipo_pendencia']} para {regra.quem_decide}"]
     if regra.tipo == "DONO_PENDENCIA":
-        return [f"pendências do tipo {p['tipo_pendencia']} passam a ser de {regra.quem_decide}"]
+        return [f"pendências do tipo {p['tipo_pendencia']}{' / ' + p['subtipo'] if p.get('subtipo') else ''} "
+                f"passam a ser de {regra.quem_decide}"]
+    if regra.tipo == "ALERTA":
+        return [f"lojistas da fonte {p['fonte']} que caírem no critério {p['criterio']}"
+                f"{' (só ' + ', '.join(sorted(p['so_para'])) + ')' if p['so_para'] else ''} geram a pendência "
+                f"{p['tipo_pendencia']} para {regra.quem_decide}; nada sai da comissão"]
     if regra.tipo == "IGNORAR_DUPLICADO":
         return [f"linhas repetidas da fonte {p['fonte']} pela chave {p['chave']} contam uma vez"]
     return [f"lembrete para {regra.quem_decide} em todo fechamento: {regra.o_que_fazer}"]
@@ -363,7 +401,8 @@ def _propor_complemento(dir_regras: Path, campos: dict[str, str], hoje: date) ->
         erros.append(f"CNPJ {linha['cnpj']} já está no complemento; edite a linha existente")
     efeito = [f"CNPJ {linha['cnpj']} passa a ter EC {linha['ec_orbe'] or '(sem EC)'} e status {linha['status']}; "
               "se a planilha de taxas trouxer um EC diferente, o fechamento para com erro"] if not erros else []
-    return Proposta("complemento_cadastro.csv", linha, avisos, erros, efeito)
+    qa, qr = quem_aprova(dir_regras, "COMPLEMENTO")
+    return Proposta("complemento_cadastro.csv", linha, avisos, erros, efeito, {"quem_aprova": qa, "quem_registra": qr})
 
 
 def gravar_proposta(p: Proposta, caminho: Path) -> Path:
@@ -373,12 +412,13 @@ def gravar_proposta(p: Proposta, caminho: Path) -> Path:
 
 def ler_proposta(caminho: Path) -> Proposta:
     d = json.loads(Path(caminho).read_text(encoding="utf-8"))
-    return Proposta(d["alvo"], d["linha"], d.get("avisos", []), d.get("erros", []), d.get("efeito", []))
+    return Proposta(d["alvo"], d["linha"], d.get("avisos", []), d.get("erros", []), d.get("efeito", []), d.get("aprovacao"))
 
 
 def aplicar(dir_regras: Path, proposta: Proposta, aprovado_por: str, contexto: _Contexto | None,
-            hoje: date | None = None) -> dict:
-    """Revalida a proposta contra a base atual e grava: linha no CSV alvo + linha no histórico."""
+            hoje: date | None = None, registrado_por: str | None = None) -> dict:
+    """Revalida a proposta contra a base atual, confere quem pode aprovar o tipo e grava:
+    linha no CSV alvo + linha no histórico (com aprovado_por e registrado_por)."""
     hoje = hoje or date.today()
     dir_regras = Path(dir_regras)
     if not aprovado_por.strip():
@@ -390,6 +430,13 @@ def aplicar(dir_regras: Path, proposta: Proposta, aprovado_por: str, contexto: _
         revalidada = _propor_complemento(dir_regras, proposta.linha, hoje)
     if not revalidada.valida:
         raise ErroComando(2, "Proposta inválida contra a base atual:\n  - " + "\n  - ".join(revalidada.erros))
+    tipo = proposta.linha.get("tipo", "COMPLEMENTO") if proposta.alvo == "regras_negocio.csv" else "COMPLEMENTO"
+    qa, qr = quem_aprova(dir_regras, tipo)
+    if not _aprovador_bate(aprovado_por, qa):
+        raise ErroComando(2, f"Regra do tipo {tipo} é aprovada por {qa} e registrada por {qr} (regras/aprovadores.csv). "
+                             f"'{aprovado_por}' não pode aprovar. Use --aprovado-por \"<nome> ({qa})\" e, se outra pessoa "
+                             f"registrar, --registrado-por \"{qr}\"")
+    registrado_por = (registrado_por or "").strip() or aprovado_por
     alvo = dir_regras / proposta.alvo
     colunas = COLUNAS_REGRAS if proposta.alvo == "regras_negocio.csv" else COLUNAS_COMPLEMENTO
     linha = revalidada.linha
@@ -402,9 +449,28 @@ def aplicar(dir_regras: Path, proposta: Proposta, aprovado_por: str, contexto: _
               else f"ec_orbe={linha['ec_orbe']}, status={linha['status']}")
     motivo = linha.get("situacao") or linha.get("observacao") or ""
     fonte = linha.get("informado_por", "")
-    _anexar_csv(dir_regras / "historico_alteracoes.csv",
-                [hoje.isoformat(), aprovado_por, id_regra, "CRIOU", "", depois, motivo, fonte])
-    return {"arquivo": str(alvo), "id_regra": id_regra, "linha": linha, "historico": str(dir_regras / "historico_alteracoes.csv")}
+    historico = dir_regras / "historico_alteracoes.csv"
+    _garantir_colunas_historico(historico)
+    _anexar_csv(historico, [hoje.isoformat(), aprovado_por, id_regra, "CRIOU", "", depois, motivo, fonte,
+                            aprovado_por, registrado_por])
+    return {"arquivo": str(alvo), "id_regra": id_regra, "linha": linha, "historico": str(historico),
+            "aprovado_por": aprovado_por, "registrado_por": registrado_por}
+
+
+def _garantir_colunas_historico(caminho: Path) -> None:
+    """Histórico antigo (sem aprovado_por/registrado_por) ganha as colunas, com as linhas antigas em branco."""
+    if not caminho.exists():
+        caminho.write_text("\ufeff" + ";".join(COLUNAS_HISTORICO) + "\n", encoding="utf-8")
+        return
+    texto = caminho.read_text(encoding="utf-8")
+    linhas = texto.split("\n")
+    cab = [c.strip() for c in linhas[0].lstrip("\ufeff").split(";")]
+    faltam = [c for c in COLUNAS_HISTORICO if c not in cab]
+    if not faltam:
+        return
+    bom = "\ufeff" if texto.startswith("\ufeff") else ""
+    novas = [bom + ";".join(cab + faltam)] + [l + (";" * len(faltam) if l.strip() else "") for l in linhas[1:]]
+    caminho.write_text("\n".join(novas), encoding="utf-8")
 
 
 def _anexar_csv(caminho: Path, valores: list[str]) -> None:
