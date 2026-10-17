@@ -125,8 +125,9 @@ def gerar(f, config, dir_regras: Path, pasta_saida: Path, competencia_txt: str, 
     for r in pend.itertuples():
         valor = brl(r.valor_brl) if r.valor_brl is not None else "sem valor"
         causa = causas.get((r.cnpj, r.linha_negocio or ""), "")
+        motivo = r.motivo if r.motivo.endswith(".") else r.motivo + "."
         linhas.append(f"- **{r.id_saida} · {r.tipo}**{' (informativa)' if r.informativa else ''} — {r.lojista or ''} "
-                      f"({valor}): {r.motivo}" + (f" Causa: {causa}." if causa else ""))
+                      f"({valor}): {motivo}" + (f" Causa: {causa}." if causa else ""))
     if pend.empty:
         linhas.append("Nenhuma pendência do Comercial neste mês.")
     linhas += ["", textos["COMERCIAL"]["fechamento"], ""]
@@ -163,7 +164,7 @@ def _prazo(config, meta: dict, f) -> str:
     regra = next((r for r in config.lembretes(ref) if "prazo" in (r.situacao or "").lower()), None)
     partes = []
     if regra is not None:
-        partes.append(f"Prazo (regra {regra.id}): {regra.o_que_fazer}")
+        partes.append(f"Prazo (regra {regra.id}): {regra.o_que_fazer.rstrip('.')}.")
     if meta.get("data_envio") and meta.get("prazo_dias_uteis"):
         limite = dias_uteis_depois(meta["data_envio"], int(meta["prazo_dias_uteis"]))
         partes.append(f"E-mail do parceiro de {meta['data_envio']}, {meta['prazo_dias_uteis']} dias úteis: responder até "

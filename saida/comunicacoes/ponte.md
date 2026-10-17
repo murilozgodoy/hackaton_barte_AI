@@ -11,6 +11,6 @@ Prezados, em resposta ao relatório mensal da competência 09/2026, contestamos 
 
 **Total em disputa: R$ 3.252,90** (28 operações, anexo `ponte_contestacao.csv`).
 
-Prazo (regra M-01): Em caso de divergência, responder o e-mail mensal da Ponte em até 5 dias úteis do recebimento. Vale para os spreads negativos e para o excesso de spread contestado. Depois do prazo a Ponte considera o relatório aceito E-mail do parceiro de 2026-10-02, 5 dias úteis: responder até 2026-10-09 (sem contar feriados).
+Prazo (regra M-01): Em caso de divergência, responder o e-mail mensal da Ponte em até 5 dias úteis do recebimento. Vale para os spreads negativos e para o excesso de spread contestado. Depois do prazo a Ponte considera o relatório aceito. E-mail do parceiro de 2026-10-02, 5 dias úteis: responder até 2026-10-09 (sem contar feriados).
 
 Pedimos a correção do relatório e o ajuste no repasse, conforme o contrato de parceria.
