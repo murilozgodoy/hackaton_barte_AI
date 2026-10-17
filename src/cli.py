@@ -14,6 +14,7 @@ import tempfile
 import zipfile
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import pandas as pd
@@ -24,7 +25,7 @@ from .fechamento import Fechamento, escrever, executar
 from .fontes import carregar_config_fontes, localizar, preparar_entrada
 from .leitores import carregar_todas
 from .leitores.comum import ErroLeitura
-from .notas import primeiro_dia
+from .notas import competencia_texto, primeiro_dia
 from .regras import Config, ErroConfig, _Contexto, carregar_config
 from .relatorio import valor_em_jogo
 from .validacao import Checagem, validar_leitores
@@ -101,7 +102,7 @@ def inferir_competencia(dados) -> str:
 def carregar_dados(args, base: BaseRegras):
     try:
         fontes = carregar_config_fontes(base.pasta)
-        pasta = preparar_entrada(args.entrada, RAIZ, RAIZ / "data", fontes)
+        pasta = preparar_entrada(args.entrada, RAIZ, fontes)
         arquivos = localizar(pasta, fontes)
         dados = carregar_todas(arquivos, fontes)
     except ErroLeitura as e:
@@ -264,6 +265,39 @@ def imprimir_conciliacao(f: Fechamento) -> None:
     print("    = " + " + ".join(partes))
 
 
+def imprimir_resumo_final(f: Fechamento, res: dict, arquivos: dict[str, Path], ctx: Contexto) -> None:
+    """Bloco curto no fim do `fechar`: o que a pessoa precisa ver sem rolar a tela. Tudo vem de `res` (= resumo.json)."""
+    t = res["totais"]
+    chk, rem = f.comissoes_checkout, f.comissoes_remessa
+    print("\n" + "=" * 24 + " RESUMO DO FECHAMENTO " + "=" * 24)
+    print(f"Competência: {competencia_texto(f.competencia)}{' (inferida dos dados)' if ctx.competencia_inferida else ''}"
+          f" · Integridade: {'OK' if f.integro else 'FALHOU'}")
+    print(f"Comissão CHECKOUT: {brl(soma(chk['comissao_brl'])):>16}  ({len(chk)} lojistas, "
+          f"{int(chk['qtd_transacoes'].sum())} transações da Orbe)")
+    print(f"Comissão REMESSA:  {brl(soma(rem['comissao_brl'])):>16}  ({len(rem)} lojistas, "
+          f"{int(rem['qtd_operacoes'].sum())} operações da Ponte)")
+    print(f"Comissão total:    {brl(soma(f.comissoes['comissao_brl'])):>16}")
+    print(f"Notas a emitir: {t['notas']['quantidade']}, somando {brl(Decimal(t['notas']['valor_total_brl']))}")
+    dc, dr = t["divergencias"]["checkout"], t["divergencias"]["remessa"]
+    print(f"Divergências de taxa: {dc['linhas'] + dr['linhas']} ({brl(Decimal(dc['valor_brl']) + Decimal(dr['valor_brl']))})"
+          f" = {dc['linhas']} de checkout ({brl(Decimal(dc['valor_brl']))}) + {dr['linhas']} de remessa "
+          f"({brl(Decimal(dr['valor_brl']))})")
+    l = res["lancamentos"]
+    print(f"Lançamentos classificados: {sum(l.values())} (REGRA {l['REGRA']}, IA {l['IA']}, HUMANO {l['HUMANO']})")
+    print(f"Pendências: {t['pendencias']['quantidade']}, por responsável:")
+    for quem, g in t["pendencias"]["por_responsavel"].items():
+        print(f"  {quem}: {g['quantidade']} pendência(s), {brl(Decimal(g['valor_brl']))} em jogo")
+    familias: dict[str, list[bool]] = {}
+    for c in f.checagens:
+        familias.setdefault(c.nome.split(".")[0], []).append(c.ok)
+    ok = sum(all(v) for v in familias.values())
+    print(f"Checagens de integridade: {ok} de {len(familias)} ok ({len(f.checagens)} testes)"
+          + ("" if ok == len(familias) else " — veja acima qual falhou; não use os números"))
+    pasta = Path(arquivos["relatorio"]).parent
+    print(f"Arquivos em {pasta}: " + ", ".join(Path(p).name for k, p in arquivos.items() if k != "relatorio"))
+    print(f"Relatório: {arquivos['relatorio']}")
+
+
 def _json(obj: dict) -> None:
     print(json.dumps(obj, ensure_ascii=False, indent=2, default=str))
 
@@ -297,7 +331,7 @@ def cmd_fechar(args) -> int:
     imprimir_contexto(ctx)
     imprimir_fechamento(fech)
     imprimir_conciliacao(fech)
-    print("\nArquivos gravados: " + ", ".join(str(p) for p in arquivos.values()))
+    imprimir_resumo_final(fech, res, arquivos, ctx)
     if not fech.integro:
         print("\nINTEGRIDADE FALHOU: os números acima não podem ser apresentados como válidos.", file=sys.stderr)
     return codigo

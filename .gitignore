@@ -6,10 +6,12 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 
-# data pack do mês (zip) e sua extração automática: nunca vão para o git
+# arquivos do mês: nunca vão para o git (zip do data pack, extrações e a pasta entrada/, fora o README)
 Tarvo_Data_Pack_*.zip
 Tarvo_Data_Pack_*/
 data/
+entrada/*
+!entrada/README.md
 
 # instruções originais do case (não são necessárias para rodar)
 01_instrucoes_participantes.docx

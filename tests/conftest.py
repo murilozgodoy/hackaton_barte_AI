@@ -20,14 +20,14 @@ def bancos(fontes):
 
 
 @pytest.fixture(scope="session")
-def arquivos(fontes, tmp_path_factory):
-    """Extrai o pacote da raiz numa pasta temporária (não depende de data/).
+def arquivos(fontes):
+    """Extrai o pacote da raiz numa pasta temporária.
 
     O data pack não é versionado: sem o zip na raiz, os testes de dados são pulados.
     """
     if not list(RAIZ.glob(fontes["pacote"]["padrao_arquivo"])):
         pytest.skip(f"data pack ({fontes['pacote']['padrao_arquivo']}) não está na raiz do repositório")
-    pasta = preparar_entrada(None, RAIZ, tmp_path_factory.mktemp("dados"), fontes)
+    pasta = preparar_entrada(None, RAIZ, fontes)
     return localizar(pasta, fontes)
 
 

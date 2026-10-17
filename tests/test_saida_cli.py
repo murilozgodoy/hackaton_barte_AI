@@ -94,3 +94,23 @@ def test_cli_regras_invalidas_codigo_2(dados, tmp_path, capsys):
 def test_cli_entrada_inexistente_codigo_1(tmp_path, capsys):
     assert main(["validar", "--entrada", str(tmp_path / "nada.zip")]) == 1
     assert "Entrada com problema" in capsys.readouterr().err
+
+
+def test_cli_fechar_imprime_resumo_final_em_portugues(dados, tmp_path, capsys):
+    """Ao fim do `fechar` (sem --json) sai um resumo curto: totais, notas, divergências, pendências,
+    checagens e onde estão os arquivos, com o caminho do relatório por último."""
+    assert main(["fechar", "--saida", str(tmp_path), "--sem-ia"]) == 0
+    out = capsys.readouterr().out
+    bloco = out.split("RESUMO DO FECHAMENTO")[-1]
+    linhas = [l for l in bloco.strip().splitlines() if l.strip()]
+    assert 12 <= len(linhas) <= 22, linhas
+    assert "Competência: 09/2026 (inferida dos dados)" in bloco
+    assert "CHECKOUT" in bloco and "R$ 207.039,73" in bloco and "21 lojistas" in bloco
+    assert "REMESSA" in bloco and "R$ 39.543,45" in bloco and "14 lojistas" in bloco
+    assert "Notas a emitir: 21" in bloco and "R$ 246.588,68" in bloco
+    assert "233 (R$ 18.392,50)" in bloco and "R$ 16.973,65" in bloco and "R$ 1.418,85" in bloco
+    assert "Lançamentos classificados: 184" in bloco
+    assert "Pendências: 16" in bloco and "Helena" in bloco
+    assert "Checagens de integridade: 6 de 6 ok" in bloco
+    assert str(tmp_path) in bloco
+    assert linhas[-1].strip().endswith("RELATORIO_FECHAMENTO.md")
