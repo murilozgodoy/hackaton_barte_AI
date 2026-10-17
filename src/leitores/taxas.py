@@ -35,6 +35,13 @@ def _produto(cabecalho: str):
     return None
 
 
+def _celula(aba: str, col_cadastro: dict, campo: str, n_excel: int) -> str | None:
+    """Referência da célula de uma coluna de cadastro (ex.: 'Taxas vigentes!L15'), ou None se a coluna não existe."""
+    if campo not in col_cadastro:
+        return None
+    return f"{aba}!{get_column_letter(col_cadastro[campo] + 1)}{n_excel}"
+
+
 def _achar_aba(wb, aba: str):
     if aba in wb.sheetnames:
         return wb[aba]
@@ -98,6 +105,8 @@ def ler_taxas(caminho: Path, aba: str) -> pd.DataFrame:
             "vigencia_de": vig_de,
             "vigencia_ate": vig_ate,
             "obs": get("obs"),
+            "vigencia_celula": _celula(ws.title, col_cadastro, "vigencia_texto", n_excel),
+            "obs_celula": _celula(ws.title, col_cadastro, "obs", n_excel),
             "arquivo_origem": caminho.name,
         }
         for j, (produto, p_de, p_ate) in col_produto.items():

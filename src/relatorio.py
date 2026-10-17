@@ -87,10 +87,39 @@ def _conciliacao_json(conc: dict) -> dict:
     }
 
 
+def resumo_divergencias(f) -> dict:
+    """Totais de divergencias_taxa.csv: por linha de negócio (só natureza CONTRATO, o que se cobra da contraparte),
+    por natureza e o total de transações do arquivo."""
+    contrato, fora = f.divergencias_contrato, f.divergencias_fora_contrato
+    div_chk = contrato[contrato["linha_negocio"] == "CHECKOUT"]
+    div_rem = contrato[contrato["linha_negocio"] == "REMESSA"]
+    por_nat = {}
+    if len(f.divergencias):
+        for nat, g in f.divergencias.groupby("natureza", sort=False):
+            por_nat[str(nat)] = {"linhas": int(len(g)), "valor_brl": _s(soma(g["diferenca_brl"]))}
+    return {
+        "linhas": int(len(f.divergencias)),
+        "contrato": {"linhas": int(len(contrato)), "valor_brl": _s(soma(contrato["diferenca_brl"]))},
+        "checkout": {"linhas": int(len(div_chk)), "valor_brl": _s(soma(div_chk["diferenca_brl"]))},
+        "remessa": {"linhas": int(len(div_rem)), "valor_brl": _s(soma(div_rem["diferenca_brl"]))},
+        # outra natureza declarada pela regra TAXA_EXCECAO (ex.: isenção que não chegou à adquirente): no CSV, marcada,
+        # fora da cobrança da contraparte
+        "devolucao_lojista": {"linhas": int(len(fora)), "valor_brl": _s(soma(fora["diferenca_brl"]))},
+        "por_natureza": por_nat,
+    }
+
+
+def texto_divergencias(t: dict) -> str:
+    """'233 transações = 115 de contrato (checkout R$ x + remessa R$ y = R$ z) + 118 de isenção não informada (...)'."""
+    c, dc, dr, dl = t["contrato"], t["checkout"], t["remessa"], t["devolucao_lojista"]
+    txt = (f"{t['linhas']} transações = {c['linhas']} de contrato (checkout {brl(Decimal(dc['valor_brl']))} + remessa "
+           f"{brl(Decimal(dr['valor_brl']))} = {brl(Decimal(c['valor_brl']))})")
+    if dl["linhas"]:
+        txt += f" + {dl['linhas']} de isenção não informada ({brl(Decimal(dl['valor_brl']))}, devolução ao lojista)"
+    return txt
+
+
 def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) -> dict:
-    div_chk = f.divergencias[f.divergencias["linha_negocio"] == "CHECKOUT"]
-    div_rem = f.divergencias[f.divergencias["linha_negocio"] == "REMESSA"]
-    fora = f.divergencias_fora_contrato
     met = f.lancamentos["metodo"].value_counts().to_dict()
     ref = primeiro_dia(f.competencia)
     return {
@@ -101,12 +130,7 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
             "comissao_checkout_brl": _s(soma(f.comissoes_checkout["comissao_brl"])),
             "comissao_remessa_brl": _s(soma(f.comissoes_remessa["comissao_brl"])),
             "notas": {"quantidade": int(len(f.notas)), "valor_total_brl": _s(soma(f.notas["valor_brl"]))},
-            "divergencias": {
-                "checkout": {"linhas": int(len(div_chk)), "valor_brl": _s(soma(div_chk["diferenca_brl"]))},
-                "remessa": {"linhas": int(len(div_rem)), "valor_brl": _s(soma(div_rem["diferenca_brl"]))},
-                # fora das divergências de contrato, por regra TAXA_EXCECAO (ex.: isenção que não chegou à adquirente)
-                "devolucao_lojista": {"linhas": int(len(fora)), "valor_brl": _s(soma(fora["diferenca_brl"]))},
-            },
+            "divergencias": resumo_divergencias(f),
             "pendencias": {
                 "quantidade": int(len(f.pendencias)),
                 "informativas": int(f.pendencias["informativa"].astype(bool).sum()) if len(f.pendencias) else 0,
@@ -198,9 +222,7 @@ def markdown(f, config, res: dict) -> str:
         ponte_nf = (f" A diferença de {brl(total_nf - total_com)} para a comissão total é o saldo negativo sem nota "
                     f"({'; '.join(negativos)}).") if negativos else f" (difere da comissão total em {brl(total_nf - total_com)})."
     partes += [f"Notas a emitir: {t['notas']['quantidade']}, somando {brl(total_nf)}.{ponte_nf} "
-               f"Divergências de taxa: {t['divergencias']['checkout']['linhas']} transações de checkout "
-               f"({brl(Decimal(t['divergencias']['checkout']['valor_brl']))}) e {t['divergencias']['remessa']['linhas']} "
-               f"operações de remessa ({brl(Decimal(t['divergencias']['remessa']['valor_brl']))}). "
+               f"Divergências: {texto_divergencias(t['divergencias'])}. "
                f"Pendências: {t['pendencias']['quantidade']}.", ""]
 
     partes += ["## Notas a emitir", "", _tabela(["Nota", "Linha", "Tomador", "CNPJ", "Valor"], [
@@ -214,25 +236,30 @@ def markdown(f, config, res: dict) -> str:
     if f.divergencias.empty:
         partes.append("Nenhuma.")
     else:
+        partes += [f"{texto_divergencias(t['divergencias'])}. A coluna `natureza` de `divergencias_taxa.csv` separa as "
+                   "duas: CONTRATO é cobrança da contraparte (anexos em `comunicacoes/`); outra natureza é marcada pela "
+                   "regra TAXA_EXCECAO e fica fora de qualquer total a cobrar.", ""]
         grupos = []
-        for (linha, _cnpj), g in f.divergencias.groupby(["linha_negocio", "cnpj"], sort=False):
-            grupos.append((soma(g["diferenca_brl"]), linha, g))
-        grupos.sort(key=lambda x: -abs(x[0]))
-        linhas = [[linha, g["lojista"].iloc[0], len(g),
+        for (natureza, linha, _cnpj), g in f.divergencias.groupby(["natureza", "linha_negocio", "cnpj"], sort=False):
+            grupos.append((soma(g["diferenca_brl"]), natureza, linha, g))
+        grupos.sort(key=lambda x: (x[1] != "CONTRATO", -abs(x[0])))
+        linhas = [[natureza, linha, g["lojista"].iloc[0], len(g),
                    f"{_fmt_pct(g['taxa_contratada_pct'])} × {_fmt_pct(g['taxa_aplicada_pct'])}", brl(total)]
-                  for total, linha, g in grupos]
-        partes.append(_tabela(["Linha", "Lojista", "Transações", "Contratada × aplicada", "Diferença"], linhas))
+                  for total, natureza, linha, g in grupos]
+        partes.append(_tabela(["Natureza", "Linha", "Lojista", "Transações", "Contratada × aplicada", "Diferença"], linhas))
         partes.append("")
         partes.append("Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticamente: "
                       "cada caso é uma pendência para decisão.")
     for (cnpj, natureza), g in f.divergencias_fora_contrato.groupby(["cnpj", "natureza"], sort=False):
+        obs = str(g["observacao"].iloc[0]) if g["observacao"].notna().any() else ""
         partes.append("")
-        partes.append(f"**Fora das divergências de contrato** ({natureza.lower().replace('_', ' ')}, regra "
-                      f"{g['regra_id'].iloc[0]}): {len(g)} transações de {g['lojista'].iloc[0]} com condição especial "
-                      f"contratada ({_fmt_pct(g['taxa_contratada_pct'])}) em que a adquirente aplicou "
-                      f"{_fmt_pct(g['taxa_aplicada_pct'])}, {brl(soma(g['diferenca_brl']))} pela taxa. Não é cobrança da "
-                      f"adquirente: ver pendência {g['tipo_pendencia'].iloc[0]}. As transações não estão em "
-                      f"`divergencias_taxa.csv`; o rastro está na pendência.")
+        partes.append(f"**Fora da cobrança da contraparte** (natureza {natureza}, regra {g['regra_id'].iloc[0]}): "
+                      f"{len(g)} transações de {g['lojista'].iloc[0]} com condição especial contratada "
+                      f"({_fmt_pct(g['taxa_contratada_pct'])}) em que a adquirente aplicou "
+                      f"{_fmt_pct(g['taxa_aplicada_pct'])}, {brl(soma(g['diferenca_brl']))} pela taxa. "
+                      + (f"Observação da regra: {obs}. " if obs else "")
+                      + f"Ver pendência {g['tipo_pendencia'].iloc[0]}; as transações estão em `divergencias_taxa.csv` "
+                      f"marcadas com essa natureza e não entram em `orbe_contestacao.csv`.")
     partes.append("")
 
     partes += ["## Pendências por responsável", "",

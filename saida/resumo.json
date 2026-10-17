@@ -20,6 +20,11 @@
       "valor_total_brl": "246588.68"
     },
     "divergencias": {
+      "linhas": 233,
+      "contrato": {
+        "linhas": 115,
+        "valor_brl": "2995.08"
+      },
       "checkout": {
         "linhas": 92,
         "valor_brl": "1576.23"
@@ -31,6 +36,16 @@
       "devolucao_lojista": {
         "linhas": 118,
         "valor_brl": "15397.42"
+      },
+      "por_natureza": {
+        "DEVOLUCAO_LOJISTA": {
+          "linhas": 118,
+          "valor_brl": "15397.42"
+        },
+        "CONTRATO": {
+          "linhas": 115,
+          "valor_brl": "2995.08"
+        }
       }
     },
     "pendencias": {
@@ -234,7 +249,7 @@
     }
   ],
   "base_de_regras": {
-    "regras_ativas": 61,
+    "regras_ativas": 65,
     "lojistas": 25,
     "ultima_alteracao_historico": "2026-10-17"
   },
@@ -252,7 +267,7 @@
     {
       "nome": "1. soma do rastro = valor reportado (divergencias_taxa.csv)",
       "ok": true,
-      "detalhe": "115 ids conferidos"
+      "detalhe": "233 ids conferidos"
     },
     {
       "nome": "1. soma do rastro = valor reportado (notas_a_emitir.csv)",
@@ -272,7 +287,7 @@
     {
       "nome": "1. todo id do rastro existe nas saídas",
       "ok": true,
-      "detalhe": "371 ids no rastro"
+      "detalhe": "489 ids no rastro"
     },
     {
       "nome": "2. comissões de checkout com saldo > 0 = notas CHECKOUT",

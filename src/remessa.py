@@ -13,6 +13,11 @@ exatamente um destino:
                        financeiro) a operação entra na comissão e na nota, sem spread contratado,
                        e vira pendência CADASTRO/CNPJ_PONTE
   FORA_COMPETENCIA     data de contratação fora do mês que está sendo fechado
+  AJUSTE_PONTE         crédito ou débito de ajuste de mês anterior (observação casa com o parâmetro
+                       ajuste_parceiro_contem, ou o Nº Operação está na contestação do fechamento anterior):
+                       entra na comissão do mês pelo valor e vira pendência informativa CONFERIR_AJUSTE_PONTE
+  NAO_INTERPRETADA     linha sem os números mínimos (valor, PTAX, spread): fora de tudo, pendência
+                       LINHA_NAO_INTERPRETADA, nunca erro fatal
 
 Spread contratado: coluna "Spread remessa" da planilha; vazio ou "padrão" usa o
 parâmetro spread_padrao. Divergência quando |Spread % aplicado - contratado| passa
@@ -26,11 +31,14 @@ from decimal import Decimal
 import pandas as pd
 
 from .dinheiro import arredondar, soma
-from .regras import Config
+from .leitores.comum import normalizar
+from .regras import Config, alternativas
 
 LINHA_NEGOCIO = "REMESSA"
 PREFIXO_ID = "COM-REM-"
 PRODUTO_SPREAD = "SPREAD REMESSA"
+DESTINOS_COMISSAO = {"COMISSAO", "AJUSTE_PONTE"}       # destinos que entram na comissão e na nota de remessa
+_NUMERICAS_MINIMAS = ("valor_me", "taxa_cliente", "ptax", "valor_brl", "spread_brl", "spread_frac")
 # colunas que precisam ser iguais para duas linhas com o mesmo Nº Operação serem a mesma operação
 COLUNAS_DUPLICATA = ["cnpj", "data_contratacao", "moeda", "valor_me", "taxa_cliente", "ptax", "valor_brl",
                      "spread_brl", "spread_frac", "iof_brl"]
@@ -75,10 +83,13 @@ class TabelaSpread:
         return None, r.ref_origem, "PADRAO"   # célula em branco ou "padrão"
 
 
-def calcular(ponte: pd.DataFrame, taxas: pd.DataFrame, config: Config, competencia: str) -> ResultadoRemessa:
+def calcular(ponte: pd.DataFrame, taxas: pd.DataFrame, config: Config, competencia: str,
+             contestacao_anterior: dict | None = None) -> ResultadoRemessa:
+    """`contestacao_anterior`: {num_operacao: {...}} da ponte_contestacao.csv do fechamento anterior (--anterior);
+    uma linha com esse Nº Operação é ajuste do parceiro, mesmo sem marca na observação."""
     tabela = TabelaSpread(taxas)
     duplicatas = _mapear_duplicatas(ponte)
-    registros = [_destino_da_linha(r, idx, duplicatas, tabela, config, competencia)
+    registros = [_destino_da_linha(r, idx, duplicatas, tabela, config, competencia, contestacao_anterior or {})
                  for idx, r in zip(ponte.index, ponte.itertuples(index=False))]
     linhas = pd.DataFrame(registros, columns=COLUNAS_LINHAS)
     comissoes, rastro = _agrupar_por_lojista(linhas, config)
@@ -96,7 +107,22 @@ def _mapear_duplicatas(ponte: pd.DataFrame) -> dict:
     return out
 
 
-def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Config, competencia: str) -> dict:
+def _eh_ajuste(r, config: Config, data, contestacao_anterior: dict) -> str | None:
+    """Motivo pelo qual a linha é um ajuste do parceiro (texto), ou None."""
+    if r.num_operacao in contestacao_anterior:
+        c = contestacao_anterior[r.num_operacao]
+        return (f"o Nº Operação está na contestação do fechamento anterior"
+                + (f" ({c.get('competencia')})" if c.get("competencia") else "")
+                + (f", pedido {c['pedido']} ({c.get('natureza', '')})" if c.get("pedido") else ""))
+    marcas = alternativas(str(config.parametro("ajuste_parceiro_contem", data) or ""))
+    obs = normalizar(r.observacao or "")
+    if obs and any(m in obs for m in marcas):
+        return f"observação do relatório \"{r.observacao}\" casa com o parâmetro ajuste_parceiro_contem"
+    return None
+
+
+def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Config, competencia: str,
+                      contestacao_anterior: dict | None = None) -> dict:
     data = r.data_contratacao.date()
     out = dict.fromkeys(COLUNAS_LINHAS)
     out.update(
@@ -106,6 +132,27 @@ def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Co
         ptax=r.ptax, valor_brl=r.valor_brl, spread_brl=r.spread_brl, spread_pct=r.spread_pct,
         spread_estimado_brl=r.spread_estimado_brl, status_compliance=r.status_compliance, observacao=r.observacao,
     )
+
+    faltam = [c for c in _NUMERICAS_MINIMAS if getattr(r, c) is None]
+    if faltam or not r.num_operacao:
+        return {**out, "destino": "NAO_INTERPRETADA", "tipo_pendencia": "LINHA_NAO_INTERPRETADA",
+                "motivo": f"linha {r.linha_planilha} do relatório sem {', '.join(faltam) or 'Nº Operação'}: não dá para "
+                          f"calcular a participação; nada entrou na comissão por ela"}
+
+    ajuste = _eh_ajuste(r, config, data, contestacao_anterior or {})
+    if ajuste is not None:
+        lojista = config.lojista_por_cnpj(r.cnpj)
+        modo = config.parametro("arredondamento", data)
+        regra_part = config.regra_parametro("participacao_spread", data)
+        comissao = arredondar(r.spread_brl * regra_part.valor, modo)
+        sinal = "crédito" if r.spread_brl >= 0 else "débito"
+        return {**out, "lojista": (lojista.nome if lojista is not None and lojista.nome else r.cliente),
+                "status_cadastro": lojista.status if lojista is not None else None,
+                "spread_contratado_origem": "ajuste do parceiro: sem conferência de spread contratado",
+                "regra_id": regra_part.id, "participacao": regra_part.valor, "comissao_realizado_brl": comissao,
+                "comissao_brl": comissao, "destino": "AJUSTE_PONTE", "tipo_pendencia": "CONFERIR_AJUSTE_PONTE",
+                "subtipo": "CREDITO" if r.spread_brl >= 0 else "DEBITO",
+                "motivo": f"{sinal} de ajuste do parceiro de câmbio ({ajuste})"}
 
     if r.num_operacao in duplicatas:
         tipo_dup, fica = duplicatas[r.num_operacao]
@@ -186,7 +233,7 @@ def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Co
 
 
 def _agrupar_por_lojista(linhas: pd.DataFrame, config: Config) -> tuple[pd.DataFrame, pd.DataFrame]:
-    com = linhas[linhas["destino"] == "COMISSAO"]
+    com = linhas[linhas["destino"].isin(DESTINOS_COMISSAO)]
     colunas_com = ["id_saida", "cnpj", "lojista", "linha_negocio", "comissao_brl", "qtd_operacoes", "volume_brl",
                    "spread_realizado_brl", "excesso_contestado_brl", "excesso_tarvo_brl"]
     colunas_rastro = ["id_saida", "arquivo_origem", "ref_origem", "valor", "regra_id", "taxa_pct"]

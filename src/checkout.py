@@ -27,6 +27,7 @@ PREFIXO_ID = "COM-CHK-"
 PRODUTO_ANTECIPACAO = "ANTECIPACAO"
 PRODUTO_PARCELADO = "CREDITO PARCELADO"
 TIPOS_ANTECIPACAO = {"ANTECIPACAO", "REVERSAO ANTECIPACAO"}
+SUBTIPO_FORA_FAIXA = "PARCELAS_FORA_FAIXA"   # parcelado com quantidade que nenhuma faixa da planilha cobre
 
 COLUNAS_LINHAS = [
     "ref_origem", "arquivo_origem", "id_transacao", "data_movimento", "data_taxa", "cod_estabelecimento",
@@ -51,6 +52,15 @@ class TabelaTaxas:
         self._grupos: dict = {}
         for r in taxas.itertuples(index=False):
             self._grupos.setdefault((r.cnpj, r.produto), []).append(r)
+
+    def faixa_cobre(self, cnpj: str, parcelas: int) -> bool | None:
+        """Alguma faixa de parcelado da planilha do lojista cobre essa quantidade? None se o lojista não tem faixas
+        (aí não há como dizer qual é o máximo contratado)."""
+        faixas = [(r.parcelas_de, r.parcelas_ate) for r in self._grupos.get((cnpj, PRODUTO_PARCELADO), [])
+                  if pd.notna(r.parcelas_de) and pd.notna(r.parcelas_ate)]
+        if not faixas:
+            return None
+        return any(de <= parcelas <= ate for de, ate in faixas)
 
     def contratada(self, cnpj: str, produto: str, parcelas: int | None, data) -> tuple[Decimal | None, str, str]:
         """-> (taxa em %, referência da célula, situação: OK | SEM_LINHA | SEM_PARCELAS | AMBIGUA | VAZIA)."""
@@ -131,12 +141,18 @@ def _destino_da_linha(r, tabela: TabelaTaxas, config: Config, competencia: str |
         return {**out, "destino": "SEM_TAXA", "tipo_pendencia": "CADASTRO", "subtipo": "TAXA_NAO_CADASTRADA",
                 "motivo": f"linha {r.tipo_lancamento} sem modalidade: não dá para escolher a taxa"}
 
+    # parcelado fora de toda faixa da planilha (ex.: acima do máximo vendido): fica fora da comissão e vira pendência,
+    # mesmo com TAXA_EXCECAO vigente, porque nenhuma taxa foi contratada para essa quantidade de parcelas
+    if produto == PRODUTO_PARCELADO and parcelas is not None and tabela.faixa_cobre(lojista.cnpj, parcelas) is False:
+        return {**out, "destino": "SEM_TAXA", "tipo_pendencia": "CADASTRO", "subtipo": SUBTIPO_FORA_FAIXA,
+                "motivo": _motivo_sem_taxa("FORA_FAIXA", produto, parcelas, data_taxa, "")}
     if excecao is not None:
         taxa, regra_id = excecao.params["taxa_pct"], excecao.id
     else:
         taxa, ref, situacao = tabela.contratada(lojista.cnpj, produto, parcelas, data_taxa)
         if taxa is None:
-            return {**out, "destino": "SEM_TAXA", "tipo_pendencia": "CADASTRO", "subtipo": "TAXA_NAO_CADASTRADA",
+            return {**out, "destino": "SEM_TAXA", "tipo_pendencia": "CADASTRO",
+                    "subtipo": SUBTIPO_FORA_FAIXA if situacao == "FORA_FAIXA" else "TAXA_NAO_CADASTRADA",
                     "regra_id": f"planilha:{ref}" if ref else None,
                     "motivo": _motivo_sem_taxa(situacao, produto, parcelas, data_taxa, ref)}
         regra_id = f"planilha:{ref}"
@@ -150,7 +166,8 @@ def _motivo_sem_taxa(situacao: str, produto: str, parcelas, data, ref: str) -> s
     alvo = f"{produto}{f' {parcelas}x' if parcelas else ''} em {data}"
     return {
         "SEM_LINHA": f"nenhuma taxa contratada vigente para {alvo} na planilha de taxas",
-        "FORA_FAIXA": f"quantidade de parcelas fora das faixas da planilha ({alvo})",
+        "FORA_FAIXA": f"quantidade de parcelas fora das faixas da planilha de taxas ({alvo}): nenhuma taxa contratada para "
+                      f"essa quantidade",
         "SEM_PARCELAS": f"linha parcelada sem quantidade de parcelas ({alvo})",
         "AMBIGUA": f"mais de uma taxa vigente para {alvo} na planilha ({ref})",
         "VAZIA": f"célula de taxa em branco para {alvo} na planilha ({ref})",

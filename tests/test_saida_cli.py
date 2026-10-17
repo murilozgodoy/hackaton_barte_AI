@@ -50,9 +50,12 @@ def test_cli_fechar_gera_saidas_e_json(dados, tmp_path, capsys):
     assert j["ok"] is True and j["status_integridade"] == "OK" and j["competencia"] == "2026-09"
     assert j["totais"]["comissao_checkout_brl"] == "207039.73" and j["totais"]["comissao_remessa_brl"] == "39543.45"
     assert j["totais"]["notas"] == {"quantidade": 21, "valor_total_brl": "246588.68"}
-    assert j["totais"]["divergencias"] == {"checkout": {"linhas": 92, "valor_brl": "1576.23"},
+    assert j["totais"]["divergencias"] == {"linhas": 233, "contrato": {"linhas": 115, "valor_brl": "2995.08"},
+                                           "checkout": {"linhas": 92, "valor_brl": "1576.23"},
                                            "remessa": {"linhas": 23, "valor_brl": "1418.85"},
-                                           "devolucao_lojista": {"linhas": 118, "valor_brl": "15397.42"}}
+                                           "devolucao_lojista": {"linhas": 118, "valor_brl": "15397.42"},
+                                           "por_natureza": {"DEVOLUCAO_LOJISTA": {"linhas": 118, "valor_brl": "15397.42"},
+                                                            "CONTRATO": {"linhas": 115, "valor_brl": "2995.08"}}}
     assert j["lancamentos"] == {"REGRA": 184, "IA": 0, "HUMANO": 0}
     assert all(isinstance(c["ok"], bool) for c in j["integridade"] + j["contexto"]["checagens"])
     assert all(c["ok"] for c in j["integridade"])
@@ -111,8 +114,8 @@ def test_cli_fechar_imprime_resumo_final_em_portugues(dados, tmp_path, capsys):
     assert "CHECKOUT" in bloco and "R$ 207.039,73" in bloco and "21 lojistas" in bloco
     assert "REMESSA" in bloco and "R$ 39.543,45" in bloco and "14 lojistas" in bloco
     assert "Notas a emitir: 21" in bloco and "R$ 246.588,68" in bloco
-    assert "115 (R$ 2.995,08)" in bloco and "R$ 1.576,23" in bloco and "R$ 1.418,85" in bloco
-    assert "fora delas" in bloco and "118" in bloco and "R$ 15.397,42" in bloco
+    assert ("Divergências: 233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) "
+            "+ 118 de isenção não informada (R$ 15.397,42, devolução ao lojista)") in bloco
     assert "Lançamentos classificados: 184" in bloco
     assert "Pendências: 16 (2 informativas), R$ 48.364,75 em jogo" in bloco and "Financeiro: 3 pendência(s), R$ 19.750,00 em jogo (1 informativa)" in bloco
     assert "Helena (Financeiro): 10 pendência(s), R$ 5.341,28 em jogo (1 já incluída em outra)" in bloco

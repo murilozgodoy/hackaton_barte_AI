@@ -209,13 +209,14 @@ def imprimir_fechamento(f: Fechamento) -> None:
                       "qtd_operacoes", "operações")
     print("  Destino das linhas da Ponte: " + ", ".join(f"{k} {v}" for k, v in f.destinos_ponte.items()))
 
-    print("\nDivergências de taxa (contratada x aplicada), por lojista:")
+    print("\nDivergências de taxa (contratada x aplicada), por natureza e lojista:")
     if f.divergencias.empty:
         print("  nenhuma")
-    for (linha, _cnpj), g in f.divergencias.groupby(["linha_negocio", "cnpj"], sort=False):
-        print(f"  {linha:<9}{str(g['lojista'].iloc[0])[:40]:<42}{len(g):>5} linhas  {brl(soma(g['diferenca_brl'])):>16}")
+    for (natureza, linha, _cnpj), g in f.divergencias.groupby(["natureza", "linha_negocio", "cnpj"], sort=False):
+        print(f"  {natureza:<19}{linha:<9}{str(g['lojista'].iloc[0])[:40]:<42}{len(g):>5} linhas  "
+              f"{brl(soma(g['diferenca_brl'])):>16}")
     for (_cnpj, natureza), g in f.divergencias_fora_contrato.groupby(["cnpj", "natureza"], sort=False):
-        print(f"  fora das divergências de contrato ({natureza.lower().replace('_', ' ')}, regra {g['regra_id'].iloc[0]}): "
+        print(f"  {natureza} (regra {g['regra_id'].iloc[0]}) fica fora da cobrança da contraparte: "
               f"{str(g['lojista'].iloc[0])[:40]}, {len(g)} linhas, {brl(soma(g['diferenca_brl']))} pela taxa")
 
     print("\nNotas a emitir:")
@@ -286,12 +287,7 @@ def imprimir_resumo_final(f: Fechamento, res: dict, arquivos: dict[str, Path], c
           f"{int(rem['qtd_operacoes'].sum())} operações da Ponte)")
     print(f"Comissão total:    {brl(soma(f.comissoes['comissao_brl'])):>16}")
     print(f"Notas a emitir: {t['notas']['quantidade']}, somando {brl(Decimal(t['notas']['valor_total_brl']))}")
-    dc, dr, dl = t["divergencias"]["checkout"], t["divergencias"]["remessa"], t["divergencias"]["devolucao_lojista"]
-    print(f"Divergências de taxa: {dc['linhas'] + dr['linhas']} ({brl(Decimal(dc['valor_brl']) + Decimal(dr['valor_brl']))})"
-          f" = {dc['linhas']} de checkout ({brl(Decimal(dc['valor_brl']))}) + {dr['linhas']} de remessa "
-          f"({brl(Decimal(dr['valor_brl']))})"
-          + (f"; fora delas, devolução ao lojista: {dl['linhas']} transações ({brl(Decimal(dl['valor_brl']))})"
-             if dl["linhas"] else ""))
+    print(f"Divergências: {relatorio.texto_divergencias(t['divergencias'])}")
     l = res["lancamentos"]
     print(f"Lançamentos classificados: {sum(l.values())} (REGRA {l['REGRA']}, IA {l['IA']}, HUMANO {l['HUMANO']})")
     n_inf = t["pendencias"].get("informativas", 0)
@@ -340,15 +336,18 @@ def cmd_validar(args) -> int:
 def cmd_fechar(args) -> int:
     ctx = carregar_contexto(args, resolver_regras(args.regras))
     entrada = {"arquivos": {f: p.name for f, p in ctx.arquivos.items()}, "competencia_inferida": ctx.competencia_inferida}
-    carteira = None
+    carteira, contestacao = None, None
     if getattr(args, "anterior", None):
         try:
             carteira = carteira_mod.ler(args.anterior)
         except ErroLeitura as e:
             raise Parada(SAIDA_ENTRADA, f"Carteira anterior com problema: {e}") from None
-        entrada["carteira_anterior"] = {"pasta": str(args.anterior), "linhas": int(len(carteira))}
+        contestacao = carteira_mod.ler_contestacao(args.anterior)
+        entrada["carteira_anterior"] = {"pasta": str(args.anterior), "linhas": int(len(carteira)),
+                                        "operacoes_contestadas": int(len(contestacao))}
     try:
-        fech = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=not args.sem_ia, carteira=carteira)
+        fech = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=not args.sem_ia, carteira=carteira,
+                        contestacao_anterior=contestacao)
         arquivos, res = escrever(fech, args.saida, ctx.config, entrada, dir_regras=resolver_regras(args.regras).pasta)
     except ErroConfig as e:
         raise Parada(SAIDA_REGRAS, str(e)) from None

@@ -12,6 +12,7 @@ from decimal import Decimal
 import pandas as pd
 
 from .dinheiro import ZERO, arredondar, soma
+from .remessa import DESTINOS_COMISSAO
 
 MEIO_CENTAVO = Decimal("0.005")
 
@@ -58,11 +59,11 @@ def calcular(dados: dict[str, pd.DataFrame], ponte_linhas: pd.DataFrame, com_rem
     total = ponte.attrs.get("spread_total_declarado")
     comissao = soma(com_rem["comissao_brl"]) if len(com_rem) else ZERO
     por_destino = {}
-    for destino, g in ponte_linhas[ponte_linhas["destino"] != "COMISSAO"].groupby("destino", sort=False):
+    for destino, g in ponte_linhas[~ponte_linhas["destino"].isin(DESTINOS_COMISSAO)].groupby("destino", sort=False):
         por_destino[destino] = {"qtd": int(len(g)),
-                                "efeito": soma(arredondar(-s * participacao, modo) for s in g["spread_brl"])}
+                                "efeito": soma(arredondar(-s * participacao, modo) for s in g["spread_brl"] if s is not None)}
     explicado = soma(d["efeito"] for d in por_destino.values())
-    n_com = int((ponte_linhas["destino"] == "COMISSAO").sum())
+    n_com = int(ponte_linhas["destino"].isin(DESTINOS_COMISSAO).sum())
     limite = (Decimal(n_com) + 1) * MEIO_CENTAVO
     if total is not None:
         repasse_pelo_total = arredondar(total["valor"] * participacao, modo)

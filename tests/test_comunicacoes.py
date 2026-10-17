@@ -66,8 +66,15 @@ def test_ponte_mundo_aberto_negativos_e_repetida(saida):
     assert rep.ref_origem == "PC-0926-0162" and D(rep.valor_brl) == 0 and "corrigir o relatório" in rep.motivo
     md = (saida / "comunicacoes" / "ponte.md").read_text(encoding="utf-8")
     assert "relatorios@pontecambio.com.br" in md and "R$ 1.418,85" in md and "-R$ 1.834,05" in md and "PC-0926-0162" in md
-    assert "Total em disputa: R$ 3.252,90" in md and "M-01" in md and "5 dias úteis" in md and "2026-10-09" in md
-    assert "nunca avisado à Ponte" in md
+    # T4 (Helena ao Insper AI 16/10 22h34: "com o valor e as operações"): 3 pedidos, cada um com valor e operações, sem total único
+    assert "Total em disputa" not in md and "São 3 pedidos" in md and "M-01" in md and "5 dias úteis" in md and "2026-10-09" in md
+    assert "Pedido a — devolver a Mundo Aberto (CNPJ 17217888000111) o excesso de spread: R$ 1.418,85 em 23 operações." in md
+    assert "1.5% aplicado contra 1.2% contratado" in md and "nunca avisado à Ponte" in md
+    assert ("Pedido b — 4 operações com spread negativo, fora da nossa comissão e da nota: -R$ 1.834,05 no relatório, "
+            "impacto de R$ 917,03 na metade da Tarvo.") in md and "Taxa travada no pedido (D-1)" in md
+    assert "Pedido c — corrigir o relatório: PC-0926-0162 aparece mais de uma vez." in md and "valor 0" in md
+    assert anexo.groupby("pedido").natureza.agg(lambda s: set(s)).to_dict() == {"a": {"EXCESSO_SPREAD"}, "b": {"SPREAD_NEGATIVO"}, "c": {"REPETIDA"}}
+    assert set(anexo[anexo.pedido == "b"].regra_id) == {"E-03"} and set(anexo[anexo.pedido == "a"].regra_id) == {""}
 
 
 def test_comercial(saida):
@@ -84,6 +91,12 @@ def test_avisos_nova_condicao(saida):
     assert md.count("### ") == 3 and "regra X-01" in md and "de 2026-09-01 até 2026-12-31" in md
     assert "de 2026-09-15 até sem fim" in md and "1.2%" in md and "nunca avisada à Orbe" in md
     assert "EC 1018325654" in md and "EC 1075624862" in md
+    # T5 (Helena a confirmar): a linha da Mundo Aberto diz vigência 01/01/2026 (K15) e a observação "spread negociado em jul/26" (L15)
+    ma = md.split("### Mundo Aberto")[1].split("### ")[0]
+    assert "de 2026-01-01 até sem fim (planilha de taxas, célula Taxas vigentes!K15)" in ma
+    assert "Observação na mesma linha da planilha (Taxas vigentes!L15): “spread negociado em jul/26”" in ma
+    assert "Helena (Financeiro) confirma qual vale" in ma and "nada foi decidido aqui" in ma
+    assert "(Taxas vigentes!L7): “só mudou o crédito à vista”" in md.split("### Mundo Aberto")[0]   # Bridge também tem Obs
 
 
 def test_resumo_lista_os_rascunhos_e_lembrete_m06(saida):

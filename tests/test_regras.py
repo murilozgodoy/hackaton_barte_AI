@@ -136,7 +136,7 @@ def test_exclusoes_duplicado_e_donos(config):
     assert e1.params["status"] == {"SEM_CONTRATO"} and e1.tipo_pendencia == "SEM_CONTRATO"
     assert config.regra_duplicado("ponte", SET).params["chave"] == "num_operacao"
     assert config.regra_duplicado("orbe", SET) is None
-    assert config.dono("CADASTRO", SET).quem_decide == "Financeiro/Comercial"
+    assert config.dono("CADASTRO", SET).quem_decide == "Comercial"   # Helena à Casa Barton 17/10 11h01: cadastro e contrato é o Comercial
     assert config.dono("CADASTRO", SET, subtipo="CNPJ_PONTE").id == "DP-12" and config.dono("CADASTRO", SET, subtipo="CNPJ_PONTE").quem_decide == "Comercial"
     assert config.dono("CADASTRO", SET, subtipo="EC_ORBE").id == "DP-04"    # sem dono específico, vale o geral
     assert config.parametro("remessa_cnpj_sem_cadastro", SET) == "COMISSAO"
@@ -148,7 +148,12 @@ def test_exclusoes_duplicado_e_donos(config):
     assert alertas[0].params["so_para"] == {"SEM_CONTRATO", "PRIMEIRO_MES"} and alertas[0].tipo_pendencia == "ALERTA_ANTECIPACAO"
     assert alertas[0].quem_decide == "Helena (Financeiro) + Comercial" and alertas[0].params["informativa"] is True
     assert config.dono("EM_TRANSITO", SET).params["informativa"] is True and config.dono("DIVERGENCIA_TAXA", SET).params["informativa"] is False
-    assert config.dono("CONFERIR_REPASSE_PONTE", SET).id == "DP-11" and config.regra("DP-13") is None
+    assert config.dono("CONFERIR_REPASSE_PONTE", SET).id == "DP-11"
+    # T3/T6 (17/10): parcelado fora das faixas é da Helena; ajuste do parceiro é informativo; linha ilegível vira pendência
+    assert config.dono("CADASTRO", SET, subtipo="PARCELAS_FORA_FAIXA").id == "DP-13"
+    assert config.dono("CADASTRO", SET, subtipo="PARCELAS_FORA_FAIXA").quem_decide == "Helena (Financeiro)"
+    assert config.dono("CONFERIR_AJUSTE_PONTE", SET).params["informativa"] is True and config.dono("LINHA_NAO_INTERPRETADA", SET).id == "DP-15"
+    assert config.parametro("ajuste_parceiro_contem", SET).startswith("AJUSTE OU ")
     assert config.dono("EXCESSO_SPREAD_CONTESTADO", SET).params["incluida_em"] == "DIVERGENCIA_TAXA"
     assert config.regra("DP-10").status == "INATIVA" and config.dono_se_houver("RECURSO_SEM_OPERACAO", SET) is None
     assert all(r.tipo == "MANUAL" and r.quem_decide for r in lembretes)

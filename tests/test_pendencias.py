@@ -76,9 +76,10 @@ def test_casa_do_estudante_tarifa_zero(fech):
     assert r.quem_decide == "Helena (Financeiro) + Comercial"
     assert "cobrou efetivamente R$ 15.396,77" in r.motivo and "R$ 0,65 a menos" in r.motivo and "trunca centavos" in r.motivo
     assert "devolução ao lojista" in r.motivo and "não há o que cobrar da Orbe" in r.motivo
-    assert "não chegou à Orbe nem à planilha" in r.motivo and "fora das divergências de contrato" in r.motivo
+    assert "natureza DEVOLUCAO_LOJISTA, fora da cobrança da adquirente" in r.motivo and "isenção comercial não informada à Orbe" in r.motivo
     assert len(fech.rastro[fech.rastro.id_saida == r.id_saida]) == 118
-    assert CASA not in set(fech.divergencias.cnpj)
+    casa = fech.divergencias[fech.divergencias.cnpj == CASA]
+    assert len(casa) == 118 and set(casa.natureza) == {"DEVOLUCAO_LOJISTA"} and CASA not in set(fech.divergencias_contrato.cnpj)
 
 
 def test_divergencias_rota_bridge_mundo_aberto(fech):
@@ -270,9 +271,15 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     rel = (tmp_path / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
     assert rel.startswith("# Fechamento Tarvo — competência 09/2026") and "Integridade: OK" in rel
     assert "R$ 207.039,73" in rel and "Ponte Câmbio S.A." in rel and "### Comercial" in rel
-    assert "Fora das divergências de contrato" in rel and "118 transações" in rel and "R$ 15.397,42" in rel
+    assert "Fora da cobrança da contraparte" in rel and "118 transações" in rel and "R$ 15.397,42" in rel
+    assert ("233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) + 118 de isenção "
+            "não informada (R$ 15.397,42, devolução ao lojista)") in rel
+    assert "| DEVOLUCAO_LOJISTA | CHECKOUT | Casa do Estudante Viagens Ltda | 118 |" in rel
     assert res["totais"]["divergencias"]["checkout"] == {"linhas": 92, "valor_brl": "1576.23"}
     assert res["totais"]["divergencias"]["devolucao_lojista"] == {"linhas": 118, "valor_brl": "15397.42"}
+    assert res["totais"]["divergencias"]["linhas"] == 233 and res["totais"]["divergencias"]["contrato"] == {"linhas": 115, "valor_brl": "2995.08"}
+    assert res["totais"]["divergencias"]["por_natureza"] == {"DEVOLUCAO_LOJISTA": {"linhas": 118, "valor_brl": "15397.42"},
+                                                            "CONTRATO": {"linhas": 115, "valor_brl": "2995.08"}}
     assert "não se comparam" in rel and "agenda de recebíveis" in rel and "3.707" not in rel and "repassou" not in rel.lower()
     assert "M-01" in rel and "5 dias úteis" in rel
     assert "RECURSO_SEM_OPERACAO" not in rel and "M-05" in rel and "mês seguinte" in rel

@@ -59,6 +59,28 @@ def _dec(v) -> Decimal | None:
     return None if celula_vazia(v) else Decimal(str(v))
 
 
+def ler_contestacao(pasta_anterior: Path) -> dict:
+    """{num_operacao: {natureza, pedido, competencia}} da comunicacoes/ponte_contestacao.csv do fechamento anterior
+    (vazio se a saída anterior não tiver a lista). A competência vem do resumo.json ao lado, se existir."""
+    caminho = Path(pasta_anterior) / "comunicacoes" / "ponte_contestacao.csv"
+    if not caminho.exists():
+        return {}
+    competencia = None
+    resumo = Path(pasta_anterior) / "resumo.json"
+    if resumo.exists():
+        try:
+            import json
+            competencia = json.loads(resumo.read_text(encoding="utf-8")).get("competencia")
+        except (OSError, ValueError):
+            competencia = None
+    df = pd.read_csv(caminho, sep=";", dtype=str, keep_default_na=False, encoding="utf-8")
+    out = {}
+    for r in df.itertuples(index=False):
+        out.setdefault(r.ref_origem, {"natureza": getattr(r, "natureza", ""), "pedido": getattr(r, "pedido", ""),
+                                      "competencia": competencia})
+    return out
+
+
 def ler(pasta_anterior: Path) -> pd.DataFrame:
     """carteira_pendente.csv de uma saída anterior, no formato que o leitor da Orbe devolve (+ competencia_origem)."""
     caminho = Path(pasta_anterior) / "carteira_pendente.csv"

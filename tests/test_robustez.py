@@ -223,10 +223,11 @@ def test_tolerancia_de_checkout_editavel(dados, tmp_path):
     regras = regras_copia(tmp_path, [("tolerancia_taxa_checkout_pp=0;", "tolerancia_taxa_checkout_pp=0.5;")])
     cfg = carregar_config(regras, dados["taxas"], dados["plano_contas"], {"AURORA", "MERIDIANO"})
     f = executar(dados, cfg, "2026-09", usar_ia=False)
-    chk = f.divergencias[f.divergencias.linha_negocio == "CHECKOUT"]
-    # Rota (+0,50 p.p., na borda) e Bridge (+0,40) somem; Casa (2,69 x 0) fica, fora das divergências de contrato
-    # (X-01 divergencia=DEVOLUCAO_LOJISTA): só pendência, com as 118 transações no rastro
+    chk = f.divergencias_contrato[f.divergencias_contrato.linha_negocio == "CHECKOUT"]
+    # Rota (+0,50 p.p., na borda) e Bridge (+0,40) somem; Casa (2,69 x 0) fica, com natureza DEVOLUCAO_LOJISTA
+    # (X-01 divergencia=DEVOLUCAO_LOJISTA): no CSV, marcada, fora da cobrança; pendência com as 118 transações no rastro
     assert chk.empty and set(f.divergencias_fora_contrato.cnpj) == {CASA} and len(f.divergencias_fora_contrato) == 118
+    assert set(f.divergencias.cnpj) == {CASA, "17217888000111"}   # só a Casa e a remessa da Mundo Aberto
     assert f.integro
 
 
@@ -262,3 +263,109 @@ def test_alerta_antecipacao_so_para_lojista_sem_historico(tmp_path):
     assert por_cnpj[LOJA_C]["antecipado"] == D("550.00") and por_cnpj[LOJA_C]["vendido"] == D("100.00")
     assert por_cnpj[LOJA_C]["data_estouro"] == date(2026, 9, 12) and por_cnpj[LOJA_C]["motivo_lojista"] == "PRIMEIRO_MES"
     assert por_cnpj[ATLAS]["motivo_lojista"] == "SEM_CONTRATO" and len(por_cnpj[ATLAS]["linhas"]) == 1
+
+
+# ---------------------------------------------------------------- T3 (Helena à Casa Barton 17/10 11h01): "A gente não vende acima de 12x. Se aparecer, é pendência."
+
+def _pendencias_so_checkout(chk, cfg, ref):
+    """Pendências a partir só do checkout (sem Ponte, extratos e conciliação), para testes sintéticos."""
+    from src import pendencias, remessa
+    vazio_rem = pd.DataFrame(columns=remessa.COLUNAS_LINHAS)
+    lanc = pd.DataFrame(columns=["id_saida", "banco", "ref_origem", "data", "descricao", "valor", "conta_codigo", "metodo",
+                                 "tipo_pendencia", "subtipo", "motivo", "regra_id", "papel", "arquivo_origem", "conta_descricao"])
+    conc = {"remessa_banco": {"recursos_menos_liquidado": D("0"), "qtd_liquidacoes": 0}, "ponte": {"diferenca": None}}
+    return pendencias.calcular(ref, chk.linhas, vazio_rem, pd.DataFrame(columns=divergencias.COLUNAS), pd.DataFrame(),
+                               chk.rastro, lanc, pd.DataFrame(), conc, pd.DataFrame(columns=["linha_negocio"]), cfg)
+
+
+def test_parcelado_acima_do_maximo_da_planilha_vira_pendencia_da_helena(cfg):
+    from datetime import date
+    from src import carteira
+    orbe = orbe_df([
+        linha_orbe(1, "2026-09-01", EC_B, "LOJA B", "1200.00", "4.00", modalidade="CREDITO PARCELADO", parcelas=12),
+        linha_orbe(2, "2026-09-02", EC_B, "LOJA B", "1300.00", "4.50", modalidade="CREDITO PARCELADO", parcelas=13),
+        linha_orbe(3, "2026-09-03", "1018325654", "CASA", "1800.00", "3.79", modalidade="CREDITO PARCELADO", parcelas=18),  # X-01 TODOS
+        linha_orbe(4, "2026-09-03", EC_B, "LOJA B", "100.00", "2.00"),
+    ])
+    r = checkout.calcular(orbe, taxas_padrao(), cfg, "2026-09")
+    l = r.linhas.set_index("id_transacao")
+    assert l.loc["TX000001", "destino"] == "COMISSAO" and l.loc["TX000001", "taxa_contratada_pct"] == D("4.00")
+    for tx in ("TX000002", "TX000003"):   # 13x e 18x: nenhuma faixa cobre, nem com TAXA_EXCECAO vigente
+        assert l.loc[tx, "destino"] == "SEM_TAXA" and l.loc[tx, "subtipo"] == "PARCELAS_FORA_FAIXA"
+        assert "nenhuma taxa contratada para essa quantidade" in l.loc[tx, "motivo"] and l.loc[tx, "comissao_brl"] is None
+    assert r.comissoes.set_index("cnpj").loc[LOJA_B, "comissao_brl"] == D("48.00") + D("2.00")
+    assert CASA not in set(r.comissoes.cnpj)
+    pend = _pendencias_so_checkout(r, cfg, date(2026, 9, 1)).pendencias
+    fora = pend[(pend.tipo == "CADASTRO") & (pend.subtipo == "PARCELAS_FORA_FAIXA")]
+    assert len(fora) == 2 and set(fora.quem_decide) == {"Helena (Financeiro)"} and set(fora.regra_id) == {"DP-13"}
+    assert set(fora.cnpj) == {LOJA_B, CASA} and "não vende acima do máximo" in fora.iloc[0].o_que_fazer
+    assert fora.set_index("cnpj").loc[LOJA_B, "valor_brl"] == D("58.50")    # o que a Orbe cobrou (1300 x 4,5%, truncado)
+    cart = carteira.montar(r.linhas, "2026-09")
+    assert set(cart.ref_origem) == {"TX000002", "TX000003"}   # guardadas para o próximo mês
+
+
+# ---------------------------------------------------------------- T6 (Helena à Turma do Barulho 17/10 10h44): ajuste da Ponte no relatório do mês seguinte
+
+def _com_ajustes(dados):
+    """Setembro mais 1 crédito e 1 débito de ajuste do parceiro (datas de agosto): o crédito pela observação (P-12),
+    o débito pelo Nº Operação da contestação anterior (--anterior)."""
+    from tests.sintetico import operacao_ponte
+    ponte = dados["ponte"].copy()
+    base = ponte.iloc[0].to_dict()
+    credito = {**base, "num_operacao": "PC-0826-0901", "ref_origem": "PC-0826-0901", "linha_planilha": 900,
+               "data_contratacao": pd.Timestamp("2026-08-20"), "data_liquidacao": pd.Timestamp("2026-08-21"),
+               "observacao": "AJUSTE - spread negativo revisto (contestação do mês anterior)", "spread_brl": D("687.52"),
+               "spread_frac": D("0.01"), "spread_pct": D("1.00"), "cnpj": "95739378000118", "cliente": "PONTE AÉREA ESTUDANTIL"}
+    debito = {**base, "num_operacao": "PC-0826-0902", "ref_origem": "PC-0826-0902", "linha_planilha": 901,
+              "data_contratacao": pd.Timestamp("2026-08-25"), "data_liquidacao": pd.Timestamp("2026-08-26"),
+              "observacao": None, "spread_brl": D("-29.56"), "spread_frac": D("-0.001"), "spread_pct": D("-0.10"),
+              "cnpj": "17217888000111", "cliente": "MUNDO ABERTO INTERCÂ"}
+    novo = pd.concat([ponte, pd.DataFrame([credito, debito])], ignore_index=True)
+    novo.attrs = dict(dados["ponte"].attrs)
+    total = dict(novo.attrs["spread_total_declarado"])
+    total["valor"] = total["valor"] + D("687.52") - D("29.56")
+    novo.attrs["spread_total_declarado"] = total
+    anterior = {"PC-0826-0902": {"natureza": "EXCESSO_SPREAD", "pedido": "a", "competencia": "2026-08"}}
+    return {**dados, "ponte": novo}, anterior
+
+
+def test_ajuste_do_parceiro_entra_na_comissao_do_mes_e_vira_pendencia_informativa(dados, config):
+    base = executar(dados, config, "2026-09", usar_ia=False)
+    com_aj, anterior = _com_ajustes(dados)
+    f = executar(com_aj, config, "2026-09", usar_ia=False, contestacao_anterior=anterior)
+    assert f.integro and f.destinos_ponte == {"COMISSAO": 228, "EXCLUIDO": 4, "DUPLICATA_IGNORADA": 1, "AJUSTE_PONTE": 2}
+    aj = f.ponte_linhas[f.ponte_linhas.destino == "AJUSTE_PONTE"].set_index("num_operacao")
+    assert aj.loc["PC-0826-0901", "comissao_brl"] == D("343.76") and aj.loc["PC-0826-0901", "subtipo"] == "CREDITO"
+    assert aj.loc["PC-0826-0902", "comissao_brl"] == D("-14.78") and aj.loc["PC-0826-0902", "subtipo"] == "DEBITO"
+    assert "FORA_COMPETENCIA" not in set(f.ponte_linhas.destino) and "SPREAD_NEGATIVO" not in set(aj.tipo_pendencia)
+    # entra na comissão do lojista e na nota de remessa do mês pelo valor; nada mais muda
+    assert soma(f.comissoes_remessa.comissao_brl) == D("39543.45") + D("343.76") - D("14.78")
+    assert f.notas[f.notas.linha_negocio == "REMESSA"].valor_brl.iloc[0] == soma(f.comissoes_remessa.comissao_brl)
+    assert f.comissoes_remessa.set_index("cnpj").loc["17217888000111", "comissao_brl"] == base.comissoes_remessa.set_index("cnpj").loc["17217888000111", "comissao_brl"] - D("14.78")
+    assert f.comissoes_checkout.equals(base.comissoes_checkout)
+    p = f.pendencias[f.pendencias.tipo == "CONFERIR_AJUSTE_PONTE"].set_index("ref_origem")
+    assert len(p) == 2 and set(p.quem_decide) == {"Helena (Financeiro)"} and p.informativa.all() and set(p.regra_id) == {"DP-14"}
+    assert p.loc["PC-0826-0901", "valor_brl"] == D("343.76") and "crédito de R$ 687,52" in p.loc["PC-0826-0901", "motivo"]
+    assert "Não consta na contestação do fechamento anterior" in p.loc["PC-0826-0901", "motivo"]
+    assert "Corresponde ao pedido a (EXCESSO_SPREAD) da contestação do fechamento anterior (2026-08)" in p.loc["PC-0826-0902", "motivo"]
+    assert "débito de -R$ 29,56" in p.loc["PC-0826-0902", "motivo"] and "no mês em que o ajuste apareceu" in p.loc["PC-0826-0902", "motivo"]
+    assert soma(f.rastro[f.rastro.id_saida == p.loc["PC-0826-0901", "id_saida"]].valor) == D("343.76")
+    # o repasse a conferir não muda: o ajuste está dentro da comissão e do total declarado
+    r = f.pendencias[f.pendencias.tipo == "CONFERIR_REPASSE_PONTE"].iloc[0]
+    assert r.valor_brl == D("506.65")
+    # as demais pendências são as mesmas de setembro
+    assert f.pendencias.tipo.value_counts().to_dict() == {**base.pendencias.tipo.value_counts().to_dict(), "CONFERIR_AJUSTE_PONTE": 2}
+
+
+def test_linha_do_parceiro_sem_numeros_vira_pendencia_e_nao_erro(dados, config):
+    ponte = dados["ponte"].copy()
+    ruim = {**ponte.iloc[0].to_dict(), "num_operacao": "PC-0926-0999", "ref_origem": "PC-0926-0999", "linha_planilha": 999,
+            "valor_me": None, "ptax": None, "spread_brl": None, "spread_frac": None, "spread_pct": None}
+    novo = pd.concat([ponte, pd.DataFrame([ruim])], ignore_index=True)
+    novo.attrs = dict(dados["ponte"].attrs)
+    f = executar({**dados, "ponte": novo}, config, "2026-09", usar_ia=False)
+    assert f.integro and f.destinos_ponte["NAO_INTERPRETADA"] == 1
+    assert soma(f.comissoes_remessa.comissao_brl) == D("39543.45")
+    p = f.pendencias[f.pendencias.tipo == "LINHA_NAO_INTERPRETADA"]
+    assert len(p) == 1 and p.iloc[0].quem_decide == "Helena (Financeiro)" and p.iloc[0].valor_brl is None
+    assert "sem valor_me, ptax, spread_brl, spread_frac" in p.iloc[0].motivo and "PC-0926-0999" in p.iloc[0].motivo

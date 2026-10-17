@@ -84,6 +84,13 @@ def _ler_corpo(msg) -> dict:
             "prazo_dias_uteis": int(p.group(1)) if p else None}
 
 
+def _data_ou_none(v):
+    try:
+        return data_br(v)
+    except ErroLeitura:
+        return None
+
+
 def _eh_data(v) -> bool:
     if isinstance(v, (datetime, date)):
         return True
@@ -150,7 +157,7 @@ def _converter(r: dict, linha: int, arquivo: str) -> dict:
     out = {
         "num_operacao": str(r["num_operacao"]).strip(),
         "data_contratacao": data_br(r["data_contratacao"]),
-        "data_liquidacao": data_br(r["data_liquidacao"]),
+        "data_liquidacao": _data_ou_none(r["data_liquidacao"]),
         "cnpj": normalizar_cnpj(r["cnpj_original"]),
         "cnpj_original": r["cnpj_original"],
         "cliente": r["cliente"],
@@ -159,7 +166,10 @@ def _converter(r: dict, linha: int, arquivo: str) -> dict:
         "observacao": (str(r["observacao"]).strip() if r["observacao"] else None),
     }
     for k in _NUMERICAS:
-        out[k] = decimal_de_celula(r[k])
+        try:
+            out[k] = decimal_de_celula(r[k])
+        except (ErroLeitura, ArithmeticError, ValueError):   # texto onde devia ter número: a linha vira pendência, não erro
+            out[k] = None
     # Spread % vem como fração (0.01501); em % fica comparável à planilha de taxas.
     out["spread_pct"] = out["spread_frac"] * 100 if out["spread_frac"] is not None else None
     out.update(linha_planilha=linha, ref_origem=out["num_operacao"], arquivo_origem=arquivo)

@@ -4,7 +4,7 @@
 
 Arquivos do mês: `01_orbe_relatorio_comissoes_set2026.csv`, `02_tabela_taxas_contratadas.xlsx`, `03_email_ponte_cambio_relatorio_set2026.eml`, `04_plano_de_contas_fenix_erp.csv`, `05a_extrato_banco_aurora_cc4471_set2026.csv`, `05b_extrato_banco_meridiano_cc90233_set2026.ofx` (competência inferida dos dados).
 
-Base de regras: 61 regras ativas, 25 lojistas no cadastro (planilha de taxas + complemento). Última alteração registrada no histórico de regras: 2026-10-17.
+Base de regras: 65 regras ativas, 25 lojistas no cadastro (planilha de taxas + complemento). Última alteração registrada no histórico de regras: 2026-10-17.
 
 ## Totais do mês
 
@@ -14,7 +14,7 @@ Base de regras: 61 regras ativas, 25 lojistas no cadastro (planilha de taxas + c
 | REMESSA | 14 | R$ 39.543,45 |
 | **Total** |  | **R$ 246.583,18** |
 
-Notas a emitir: 21, somando R$ 246.588,68. A diferença de R$ 5,50 para a comissão total é o saldo negativo sem nota (Casa do Estudante Viagens Ltda -R$ 5,50). Divergências de taxa: 92 transações de checkout (R$ 1.576,23) e 23 operações de remessa (R$ 1.418,85). Pendências: 16.
+Notas a emitir: 21, somando R$ 246.588,68. A diferença de R$ 5,50 para a comissão total é o saldo negativo sem nota (Casa do Estudante Viagens Ltda -R$ 5,50). Divergências: 233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) + 118 de isenção não informada (R$ 15.397,42, devolução ao lojista). Pendências: 16.
 
 ## Notas a emitir
 
@@ -46,15 +46,18 @@ Sem nota: Casa do Estudante Viagens Ltda (00520815000100) fechou em -R$ 5,50 (ne
 
 ## Divergências de taxa (contratada × aplicada)
 
-| Linha | Lojista | Transações | Contratada × aplicada | Diferença |
-|---|---|---|---|---|
-| CHECKOUT | Rota Global Intercâmbio Ltda | 87 | 2.49%–3.59% × 2.99%–4.09% | R$ 1.546,28 |
-| REMESSA | Mundo Aberto | 23 | 1.2% × 1.5% | R$ 1.418,85 |
-| CHECKOUT | Escola Bridge de Idiomas Ltda | 5 | 2.19% × 2.59% | R$ 29,95 |
+233 transações = 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08) + 118 de isenção não informada (R$ 15.397,42, devolução ao lojista). A coluna `natureza` de `divergencias_taxa.csv` separa as duas: CONTRATO é cobrança da contraparte (anexos em `comunicacoes/`); outra natureza é marcada pela regra TAXA_EXCECAO e fica fora de qualquer total a cobrar.
+
+| Natureza | Linha | Lojista | Transações | Contratada × aplicada | Diferença |
+|---|---|---|---|---|---|
+| CONTRATO | CHECKOUT | Rota Global Intercâmbio Ltda | 87 | 2.49%–3.59% × 2.99%–4.09% | R$ 1.546,28 |
+| CONTRATO | REMESSA | Mundo Aberto | 23 | 1.2% × 1.5% | R$ 1.418,85 |
+| CONTRATO | CHECKOUT | Escola Bridge de Idiomas Ltda | 5 | 2.19% × 2.59% | R$ 29,95 |
+| DEVOLUCAO_LOJISTA | CHECKOUT | Casa do Estudante Viagens Ltda | 118 | 0% × 0.89%–3.79% | R$ 15.397,42 |
 
 Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticamente: cada caso é uma pendência para decisão.
 
-**Fora das divergências de contrato** (devolucao lojista, regra X-01): 118 transações de Casa do Estudante Viagens Ltda com condição especial contratada (0%) em que a adquirente aplicou 0.89%–3.79%, R$ 15.397,42 pela taxa. Não é cobrança da adquirente: ver pendência TARIFA_ZERO_COBRADA. As transações não estão em `divergencias_taxa.csv`; o rastro está na pendência.
+**Fora da cobrança da contraparte** (natureza DEVOLUCAO_LOJISTA, regra X-01): 118 transações de Casa do Estudante Viagens Ltda com condição especial contratada (0%) em que a adquirente aplicou 0.89%–3.79%, R$ 15.397,42 pela taxa. Observação da regra: isenção comercial não informada à Orbe. Devolução ao lojista, não cobrar da Orbe. Ver pendência TARIFA_ZERO_COBRADA; as transações estão em `divergencias_taxa.csv` marcadas com essa natureza e não entram em `orbe_contestacao.csv`.
 
 ## Pendências por responsável
 
@@ -62,7 +65,7 @@ Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticam
 
 ### Helena (Financeiro) + Comercial — 2 pendência(s), R$ 15.397,42 em jogo (1 informativa)
 
-- **PEN-0001 · TARIFA_ZERO_COBRADA** (00520815000100, R$ 15.397,42): A adquirente cobrou efetivamente R$ 15.396,77 em 118 transações de checkout com condição especial (0% contratada x 0.89% a 3.79% aplicada pela adquirente): R$ 15.397,42 pela taxa, R$ 0,65 a menos que a divergência calculada porque a adquirente trunca centavos, o que não é divergência. Fica fora das divergências de contrato com a adquirente, por regra (X-01): devolução ao lojista. Taxa contratada = 0 no checkout (MDR e antecipação). Devolução ao lojista: não há o que cobrar da Orbe, porque a isenção não chegou à Orbe nem à planilha (a Orbe cobrou certo pelo que sabia). É diferente de uma divergência de contrato: fica separado, com o valor, e a devolução é decidida com o Comercial. A remessa da Casa segue normal
+- **PEN-0001 · TARIFA_ZERO_COBRADA** (00520815000100, R$ 15.397,42): A adquirente cobrou efetivamente R$ 15.396,77 em 118 transações de checkout com condição especial (0% contratada x 0.89% a 3.79% aplicada pela adquirente): R$ 15.397,42 pela taxa, R$ 0,65 a menos que a divergência calculada porque a adquirente trunca centavos, o que não é divergência. As transações estão em divergencias_taxa.csv com natureza DEVOLUCAO_LOJISTA, fora da cobrança da adquirente, por regra (X-01): devolução ao lojista (isenção comercial não informada à Orbe. Devolução ao lojista, não cobrar da Orbe). Taxa contratada = 0 no checkout (MDR e antecipação). Devolução ao lojista: não há o que cobrar da Orbe, porque a isenção não chegou à Orbe nem à planilha (a Orbe cobrou certo pelo que sabia). É diferente de uma divergência de contrato: sai em divergencias_taxa.csv marcada com natureza DEVOLUCAO_LOJISTA e a observação da regra, fora de qualquer total a cobrar da Orbe, e a devolução é decidida com o Comercial. A remessa da Casa segue normal
 - **PEN-0012 · ALERTA_ANTECIPACAO** (informativa) (39566044000119, R$ 179.592,82): Em 2026-09-15, R$ 179.592,82 antecipados contra R$ 55.357,50 vendidos até a data. No mês, R$ 235.943,10 antecipados e R$ 108.712,14 revertidos (líquido R$ 127.230,96) contra R$ 135.428,90 vendidos. ATLAS IDIOMAS: lojista SEM_CONTRATO no cadastro. Alerta de controle, não perda: a antecipação deve ser sobre o que o lojista já vendeu. Conferir com a adquirente a agenda de recebíveis do lojista e, se for lojista sem contrato, tratar junto com o Comercial. Nada sai da comissão por este alerta
 
 ### Helena (Financeiro) — 10 pendência(s), R$ 5.341,28 em jogo
@@ -111,11 +114,11 @@ Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticam
 
 - ✅ 4. transações em comissão de checkout = transações no rastro COM-CHK: 1886 transações
 - ✅ 1. soma do rastro = valor reportado (comissoes_por_lojista.csv): 35 ids conferidos
-- ✅ 1. soma do rastro = valor reportado (divergencias_taxa.csv): 115 ids conferidos
+- ✅ 1. soma do rastro = valor reportado (divergencias_taxa.csv): 233 ids conferidos
 - ✅ 1. soma do rastro = valor reportado (notas_a_emitir.csv): 21 ids conferidos
 - ✅ 1. soma do rastro = valor reportado (lancamentos_classificados.csv): 184 ids conferidos
 - ✅ 1. soma do rastro = valor reportado (pendencias.csv): 16 ids conferidos
-- ✅ 1. todo id do rastro existe nas saídas: 371 ids no rastro
+- ✅ 1. todo id do rastro existe nas saídas: 489 ids no rastro
 - ✅ 2. comissões de checkout com saldo > 0 = notas CHECKOUT: 20 lojistas somam 207045.23; 20 notas somam 207045.23
 - ✅ 3. nota REMESSA = soma da comissão de remessa: comissão 39543.45; 1 nota(s) somam 39543.45
 - ✅ 4. toda linha da Orbe tem exatamente um destino: 1943 linhas -> COMISSAO 1886, EXCLUIDO 57

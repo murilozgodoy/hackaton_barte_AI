@@ -20,8 +20,7 @@ class Fechamento:
     orbe_linhas: pd.DataFrame
     ponte_linhas: pd.DataFrame
     comissoes: pd.DataFrame          # CHECKOUT + REMESSA, formato de saída
-    divergencias: pd.DataFrame           # natureza CONTRATO (divergencias_taxa.csv)
-    divergencias_fora_contrato: pd.DataFrame   # por regra TAXA_EXCECAO (ex.: devolução ao lojista): só pendência
+    divergencias: pd.DataFrame           # divergencias_taxa.csv: todas as naturezas (coluna natureza)
     notas: pd.DataFrame
     sem_nota: pd.DataFrame           # comissões de checkout com saldo <= 0
     lancamentos: pd.DataFrame
@@ -39,6 +38,16 @@ class Fechamento:
     @property
     def integro(self) -> bool:
         return all(c.ok for c in self.checagens if c.nivel == "ERRO")
+
+    @property
+    def divergencias_contrato(self) -> pd.DataFrame:
+        """Natureza CONTRATO: o que se cobra da contraparte."""
+        return divergencias.contrato(self.divergencias)
+
+    @property
+    def divergencias_fora_contrato(self) -> pd.DataFrame:
+        """Outras naturezas (ex.: DEVOLUCAO_LOJISTA, regra TAXA_EXCECAO): marcadas no CSV, fora da cobrança."""
+        return divergencias.fora_contrato(self.divergencias)
 
     @property
     def comissoes_checkout(self) -> pd.DataFrame:
@@ -63,12 +72,14 @@ def extratos_de(dados: dict[str, pd.DataFrame]) -> list[pd.DataFrame]:
 
 
 def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: bool = True,
-             carteira: pd.DataFrame | None = None) -> Fechamento:
+             carteira: pd.DataFrame | None = None, contestacao_anterior: dict | None = None) -> Fechamento:
+    """`carteira` e `contestacao_anterior` vêm da saída do mês anterior (--anterior): linhas de checkout guardadas e a
+    lista de operações contestadas com o parceiro de câmbio (para reconhecer os ajustes dele neste mês)."""
     ref = primeiro_dia(competencia)
     n_cart = int(len(carteira)) if carteira is not None else 0
     chk = checkout.calcular(dados["orbe"], dados["taxas"], config, competencia, carteira=carteira)
     cart = carteira_mod.montar(chk.linhas, competencia)
-    rem = remessa.calcular(dados["ponte"], dados["taxas"], config, competencia)
+    rem = remessa.calcular(dados["ponte"], dados["taxas"], config, competencia, contestacao_anterior=contestacao_anterior)
     dv = divergencias.calcular(chk.linhas, rem.linhas, config)
     div, rastro_div = dv.divergencias, dv.rastro
     nf, rastro_nf, sem_nota = notas.calcular(chk.comissoes, rem.comissoes, chk.rastro, rem.rastro, config, competencia)
@@ -77,7 +88,7 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
     conc = conciliacao.calcular(dados, rem.linhas, rem.comissoes, ext.lancamentos,
                                 config.parametro("participacao_spread", ref), config.parametro("arredondamento", ref))
     pend = pendencias.calcular(ref, chk.linhas, rem.linhas, div, sem_nota, chk.rastro, ext.lancamentos,
-                               ext.em_transito, conc, nf, config, fora_contrato=dv.fora_contrato, taxas=dados["taxas"])
+                               ext.em_transito, conc, nf, config, taxas=dados["taxas"], contestacao_anterior=contestacao_anterior)
 
     colunas_com = ["id_saida", "cnpj", "lojista", "linha_negocio", "comissao_brl"]
     comissoes = pd.concat([chk.comissoes, rem.comissoes], ignore_index=True)
@@ -109,11 +120,15 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
                                   f"{n_cart} linhas -> {faturadas} faturadas + {continuam} na carteira"))
     checagens += checar_lancamentos(ext.lancamentos, bancos)
     checagens += checar_saldo_extratos(bancos)
+    avisos_extra = []
+    for ign in dados["ponte"].attrs.get("linhas_ignoradas", []) or []:
+        avisos_extra.append(f"relatório do parceiro de câmbio, linha {ign['linha']} ignorada (sem Nº Operação ou data de "
+                            f"contratação válida): {ign['conteudo']}")
 
     meta_ponte = {k: dados["ponte"].attrs.get(k) for k in ("remetente", "assunto", "data_envio", "data_repasse", "prazo_dias_uteis")}
-    return Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, dv.fora_contrato, nf, sem_nota,
+    return Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, nf, sem_nota,
                       ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, cart, n_cart, dados["taxas"],
-                      meta_ponte, checagens, list(config.avisos) + ext.avisos)
+                      meta_ponte, checagens, list(config.avisos) + ext.avisos + avisos_extra)
 
 
 def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None,

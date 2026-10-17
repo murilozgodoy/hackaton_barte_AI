@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from .dinheiro import ZERO, brl, soma
-from .pendencias import lista_contestacao
+from .dinheiro import ZERO, arredondar, brl, soma
+from .pendencias import COLUNAS_CONTESTACAO, lista_contestacao
 from .regras import ErroConfig, ler_csv_regras
 from .saida import escrever_csv
 
@@ -70,7 +70,8 @@ def gerar(f, config, dir_regras: Path, pasta_saida: Path, competencia_txt: str, 
     out: dict[str, Path] = {}
 
     # ---------------- Orbe: divergências de contrato do checkout (natureza CONTRATO; a devolução ao lojista fica fora)
-    div = f.divergencias[f.divergencias["linha_negocio"] == "CHECKOUT"]
+    contrato = f.divergencias_contrato
+    div = contrato[contrato["linha_negocio"] == "CHECKOUT"]
     anexo = pd.DataFrame({
         "ref_origem": div["ref_origem"], "cnpj": div["cnpj"], "lojista": div["lojista"], "linha_negocio": "CHECKOUT",
         "data": div["data"], "produto": div["produto"], "taxa_contratada_pct": div["taxa_contratada_pct"],
@@ -93,30 +94,40 @@ def gerar(f, config, dir_regras: Path, pasta_saida: Path, competencia_txt: str, 
                "", textos["ORBE"]["fechamento"], ""]
     out["orbe_md"] = _gravar(pasta / "orbe.md", linhas)
 
-    # ---------------- Ponte: excesso de spread, spreads negativos e repetida (lista_contestacao)
+    # ---------------- Ponte: um pedido por assunto (excesso por lojista, exclusões por natureza, repetidas), sem total único
     lc = lista_contestacao(f.ponte_linhas)
-    out["ponte_contestacao"] = escrever_csv(lc[COLUNAS_ANEXO] if len(lc) else pd.DataFrame(columns=COLUNAS_ANEXO),
+    out["ponte_contestacao"] = escrever_csv(lc if len(lc) else pd.DataFrame(columns=COLUNAS_CONTESTACAO),
                                             pasta / "ponte_contestacao.csv", "ponte_contestacao.csv")
     linhas = _cabecalho(textos["PONTE"], competencia_txt, {"remetente": meta.get("remetente") or "e-mail do relatório mensal"})
     if lc.empty:
         linhas.append("Nenhuma operação a contestar neste mês.")
-    exc = lc[lc["natureza"] == "EXCESSO_SPREAD"]
-    for cnpj, g in exc.groupby("cnpj", sort=False):
-        linhas.append(f"- **Spread acima do contratado — {g['lojista'].iloc[0]}** (CNPJ {cnpj}): {len(g)} operações com "
-                      f"{_faixa(g['taxa_contratada_pct'])} contratado × {_faixa(g['taxa_aplicada_pct'])} aplicado; excesso cheio "
-                      f"cobrado do lojista {brl(soma(g['valor_brl']))}, a devolver. Causa: {causas.get((cnpj, 'REMESSA'), 'a apurar')}.")
-    neg = lc[~lc["natureza"].isin(["EXCESSO_SPREAD", "REPETIDA"])]
-    for natureza, g in neg.groupby("natureza", sort=False):
-        linhas.append(f"- **{natureza.replace('_', ' ').capitalize()}**: {len(g)} operações ({', '.join(g['ref_origem'])}), "
-                      f"{brl(soma(g['valor_brl']))}. {g['motivo'].iloc[0]}: não aceitas, fora da nossa comissão e da nota.")
-    rep = lc[lc["natureza"] == "REPETIDA"]
-    for r in rep.itertuples():
-        linhas.append(f"- **Operação repetida no relatório**: {r.ref_origem} aparece mais de uma vez; contada uma vez no nosso "
-                      f"fechamento (valor 0 nesta lista). Pedimos a correção do relatório.")
-    em_disputa = soma(exc["valor_brl"]) + soma(neg["valor_brl"].map(abs))
+    else:
+        n_pedidos = lc["pedido"].nunique()
+        linhas += [f"São {n_pedidos} pedido{'s' if n_pedidos > 1 else ''}, cada um com o seu valor e as suas operações "
+                   f"(coluna `pedido` do anexo `ponte_contestacao.csv`, {len(lc)} operações):", ""]
+    from .notas import primeiro_dia
+    ref = primeiro_dia(f.competencia)
+    participacao, modo = config.parametro("participacao_spread", ref), config.parametro("arredondamento", ref)
+    for pedido, g in lc.groupby("pedido", sort=True):
+        natureza = g["natureza"].iloc[0]
+        ops = ", ".join(g["ref_origem"])
+        if natureza == "EXCESSO_SPREAD":
+            cnpj = g["cnpj"].iloc[0]
+            linhas.append(f"- **Pedido {pedido} — devolver a {g['lojista'].iloc[0]} (CNPJ {cnpj}) o excesso de spread: "
+                          f"{brl(soma(g['valor_brl']))} em {len(g)} operações.** {_faixa(g['taxa_aplicada_pct'])} aplicado contra "
+                          f"{_faixa(g['taxa_contratada_pct'])} contratado (excesso cheio cobrado do lojista). "
+                          f"Causa: {causas.get((cnpj, 'REMESSA'), 'a apurar')}. Operações: {ops}.")
+        elif natureza == "REPETIDA":
+            linhas.append(f"- **Pedido {pedido} — corrigir o relatório: {ops} aparece{'m' if len(g) > 1 else ''} mais de uma vez.** "
+                          f"Contada{'s' if len(g) > 1 else ''} uma vez no nosso fechamento (valor 0 neste pedido).")
+        else:
+            impacto = soma(arredondar(-v * participacao, modo) for v in g["valor_brl"])
+            obs = ", ".join(sorted({str(o) for o in f.ponte_linhas.loc[f.ponte_linhas["ref_origem"].isin(g["ref_origem"]), "observacao"] if o}))
+            linhas.append(f"- **Pedido {pedido} — {len(g)} operações com {natureza.replace('_', ' ').lower()}, fora da nossa comissão e "
+                          f"da nota: {brl(soma(g['valor_brl']))} no relatório, impacto de {brl(impacto)} na metade da Tarvo.** "
+                          f"{g['motivo'].iloc[0]}" + (f" ({obs})" if obs else "") + f": não aceitas. Operações: {ops}.")
     prazo = _prazo(config, meta, f)
-    linhas += ["", f"**Total em disputa: {brl(em_disputa)}** ({len(lc)} operações, anexo `ponte_contestacao.csv`).", "",
-               prazo, "", textos["PONTE"]["fechamento"], ""]
+    linhas += ["", prazo, "", textos["PONTE"]["fechamento"], ""]
     out["ponte_md"] = _gravar(pasta / "ponte.md", linhas)
 
     # ---------------- Comercial: tudo o que depende do Comercial nas pendências
@@ -143,7 +154,12 @@ def gerar(f, config, dir_regras: Path, pasta_saida: Path, competencia_txt: str, 
         linhas += [f"### {a['lojista']} → {a['contraparte'].title()} ({dest})", "",
                    f"- Lojista: {a['lojista']} — CNPJ {a['cnpj']}" + (f", EC {a['ec']}" if a.get("ec") else ""),
                    f"- Produtos: {a['produtos']}", f"- Taxa contratada: {a['taxa']} (origem: {a['origem']})",
-                   f"- Vigência: {a['vigencia']}", f"- Aplicado em {competencia_txt}: {a['aplicada']} em {a['n']} transações"
+                   f"- Vigência: {a['vigencia']}"]
+        if a.get("obs"):
+            linhas.append(f"- Observação na mesma linha da planilha ({a['obs_celula'] or 'coluna Obs'}): “{a['obs']}”. "
+                          f"Se a observação indicar outra data ou condição que a coluna de vigência, {textos['PONTE']['quem_decide']} "
+                          f"confirma qual vale antes do envio. O fechamento usou a vigência da coluna; nada foi decidido aqui.")
+        linhas += [f"- Aplicado em {competencia_txt}: {a['aplicada']} em {a['n']} transações"
                    + (f" (causa informada: {a['causa']})" if a.get("causa") else ""), ""]
     linhas += [textos["AVISO"]["fechamento"], ""]
     out["avisos_md"] = _gravar(pasta / "avisos_nova_condicao.md", linhas)
@@ -175,10 +191,7 @@ def _prazo(config, meta: dict, f) -> str:
 def _avisos(f, config, causas: dict) -> list[dict]:
     """Uma entrada por (lojista, linha de negócio) com divergência (de contrato ou fora dele): a condição contratada
     não foi aplicada desde o primeiro dia. Vigência: da TAXA_EXCECAO ou da linha da planilha de taxas."""
-    partes = [f.divergencias]
-    if len(f.divergencias_fora_contrato):
-        partes.append(f.divergencias_fora_contrato)
-    todas = pd.concat(partes, ignore_index=True) if len(partes) > 1 else partes[0]
+    todas = f.divergencias   # todas as naturezas: a condição não aplicada vira aviso mesmo quando é devolução ao lojista
     out = []
     for (cnpj, linha), g in todas.groupby(["cnpj", "linha_negocio"], sort=False):
         origem = str(g["regra_id"].iloc[0])
@@ -189,8 +202,8 @@ def _avisos(f, config, causas: dict) -> list[dict]:
             vig = f"de {regra.vigencia_de or 'início'} até {regra.vigencia_ate or 'sem fim'}"
             origem_txt = f"regra {regra.id} ({regra.situacao})"
         else:
-            vig_de, vig_ate = _vigencia_planilha(f, cnpj, origem)
-            vig = f"de {vig_de or 'início'} até {vig_ate or 'sem fim'}"
+            vig_de, vig_ate, vig_celula, obs, obs_celula = _vigencia_planilha(f, cnpj, origem)
+            vig = f"de {vig_de or 'início'} até {vig_ate or 'sem fim'}" + (f" (planilha de taxas, célula {vig_celula})" if vig_celula else "")
             origem_txt = origem.replace("planilha:", "planilha de taxas, célula ")
         ec = ""
         if linha == "CHECKOUT" and "cod_estabelecimento" in f.orbe_linhas.columns:
@@ -199,7 +212,8 @@ def _avisos(f, config, causas: dict) -> list[dict]:
         out.append({"contraparte": CONTRAPARTE_POR_LINHA[linha], "lojista": g["lojista"].iloc[0], "cnpj": cnpj, "ec": ec,
                     "produtos": ", ".join(sorted({str(p) for p in g["produto"]})), "taxa": _faixa(g["taxa_contratada_pct"]),
                     "origem": origem_txt, "vigencia": vig, "aplicada": _faixa(g["taxa_aplicada_pct"]), "n": len(g),
-                    "causa": causas.get((cnpj, linha), "")})
+                    "causa": causas.get((cnpj, linha), ""), "obs": obs if regra is None else "",
+                    "obs_celula": obs_celula if regra is None else ""})
     return out
 
 
@@ -216,17 +230,23 @@ def _nao_bateu_desde_o_primeiro_dia(f, cnpj: str, linha: str, origem: str, refs_
 
 
 def _vigencia_planilha(f, cnpj: str, origem: str):
+    """(vigência de, até, célula da vigência, observação da linha, célula da observação) da linha da planilha de onde
+    veio a taxa; tudo None/"" quando a taxa não veio da planilha."""
+    vazio = (None, None, "", "", "")
     taxas = getattr(f, "taxas", None)
     if taxas is None or not origem.startswith("planilha:"):
-        return None, None
+        return vazio
     ref = origem.split(":", 1)[1]
     sel = taxas[(taxas["cnpj"] == cnpj) & (taxas["ref_origem"] == ref)]
     if sel.empty:
-        return None, None
+        return vazio
     r = sel.iloc[0]
     de = r["vigencia_de"].date() if pd.notna(r["vigencia_de"]) else None
     ate = r["vigencia_ate"].date() if pd.notna(r["vigencia_ate"]) else None
-    return de, ate
+    def texto(col):
+        v = r[col] if col in sel.columns else None
+        return "" if v is None or (not isinstance(v, str) and pd.isna(v)) else str(v).strip()
+    return de, ate, texto("vigencia_celula"), texto("obs"), texto("obs_celula")
 
 
 def _gravar(caminho: Path, linhas: list[str]) -> Path:

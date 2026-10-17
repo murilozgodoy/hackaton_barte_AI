@@ -194,6 +194,9 @@ def validar_leitores(d: dict[str, pd.DataFrame]) -> list[Checagem]:
                 if _hu((tc - px) * me) != s)
     c.append(Checagem("ponte", "Spread R$ = (Taxa Cliente - PTAX) x Valor ME", ruins == 0,
                       f"{ruins} operações não fecham", "AVISO"))
+    for ign in p.attrs.get("linhas_ignoradas", []) or []:
+        c.append(Checagem("ponte", "linha ignorada", True,
+                          f"linha {ign['linha']} sem Nº Operação ou data de contratação válida: {ign['conteudo']}", "INFO"))
     rep = p["num_operacao"].duplicated(keep=False)
     c.append(Checagem("ponte", "Nº Operação repetido", True,
                       f"{p.loc[rep, 'num_operacao'].nunique()} número(s) aparecem mais de uma vez: "

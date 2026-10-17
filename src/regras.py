@@ -15,7 +15,8 @@ vírgula ou ponto decimal. Só regras com status ATIVA são executadas. MANUAL n
 executada: vira lembrete no relatório (e, com `assunto=`, texto da conciliação). ALERTA
 calcula um critério e gera pendência sem tirar nada da comissão. DONO_PENDENCIA aceita
 `subtipo=` (dono específico) e `informativa=true` (fora do "em jogo"). TAXA_EXCECAO aceita
-`divergencia=DEVOLUCAO_LOJISTA` (diferença fora de divergencias_taxa.csv). Pendências em
+`divergencia=DEVOLUCAO_LOJISTA` (a diferença sai em divergencias_taxa.csv com essa natureza e a `observacao=`
+da regra, fora da cobrança da contraparte). Pendências em
 PENDENCIAS_OPCIONAIS só existem com dono ativo. Quem aprova cada tipo: regras/aprovadores.csv.
 Colunas de texto livre (situacao, como_identificar, o_que_fazer...) não são interpretadas pelo código.
 
@@ -63,18 +64,22 @@ PARAMETROS = {
     # operação do parceiro de câmbio cujo CNPJ não está na planilha nem no complemento:
     # COMISSAO = entra na comissão e na nota (o parceiro paga) com pendência CADASTRO/CNPJ_PONTE; EXCLUIR = fica fora
     "remessa_cnpj_sem_cadastro": ("escolha", {"COMISSAO", "EXCLUIR"}),
+    # trechos (separados por " OU ") que, na observação de uma linha do relatório do parceiro de câmbio, marcam um
+    # ajuste (crédito ou débito) de mês anterior: a linha entra na comissão pelo valor (AJUSTE_PONTE) e vira pendência
+    "ajuste_parceiro_contem": ("texto", None),
 }
 TIPOS_PENDENCIA = {
     "DIVERGENCIA_TAXA", "TARIFA_ZERO_COBRADA", "SEM_CONTRATO", "SPREAD_NEGATIVO",
     "EXCESSO_SPREAD_CONTESTADO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO", "EXTRATO_NAO_IDENTIFICADO",
     "DEVOLUCAO", "EM_TRANSITO", "REVISAR_IA", "MANUAL", "FORA_COMPETENCIA", "COMPLIANCE",
     "DUPLICATA_DIVERGENTE", "RECURSO_SEM_OPERACAO", "CONFERIR_REPASSE_PONTE", "ALERTA_ANTECIPACAO",
+    "CONFERIR_AJUSTE_PONTE", "LINHA_NAO_INTERPRETADA",
 }
 # Pendências que o próprio motor gera (sem regra que as origine): precisam de DONO_PENDENCIA.
 PENDENCIAS_DO_MOTOR = {
     "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO",
     "EXTRATO_NAO_IDENTIFICADO", "EM_TRANSITO", "REVISAR_IA", "FORA_COMPETENCIA",
-    "DUPLICATA_DIVERGENTE", "CONFERIR_REPASSE_PONTE",
+    "DUPLICATA_DIVERGENTE", "CONFERIR_REPASSE_PONTE", "CONFERIR_AJUSTE_PONTE", "LINHA_NAO_INTERPRETADA",
 }
 # Pendências opcionais: o motor só as gera se houver DONO_PENDENCIA ativa (sem dono, a situação
 # é tratada por lembrete MANUAL). Ligar/desligar é dado (status da regra), não código.
@@ -88,8 +93,8 @@ SO_PARA = STATUS_CADASTRO | {"PRIMEIRO_MES"}
 VALOR_PENDENCIA = {"orbe": {"valor_taxa", "valor_bruto"}, "ponte": {"spread_brl", "valor_brl"}}
 AGRUPAR = {"cnpj", "ec", "linha", "tudo"}
 # natureza da diferença entre taxa contratada e aplicada numa TAXA_EXCECAO (parâmetro `divergencia`)
-NATUREZA_CONTRATO = "CONTRATO"            # contratada ≠ aplicada: divergencias_taxa.csv (cobrança da adquirente)
-NATUREZAS_DIVERGENCIA = {NATUREZA_CONTRATO, "DEVOLUCAO_LOJISTA"}   # DEVOLUCAO_LOJISTA: só pendência, fora do CSV
+NATUREZA_CONTRATO = "CONTRATO"            # contratada ≠ aplicada: cobrança da contraparte (adquirente ou parceiro)
+NATUREZAS_DIVERGENCIA = {NATUREZA_CONTRATO, "DEVOLUCAO_LOJISTA"}   # DEVOLUCAO_LOJISTA: no CSV, marcada; fora da cobrança
 CHAVES_DUPLICADO = {"ponte": {"num_operacao"}, "orbe": {"id_transacao"}}
 # papel de um lançamento na conciliação entre fontes (CLASSIFICAR_CONTA, opcional)
 PAPEIS = {"recebimento_adquirente", "repasse_lojista", "recurso_remessa", "liquidacao_remessa"}
@@ -97,7 +102,8 @@ _RE_IDENT = re.compile(r"[A-Z][A-Z0-9_]*")
 
 # chaves obrigatórias e opcionais de `parametros`, por tipo
 ESQUEMA = {
-    "TAXA_EXCECAO": ({"cnpj", "linha_negocio", "produto", "taxa_pct"}, {"tipo_pendencia", "subtipo", "divergencia"}),
+    "TAXA_EXCECAO": ({"cnpj", "linha_negocio", "produto", "taxa_pct"},
+                     {"tipo_pendencia", "subtipo", "divergencia", "observacao"}),
     "IGNORAR_DUPLICADO": ({"fonte", "chave"}, set()),
     "EXCLUIR_E_PENDENCIA": ({"fonte", "criterio", "tipo_pendencia"},
                             {"status", "aceitos", "valor_pendencia", "agrupar", "subtipo"}),
