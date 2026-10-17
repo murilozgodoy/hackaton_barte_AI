@@ -38,7 +38,9 @@ Use os comandos exatamente como escritos. Não invente flags. Prefira `--json` p
 
 ### 2. Fechar
 - `python -m src fechar --entrada <zip ou pasta> --regras <pasta ou zip> --saida <pasta de saída> --json`
-  (acrescente `--competencia AAAA-MM` só se a pessoa pedir um mês específico).
+  (acrescente `--competencia AAAA-MM` só se a pessoa pedir um mês específico). Se existir a saída do mês
+  anterior, acrescente `--anterior <saida do mês anterior>`: as transações guardadas em `carteira_pendente.csv`
+  (sem contrato ou taxa no mês passado) são faturadas agora se tiverem taxa, ou continuam na carteira.
 - Código 3: a integridade falhou; `resumo.json` não foi gravado e o relatório está marcado como inválido. Explique qual checagem falhou e **pare**. Nunca apresente números com integridade falha.
 
 ### 3. Apresentar

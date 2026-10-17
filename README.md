@@ -26,7 +26,8 @@ Time MN AI: Nader Taha e Murilo Godoy.
    `validar` (para com código 1 ou 2 se a entrada ou a base de regras tiverem problema) e `fechar`.
    No fim imprime o **resumo do fechamento** (totais por linha de negócio, notas, divergências,
    pendências por responsável, checagens) e onde estão os arquivos: `saida/` com os 6 CSVs,
-   `resumo.json` e `RELATORIO_FECHAMENTO.md`.
+   `carteira_pendente.csv` (transações sem contrato/taxa guardadas para o mês seguinte), `resumo.json`
+   e `RELATORIO_FECHAMENTO.md`.
 
 Mesmo resultado sem o script:
 ```bash
@@ -47,6 +48,9 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 - **Versões:** `requirements.txt` fixa pandas 2.3.3, openpyxl 3.1.5 e pytest 9.1.1. O motor foi
   testado em Python 3.10, 3.11, 3.12, 3.13 e 3.14, com pandas 2.3.3 e com pandas 3.0.6, e o
   `saida/` é idêntico em todas as combinações (pandas 3 exige Python 3.11+).
+- **Mês seguinte:** `fechar --entrada <outubro> --anterior saida_de_setembro` relê `carteira_pendente.csv`
+  e fatura, junto com o mês, as transações que agora têm taxa (ex.: TAXA_EXCECAO retroativa da Atlas);
+  as demais continuam na carteira com a idade em meses.
 - Todos os comandos aceitam `--json` (saída para agentes). Códigos de saída: 0 ok · 1 problema nos
   arquivos de entrada · 2 problema na base de regras · 3 integridade falhou (nesse caso `resumo.json`
   não é gravado e o relatório sai marcado como inválido) · 4 id inexistente.
@@ -125,7 +129,7 @@ src/                    motor: leitores/ (uma fonte cada), regras.py (validaçã
                         remessa.py, divergencias.py, notas.py, extratos.py, pendencias.py,
                         conciliacao.py, relatorio.py, validacao.py, cli.py
 skills/fechamento-tarvo/  Agent Skill (SKILL.md + references + evals); atalho em .agents/skills/
-tests/                  251 testes (pytest), inclusive casos sintéticos que rodam sem o data pack
+tests/                  mais de 260 testes (pytest), inclusive casos sintéticos que rodam sem o data pack
 ```
 
 Princípios: a planilha de taxas é o cadastro mestre; lojista só se identifica por CNPJ/EC,

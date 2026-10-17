@@ -42,13 +42,17 @@ dependências). Se preferir à mão: `python3 -m venv .venv && .venv/bin/pip ins
      .venv/bin/python -m src regra propor --regras regras --saida saida --entrada <zip ou pasta> \
        --tipo CLASSIFICAR_CONTA --campos "situacao=..." "parametros=banco=AURORA | contem=... | conta=... | prioridade=50" \
        "o_que_fazer=..." "quem_decide=Financeiro" "informado_por=quem disse, onde, quando"
-     .venv/bin/python -m src regra aplicar --regras regras --proposta saida/propostas/<id>.json --aprovado-por "Seu nome"
+     .venv/bin/python -m src regra aplicar --regras regras --proposta saida/propostas/<id>.json --aprovado-por "Seu nome" [--registrado-por "quem registra"]
+     ```
+     Quem pode aprovar cada tipo está em `regras/aprovadores.csv` (taxa e condição comercial = Comercial, com a Helena
+     registrando; regra de como fechar = Helena). O comando recusa aprovador de outro papel.
+     ```bash
      ```
    Depois rode `fechar` de novo.
 7. **Emita as notas** de `saida/notas_a_emitir.csv` e **lance** `saida/lancamentos_classificados.csv` no Fênix.
 
 ## O que o sistema nunca faz
-- Não casa lojista por nome: EC ou CNPJ desconhecido vira pendência CADASTRO.
+- Não casa lojista por nome: EC desconhecido vira pendência CADASTRO e fica fora da comissão; CNPJ da Ponte desconhecido entra na comissão (a Ponte paga) e vira pendência CADASTRO para o Comercial.
 - Não chuta taxa: lojista sem taxa na planilha vira pendência.
 - Não aceita número que não feche com as linhas de origem: a soma do `rastro.csv` é conferida a cada execução.
 

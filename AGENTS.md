@@ -10,7 +10,7 @@ explicar um número ou mexer em regras.
 2. `python -m src fechar --entrada <zip ou pasta> --regras regras --saida saida --json` → código 3 (integridade): explique e pare.
 3. Apresente a partir de `saida/resumo.json` e `saida/RELATORIO_FECHAMENTO.md`. Entregue os CSVs.
 4. Pendências: `python -m src pendencias --saida saida --json`; para cada uma, `python -m src explicar <id> --saida saida --entrada <...> --regras regras`. Registre a decisão da pessoa.
-5. Decisão que vale para os próximos meses: `python -m src regra propor ...` → mostrar → aprovação explícita → `python -m src regra aplicar --proposta <arquivo> --aprovado-por "<nome>"` → `fechar` de novo.
+5. Decisão que vale para os próximos meses: `python -m src regra propor ...` → mostrar → aprovação explícita de quem pode aprovar aquele tipo (`regras/aprovadores.csv`: taxa = Comercial, resto = Helena) → `python -m src regra aplicar --proposta <arquivo> --aprovado-por "<nome>" [--registrado-por "<nome>"]` → `fechar` de novo.
 
 ## Limites
 - Nunca calcule, estime ou ajuste valores; todo número vem de `saida/`.
