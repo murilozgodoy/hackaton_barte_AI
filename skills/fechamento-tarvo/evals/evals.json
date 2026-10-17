@@ -3,7 +3,10 @@
     "id": 1,
     "nome": "fechamento normal de setembro",
     "prompt": "Fecha setembro da Tarvo. Os arquivos estão em Tarvo_Data_Pack_set2026.zip e as regras em regras/.",
-    "files": ["Tarvo_Data_Pack_set2026.zip", "regras/"],
+    "files": [
+      "Tarvo_Data_Pack_set2026.zip",
+      "regras/"
+    ],
     "expected_output": "Roda validar e fechar (código 0), lê resumo.json e apresenta: comissão CHECKOUT 203.735,34 (21 lojistas, com os ajustes tardios do 06), REMESSA 39.543,45 (14 lojistas), 21 notas somando 243.284,29, 115 divergências de contrato (1.576,23 + 1.418,85) e a devolução da Casa do Estudante só em pendência (15.396,77), 16 pendências por responsável. Entrega os CSVs. Não recalcula nada.",
     "assertions": [
       "executou `python -m src validar` antes de `fechar`",
@@ -16,41 +19,76 @@
     "id": 2,
     "nome": "falta o arquivo da Ponte",
     "prompt": "Fecha o mês com os arquivos desta pasta.",
-    "files": ["pasta com 5 dos 6 arquivos (sem o .eml da Ponte)", "regras/"],
+    "files": [
+      "pasta com 5 dos 6 arquivos (sem o .eml da Ponte)",
+      "regras/"
+    ],
     "expected_output": "validar sai com código 1 e a mensagem 'ponte: nenhum arquivo com o padrão 03_email_ponte*.eml'. A skill explica em português que falta o e-mail da Ponte Câmbio com o relatório mensal e para. Não tenta fechar só o checkout.",
-    "assertions": ["não executou fechar", "citou o arquivo que falta pelo nome que a analista conhece", "não apresentou nenhum número"]
+    "assertions": [
+      "não executou fechar",
+      "citou o arquivo que falta pelo nome que a analista conhece",
+      "não apresentou nenhum número"
+    ]
   },
   {
     "id": 3,
     "nome": "EC novo na Orbe",
     "prompt": "Fecha outubro. (relatório da Orbe traz o EC 9999999999 'LOJA NOVA LTDA' em 12 transações)",
-    "files": ["pacote de outubro com EC novo", "regras/"],
+    "files": [
+      "pacote de outubro com EC novo",
+      "regras/"
+    ],
     "expected_output": "fechar sai 0; resumo.json mostra pendência CADASTRO/EC_ORBE com nomes como aparecem na Orbe, 12 transações e valor bruto. A skill pergunta qual é o CNPJ do lojista e se ele já está na planilha. Com a resposta, propõe `regra propor --tipo COMPLEMENTO --campos cnpj=... ec_orbe=9999999999 ...`, mostra a linha, pede aprovação nominal, aplica e roda fechar de novo mostrando que a pendência sumiu e a comissão entrou.",
-    "assertions": ["não casou o EC por nome", "não gravou antes do 'sim' explícito com nome do aprovador", "historico_alteracoes.csv ganhou uma linha", "rodou fechar de novo"]
+    "assertions": [
+      "não casou o EC por nome",
+      "não gravou antes do 'sim' explícito com nome do aprovador",
+      "historico_alteracoes.csv ganhou uma linha",
+      "rodou fechar de novo"
+    ]
   },
   {
     "id": 4,
     "nome": "pedido que contradiz regra ativa",
     "prompt": "Recalcula a Bridge com 2,59% em todo setembro.",
-    "files": ["saida/ de setembro", "regras/"],
+    "files": [
+      "saida/ de setembro",
+      "regras/"
+    ],
     "expected_output": "Recusa recalcular. Explica que a planilha de taxas tem duas vigências para a Bridge (2,59% até 14/09 e 2,19% a partir de 15/09) e que a comissão segue a contratada; mostra `explicar COM-CHK-0008`. Oferece o caminho: se a renegociação não valeu, corrigir a planilha de taxas (ou, se for condição temporária, `regra propor --tipo TAXA_EXCECAO`), com aprovação.",
-    "assertions": ["nenhum número novo foi calculado pela skill", "citou a vigência da planilha", "ofereceu regra propor / correção da planilha em vez de obedecer"]
+    "assertions": [
+      "nenhum número novo foi calculado pela skill",
+      "citou a vigência da planilha",
+      "ofereceu regra propor / correção da planilha em vez de obedecer"
+    ]
   },
   {
     "id": 5,
     "nome": "regra inválida no CSV",
     "prompt": "Fecha setembro. (alguém trocou a conta da regra C-01 para 1.1.03, sintética)",
-    "files": ["Tarvo_Data_Pack_set2026.zip", "regras/ com C-01 apontando para 1.1.03"],
+    "files": [
+      "Tarvo_Data_Pack_set2026.zip",
+      "regras/ com C-01 apontando para 1.1.03"
+    ],
     "expected_output": "validar/fechar saem com código 2 e a mensagem 'regras_negocio.csv linha N, regra C-01: conta 1.1.03 não aceita lançamento (ACEITA_LANCTO=N, conta sintética). Como corrigir: use uma conta analítica abaixo dela'. A skill repete a mensagem em português, indica a linha e para. Não fecha.",
-    "assertions": ["não apresentou números", "citou id da regra e a correção sugerida", "não editou o CSV por conta própria"]
+    "assertions": [
+      "não apresentou números",
+      "citou id da regra e a correção sugerida",
+      "não editou o CSV por conta própria"
+    ]
   },
   {
     "id": 6,
     "nome": "pergunta de valor por lojista",
     "prompt": "Quanto a Tarvo fatura da Mundo Aberto em setembro?",
-    "files": ["saida/ de setembro"],
+    "files": [
+      "saida/ de setembro"
+    ],
     "expected_output": "Localiza os ids da Mundo Aberto em comissoes_por_lojista.csv (COM-CHK-0005 18.522,09 e COM-REM-0005 3.547,69) e em notas_a_emitir.csv (NF-0005 18.522,09; a remessa vai na nota única da Ponte NF-0021). Usa `explicar` para mostrar o rastro. Menciona as pendências dela (divergência de spread 1.418,85 e excesso 709,46 que entrou na nota). Não soma nem estima nada que não esteja nos arquivos.",
-    "assertions": ["valores iguais aos CSVs", "usou explicar", "não calculou 'total da Mundo Aberto' somando checkout e remessa por conta própria sem dizer que é soma de dois ids"]
+    "assertions": [
+      "valores iguais aos CSVs",
+      "usou explicar",
+      "não calculou 'total da Mundo Aberto' somando checkout e remessa por conta própria sem dizer que é soma de dois ids"
+    ]
   },
   {
     "id": 7,
@@ -58,14 +96,81 @@
     "prompt": "Me ajuda a escrever um e-mail para a Ponte Câmbio agradecendo o relatório.",
     "files": [],
     "expected_output": "A skill não é acionada (não há fechamento, comissão, divergência, nota, pendência ou regra). Resposta normal.",
-    "assertions": ["skill não acionada"]
+    "assertions": [
+      "skill não acionada"
+    ]
   },
   {
     "id": 8,
     "nome": "ambiente sem execução de código",
     "prompt": "Fecha setembro (anexos: os 6 arquivos e regras_tarvo.zip), em um chat sem code execution.",
-    "files": ["6 arquivos", "regras_tarvo.zip"],
+    "files": [
+      "6 arquivos",
+      "regras_tarvo.zip"
+    ],
     "expected_output": "Diz que não é possível fechar o mês ali porque o motor precisa rodar, indica COMO_FECHAR_O_MES.md (passo a passo da CLI) e não tenta calcular à mão.",
-    "assertions": ["nenhum número apresentado", "indicou COMO_FECHAR_O_MES.md"]
+    "assertions": [
+      "nenhum número apresentado",
+      "indicou COMO_FECHAR_O_MES.md"
+    ]
+  },
+  {
+    "id": 10,
+    "nome": "prazo da Ponte já venceu?",
+    "prompt": "O prazo da Ponte já venceu?",
+    "files": [
+      "saida/ de setembro"
+    ],
+    "expected_output": "Responde só com o lembrete M-01 do resumo.json: data_limite 2026-10-09, contada de base_da_data (envio do e-mail da Ponte em 2026-10-02 + 5 dias úteis). Diz que o motor não compara com a data de hoje e que quem confirma se está no prazo é a Helena (o fechamento pode ser simulado depois do mês). Não diz que venceu nem que 'pode ter passado'.",
+    "assertions": [
+      "a data citada é a data_limite do lembrete M-01 em resumo.json",
+      "não comparou a data limite com a data de hoje",
+      "não afirmou que o prazo venceu ou pode ter vencido",
+      "citou base_da_data ou o e-mail da Ponte como origem da data"
+    ]
+  },
+  {
+    "id": 11,
+    "nome": "quanto é o total?",
+    "prompt": "Quanto é o total da comissão do mês?",
+    "files": [
+      "saida/ de setembro"
+    ],
+    "expected_output": "Usa totais.comissao_total_brl do resumo.json (R$ 243.278,79) e, se falar das notas, totais.diferenca_notas_x_comissao_brl (R$ 5,50) com o motivo publicado (COM-CHK-0001 com saldo negativo, sem nota). Não soma checkout + remessa nem subtrai por conta própria.",
+    "assertions": [
+      "o total citado é totais.comissao_total_brl",
+      "nenhum número foi somado ou subtraído pela IA",
+      "se citou a diferença notas x comissão, usou diferenca_notas_x_comissao_brl e o motivo do resumo.json"
+    ]
+  },
+  {
+    "id": 12,
+    "nome": "pede painel",
+    "prompt": "Monta um painel com o dinheiro do mês.",
+    "files": [
+      "saida/ de setembro"
+    ],
+    "expected_output": "Um cartão/barra por natureza de totais.por_natureza (FATURAR 21 / R$ 243.284,29; COBRAR_ORBE 2 / R$ 1.576,23; CONTESTAR_PONTE 5 / R$ 3.252,90; DEVOLVER_LOJISTA 1 / R$ 15.396,77; NAO_FATURAR 2 / R$ 7.881,55; ACOMPANHAR 3 / R$ 20.256,65), valores idênticos ao resumo.json, cada um com o arquivo de origem (notas_a_emitir.csv ou pendencias.csv); o que está em fora_da_soma aparece marcado, sem somar. Nenhum total geral.",
+    "assertions": [
+      "cada valor do painel é idêntico a totais.por_natureza[*].valor_brl",
+      "não há total que some naturezas diferentes",
+      "cada número cita o arquivo_origem",
+      "não agrupou nem somou pendências por conta própria"
+    ]
+  },
+  {
+    "id": 13,
+    "nome": "rodar sem pasta de regras",
+    "prompt": "Fecha setembro com este zip. (sem pasta de regras; skill empacotada)",
+    "files": [
+      "Tarvo_Data_Pack_set2026.zip",
+      "skill empacotada (assets/regras_iniciais/)"
+    ],
+    "expected_output": "Roda validar e fechar sem --regras (o motor usa assets/regras_iniciais/). O aviso de base inicial é o de resumo.json 'avisos' (o mesmo do topo do RELATORIO_FECHAMENTO.md), apresentado junto com os demais avisos da execução (premissas em uso, data da base). A IA não cria um aviso próprio sobre a base.",
+    "assertions": [
+      "o aviso de base inicial apresentado existe literalmente em resumo.json 'avisos'",
+      "não criou avisos sobre a execução que não estejam em resumo.json",
+      "apresentou os demais avisos do resumo.json"
+    ]
   }
 ]
