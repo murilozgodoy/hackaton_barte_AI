@@ -105,20 +105,43 @@ def test_comercial(saida):
 
 
 def test_avisos_nova_condicao(saida):
-    """Só divergências de contrato geram aviso (Bridge → Orbe, Mundo Aberto → Ponte). A Casa é concessão fora do contrato
-    (Helena ao Theo 17/10 11h37): não há condição que a Orbe devesse aplicar, logo não há aviso. O texto diz que o aviso
-    é processo e que quem deve é definido pelo contrato."""
+    """Aviso só para condição com vigência depois da competência, ou no mês sem divergência (regra P-13). Bridge (vigência
+    15/09, com divergência) e Mundo Aberto (vigência jan/26) já estão em contestação: sem aviso atrasado e duplicado. A Casa
+    (X-01) é concessão absorvida pela Tarvo: a linha diz por que não há aviso."""
     md = (saida / "comunicacoes" / "avisos_nova_condicao.md").read_text(encoding="utf-8")
-    assert "Escola Bridge de Idiomas Ltda → Orbe" in md and "Mundo Aberto → Ponte" in md and "Casa do Estudante" not in md
-    assert md.count("### ") == 2 and "X-01" not in md
-    assert "de 2026-09-15 até sem fim" in md and "1.2%" in md and "EC 1075624862" in md
+    assert md.count("### ") == 0 and "Nenhuma condição comercial nova a avisar na competência 09/2026." in md
+    assert "- TAXA_EXCECAO X-01 não gera aviso à Orbe: concessão absorvida pela Tarvo" in md
+    contestacao = next(l for l in md.splitlines() if "seguem pela contestação, não por aviso (regra P-13)" in l)
+    assert "Escola Bridge de Idiomas Ltda (Orbe, comunicacoes/orbe.md)" in contestacao
+    assert "Mundo Aberto (Ponte, comunicacoes/ponte.md)" in contestacao
     assert "O aviso é controle de processo: quem deve é definido pelo contrato" in md and "não o aviso" not in md   # externo
-    # T5 (Helena a confirmar): a linha da Mundo Aberto diz vigência 01/01/2026 (K15) e a observação "spread negociado em jul/26" (L15)
-    ma = md.split("### Mundo Aberto")[1].split("### ")[0]
-    assert "de 2026-01-01 até sem fim (planilha de taxas, célula Taxas vigentes!K15)" in ma
-    assert "Observação na mesma linha da planilha (Taxas vigentes!L15): “spread negociado em jul/26”" in ma
-    assert "Helena (Financeiro) confirma qual vale" in ma and "nada foi decidido aqui" in ma
-    assert "(Taxas vigentes!L7): “só mudou o crédito à vista”" in md.split("### Mundo Aberto")[0]   # Bridge também tem Obs
+
+
+def test_aviso_sai_para_condicao_futura_ou_no_mes_sem_divergencia(dados, config):
+    """Condição com vigência no mês seguinte gera aviso; com aviso_condicao_nova_com_divergencia=true, a Bridge (no mês,
+    com divergência) também gera."""
+    import copy
+    from src import comunicacoes
+    from src.fechamento import executar
+    fech = executar(dados, config, "2026-09", usar_ia=False)
+    f2 = copy.copy(fech)
+    tx = fech.taxas.copy()
+    nova = tx[tx["linha_planilha"] == 7].copy()
+    nova["linha_planilha"], nova["vigencia_de"], nova["taxa_pct"] = 99, pd.Timestamp("2026-10-05"), nova["taxa_pct"] - 1
+    f2.taxas = pd.concat([tx, nova], ignore_index=True)
+    avisos, _ = comunicacoes._avisos(f2, config, {})
+    assert {(a["lojista"], a["contraparte"], a["origem"]) for a in avisos} == {
+        ("Escola Bridge de Idiomas Ltda", "ORBE", "planilha de taxas, linha 99"),
+        ("Escola Bridge de Idiomas Ltda", "PONTE", "planilha de taxas, linha 99")}
+    assert "depois da competência" in avisos[0]["situacao"]
+    regra = config.regra_parametro("aviso_condicao_nova_com_divergencia", __import__("datetime").date(2026, 9, 1))
+    antes, regra.valor = regra.valor, True
+    try:
+        avisos, notas = comunicacoes._avisos(fech, config, {})
+    finally:
+        regra.valor = antes
+    assert [a["origem"] for a in avisos] == ["planilha de taxas, linha 7"] and "já com divergência" in avisos[0]["situacao"]
+    assert avisos[0]["produtos"] == "CREDITO A VISTA"     # só o que mudou em relação à linha anterior (L6)
 
 
 def test_resumo_lista_os_rascunhos_e_lembrete_m06(saida):

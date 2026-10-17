@@ -77,7 +77,8 @@ def test_casa_do_estudante_tarifa_zero(fech):
     assert "cobrou efetivamente R$ 15.396,77" in r.motivo and "a fórmula bruto × taxa daria R$ 15.397,42" in r.motivo
     assert "R$ 0,65 de truncamento da adquirente que o lojista não pagou" in r.motivo
     assert "devolução ao lojista" in r.motivo and "não há o que cobrar da Orbe" in r.motivo
-    assert "ficam fora de divergencias_taxa.csv e de qualquer cobrança da adquirente" in r.motivo and "concessão comercial fora do contrato" in r.motivo
+    assert "fica FORA de divergencias_taxa.csv e de orbe_contestacao.csv" in r.motivo and "Concessão do Comercial fora do contrato" in r.motivo
+    assert r.motivo.count("fora do contrato") == 1   # cada informação uma vez (observação da regra não se repete)
     assert "custo da Tarvo" in r.motivo   # F16: quem abriu mão da receita foi a Tarvo
     rastro = fech.rastro[fech.rastro.id_saida == r.id_saida]
     assert len(rastro) == 118 and soma(rastro.valor) == D("15396.77")

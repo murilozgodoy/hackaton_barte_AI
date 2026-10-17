@@ -128,3 +128,30 @@ def test_prazo_desconhecido_e_erro_de_regra(pasta_dados, tmp_path, capsys):
     p.write_text(p.read_text(encoding="utf-8-sig").replace("prazo=repasse_parceiro", "prazo=amanha"), encoding="utf-8")
     assert main(["validar", "--entrada", str(pasta_dados), "--regras", str(regras), "--json"]) == 2
     assert "prazo 'amanha' desconhecido" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------- Causa 4: cada informação aparece uma vez
+
+def test_nenhum_texto_de_saida_repete_a_mesma_frase(tmp_path, capsys):
+    """Nenhum motivo/o_que_fazer de pendencias.csv e nenhuma linha de comunicacoes/*.md repete uma sequência de 8 palavras."""
+    import csv
+    from src.textos import repeticoes
+    assert main(["fechar", "--saida", str(tmp_path / "s"), "--sem-ia", "--json"]) == 0
+    capsys.readouterr()
+    achados = []
+    for r in csv.DictReader(open(tmp_path / "s" / "pendencias.csv", encoding="utf-8"), delimiter=";"):
+        for col in ("motivo", "o_que_fazer"):
+            if repeticoes(r[col]):
+                achados.append((r["id_saida"], col, repeticoes(r[col])[:2]))
+    for md in sorted((tmp_path / "s" / "comunicacoes").glob("*.md")):
+        for n, linha in enumerate(md.read_text(encoding="utf-8").splitlines(), 1):
+            if repeticoes(linha):
+                achados.append((md.name, n, repeticoes(linha)[:2]))
+    assert achados == []
+
+
+def test_sem_repeticao_tira_a_frase_repetida():
+    from src.textos import repeticoes, sem_repeticao
+    a = "A Orbe cobrou o que estava contratado e não há o que cobrar dela."
+    assert sem_repeticao(f"Concessão fora do contrato. {a} Fim.", ja_dito=a) == "Concessão fora do contrato. Fim."
+    assert repeticoes(f"{a} {a}") and not repeticoes(a)

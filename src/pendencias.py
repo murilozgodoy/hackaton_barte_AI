@@ -14,6 +14,7 @@ from decimal import Decimal
 import pandas as pd
 
 from .dinheiro import ZERO, arredondar, brl, soma
+from .textos import sem_repeticao
 from .regras import NATUREZA_CONTRATO, Config, Regra
 from .remessa import DESTINOS_COMISSAO
 
@@ -52,6 +53,7 @@ class _Coletor:
             subtipo=None, linha_negocio=None, cnpj=None, lojista=None, qtd_itens=None, extras: dict | None = None):
         # rastro que não soma o valor não é escondido aqui: a checagem 1 acusa e o fechar sai com código 3
         motivo = motivo.replace(";", ",")   # ';' é o separador do CSV; evita quebrar leitores ingênuos
+        motivo = sem_repeticao(motivo)        # fato + o que fazer da regra: cada informação uma vez
         self.itens.append({
             "tipo": tipo, "ref_origem": ref_origem, "valor_brl": valor, "motivo": motivo,
             "quem_decide": regra.quem_decide, "subtipo": subtipo, "linha_negocio": linha_negocio, "cnpj": cnpj,
@@ -197,9 +199,8 @@ def _so_pendencia(c: _Coletor, so_pend: pd.DataFrame | None, chk: pd.DataFrame) 
                    f"lojista {'não pagou' if trunc > 0 else 'pagou a mais'})") if trunc != 0 else f"a fórmula bruto × taxa dá o mesmo valor"
         motivo = (f"A adquirente cobrou efetivamente {brl(cobrado)} em {len(g)} transações de checkout com condição "
                   f"especial ({taxas}). {NATUREZAS_TEXTO.get(natureza, natureza.lower().replace('_', ' ')).capitalize()} "
-                  f"do que foi efetivamente cobrado: {formula}. As transações ficam fora de divergencias_taxa.csv e de "
-                  f"qualquer cobrança da adquirente, por regra ({regra.id}), com o detalhe por transação no rastro desta "
-                  f"pendência" + (f" ({obs})" if obs else ""))
+                  f"do que foi efetivamente cobrado: {formula}. Detalhe por transação no rastro desta pendência "
+                  f"(regra {regra.id})" + (f": {obs}" if obs and not regra.o_que_fazer else ""))
         c.add(tipo, cnpj, cobrado, f"{motivo}. {regra.o_que_fazer}", regra,
               _rastro(g, "cobrado_brl", "regra_id", "taxa_contratada_pct"),
               linha_negocio="CHECKOUT", cnpj=cnpj, lojista=g["lojista"].iloc[0], qtd_itens=len(g))

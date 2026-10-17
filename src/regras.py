@@ -65,6 +65,8 @@ PARAMETROS = {
     # operação do parceiro de câmbio cujo CNPJ não está na planilha nem no complemento:
     # COMISSAO = entra na comissão e na nota (o parceiro paga) com pendência CADASTRO/CNPJ_PONTE; EXCLUIR = fica fora
     "remessa_cnpj_sem_cadastro": ("escolha", {"COMISSAO", "EXCLUIR"}),
+    # aviso de condição nova também para condição com vigência no mês que já tem divergência (false: vai pela contestação)
+    "aviso_condicao_nova_com_divergencia": ("sim_nao", None),
 }
 TIPOS_PENDENCIA = {
     "DIVERGENCIA_TAXA", "TARIFA_ZERO_COBRADA", "SEM_CONTRATO", "SPREAD_NEGATIVO",
