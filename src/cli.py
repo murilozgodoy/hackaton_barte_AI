@@ -117,7 +117,7 @@ def carregar_dados(args, base: BaseRegras):
 def carregar_contexto(args, base: BaseRegras) -> Contexto:
     """Lê entradas, roda as checagens dos leitores e carrega a base de regras."""
     if getattr(args, "competencia", None) and not _RE_COMPETENCIA.match(args.competencia):
-        raise Parada(SAIDA_ENTRADA, f"--competencia '{args.competencia}' inválida: use AAAA-MM (ex.: 2026-10)")
+        raise Parada(SAIDA_ENTRADA, f"--competencia '{args.competencia}' inválida: use AAAA-MM (ano com quatro dígitos e mês com dois)")
     fontes, pasta, arquivos, dados = carregar_dados(args, base)
     checagens = validar_leitores(dados)
     falhas = [c for c in checagens if c.nivel == "ERRO" and not c.ok]

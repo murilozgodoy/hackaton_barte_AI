@@ -206,7 +206,7 @@ def data_br(valor) -> date | None:
 def parse_vigencia(valor) -> tuple[date | None, date | None]:
     """Texto livre da planilha -> (início, fim). Datas inclusivas.
 
-    "01/01/2026" (data simples) = a partir dessa data; "até 14/03/2027" = até essa
+    "dd/mm/aaaa" (data simples) = a partir dessa data; "até dd/mm/aaaa" = até essa
     data; "a partir de 15/03/2027" ou "desde ..." = a partir; "de X a Y" = intervalo.
     """
     if celula_vazia(valor):

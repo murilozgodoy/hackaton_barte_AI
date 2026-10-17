@@ -202,7 +202,7 @@ def _avisos(f, config, causas: dict) -> list[dict]:
     """Uma entrada por (lojista, linha de negócio) com divergência (de contrato ou fora dele): a condição contratada
     não foi aplicada desde o primeiro dia. Vigência: da TAXA_EXCECAO ou da linha da planilha de taxas."""
     # só divergências de contrato: uma concessão fora do contrato (natureza DEVOLUCAO_LOJISTA) não é condição que a
-    # contraparte devesse aplicar, então não gera aviso (Helena ao Theo, 17/10 11h37)
+    # contraparte devesse aplicar, então não gera aviso (fonte: regras/causas_divergencia.csv e HIPOTESES.md)
     todas = f.divergencias_contrato
     out = []
     for (cnpj, linha), g in todas.groupby(["cnpj", "linha_negocio"], sort=False):

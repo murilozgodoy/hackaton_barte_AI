@@ -9,7 +9,7 @@ linha do complemento que só repete a planilha gera aviso.
 regras/regras_negocio.csv: cada regra tem um `tipo` de uma lista fechada. O
 motor só executa tipos conhecidos, a partir da coluna `parametros`, no formato
 chave=valor separado por " | " (ex.: banco=AURORA | contem=PIX ENVIADO | conta=<código do plano>).
-Alternativas de texto dentro de um valor usam " OU " (ex.: contem=PONTE AEREA OU PONTE AÉREA);
+Alternativas de texto dentro de um valor usam " OU " (ex.: contem=PIX ENVIADO OU PIX RECEBIDO);
 listas usam vírgula (ex.: aceitos=APROVADO,APROVADO C/ RESSALVA). Números aceitam
 vírgula ou ponto decimal. Só regras com status ATIVA são executadas. MANUAL nunca é
 executada: vira lembrete no relatório (e, com `assunto=`, texto da conciliação). ALERTA
@@ -218,7 +218,7 @@ def lista(valor: str) -> list[str]:
 
 
 def alternativas(valor: str) -> list[str]:
-    """'PONTE AEREA OU PONTE AÉREA' -> ['PONTE AEREA'] (normalizado e sem repetição)."""
+    """'TAR PACOTE OU TAR. PACOTE' -> ['TAR PACOTE', 'TAR. PACOTE'] (normalizado e sem repetição)."""
     vistos: list[str] = []
     for alt in normalizar(valor).split(SEPARADOR_ALTERNATIVAS):
         alt = alt.strip()
@@ -586,7 +586,7 @@ def validar_linha_regra(r: dict, n: int, ctx: _Contexto, erros: list[str], aviso
         vig_ate = data_config(r.get("vigencia_ate", ""), avisos, onde)
         data_info = data_config(r.get("data", ""), avisos, onde)
     except ValueError as e:
-        erro(str(e), "use AAAA-MM-DD, ex.: 2026-01-31")
+        erro(str(e), "use AAAA-MM-DD (ano com quatro dígitos, mês e dia com dois)")
         return None
     if vig_de and vig_ate and vig_de > vig_ate:
         erro(f"vigencia_de {vig_de} depois de vigencia_ate {vig_ate}", "inverta ou corrija as datas")

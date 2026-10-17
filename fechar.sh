@@ -41,5 +41,6 @@ ARGS=()
 if [ -n "$ENTRADA" ]; then ARGS+=(--entrada "$ENTRADA"); fi
 ANT=()
 if [ -n "$ANTERIOR" ]; then ANT+=(--anterior "$ANTERIOR"); fi
-.venv/bin/python -m src validar "${ARGS[@]}" --regras regras
-.venv/bin/python -m src fechar "${ARGS[@]}" --regras regras --saida "$SAIDA" "${ANT[@]}"
+# ${X[@]+"${X[@]}"}: expansão segura de array vazio com set -u (bash 3.2 do macOS)
+.venv/bin/python -m src validar ${ARGS[@]+"${ARGS[@]}"} --regras regras
+.venv/bin/python -m src fechar ${ARGS[@]+"${ARGS[@]}"} --regras regras --saida "$SAIDA" ${ANT[@]+"${ANT[@]}"}
