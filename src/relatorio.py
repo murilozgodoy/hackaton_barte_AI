@@ -260,7 +260,7 @@ def _primeira_frase(texto, limite: int = 160) -> str:
     return s if len(s) <= limite else s[:limite].rstrip() + "…"
 
 
-def dinheiro_por_natureza(f, causas: dict) -> list[dict]:
+def dinheiro_por_natureza(f, causas: dict, config=None) -> list[dict]:
     """Uma linha por natureza do dinheiro e tipo de pendência: faturar, cobrar da adquirente, contestar com o parceiro,
     devolver ao lojista, não faturar até decidir, só acompanhar. Naturezas diferentes NUNCA são somadas; dentro de uma
     linha só se somam pendências do mesmo tipo. Pendência já incluída em outra fica fora; informativa aparece marcada."""
@@ -320,10 +320,12 @@ def dinheiro_por_natureza(f, causas: dict) -> list[dict]:
             out.append({"natureza": rotulo if primeira else "", "o_que": o_que, "valor": valor, "quem": quem})
             primeira = False
         if nat_key == "PARCEIRO" and len(repetidas):
+            # quem decide vem da regra que mandou contar a repetida uma vez (IGNORAR_DUPLICADO), nunca do código
+            regra_dup = config.regra_duplicado("ponte", primeiro_dia(f.competencia)) if config is not None else None
             out.append({"natureza": rotulo if primeira else "",
                         "o_que": f"c: corrigir o relatório: {', '.join(repetidas['ref_origem'])} aparece mais de uma vez "
                                  f"(contada uma vez no fechamento). Rascunho: comunicacoes/ponte.md",
-                        "valor": brl(ZERO), "quem": "Helena (Financeiro)"})
+                        "valor": brl(ZERO), "quem": regra_dup.quem_decide if regra_dup is not None else ""})
     return out
 
 
@@ -377,7 +379,7 @@ def _pagina_cfo(f, config, res: dict, causas: dict, historico: list[dict], pend_
                "acompanhar são coisas distintas); dentro de uma linha só há pendências do mesmo tipo. Pendência já incluída em "
                "outra fica fora; informativa aparece marcada.", ""]
     partes.append(_tabela(["Natureza", "O quê", "Valor", "Quem decide"],
-                          [[l["natureza"], l["o_que"], l["valor"], l["quem"]] for l in dinheiro_por_natureza(f, causas)]))
+                          [[l["natureza"], l["o_que"], l["valor"], l["quem"]] for l in dinheiro_por_natureza(f, causas, config)]))
     partes += ["", "### Pendências por responsável", ""]
     for quem, g in f.pendencias.groupby("quem_decide", sort=False):
         n_inf = int(g["informativa"].astype(bool).sum())
