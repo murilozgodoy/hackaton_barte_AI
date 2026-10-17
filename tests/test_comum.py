@@ -70,3 +70,32 @@ def test_parse_vigencia(entrada, esperado):
 def test_normalizar_remove_acento_e_padroniza():
     assert normalizar("  Créd.  2-6x ") == "CRED. 2-6X"
     assert normalizar("Nº Operação") == "NO OPERACAO"
+
+
+# ---------------------------------------------------------------- célula vazia (NaN/None/"") em qualquer leitor
+
+import pandas as pd
+
+from src.leitores.comum import data_br, decimal_de_celula, normalizar_ec, numero_ponto
+
+VAZIOS = [None, "", "   ", float("nan"), pd.NA, pd.NaT]
+
+
+@pytest.mark.parametrize("vazio", VAZIOS, ids=repr)
+def test_celula_vazia_e_none_em_todos_os_conversores(vazio):
+    """Com pandas 3 uma célula vazia chega como NaN (não como None): todo conversor trata igual."""
+    assert normalizar_ec(vazio) is None
+    assert normalizar_cnpj(vazio) is None
+    assert data_br(vazio) is None
+    assert numero_br(vazio) is None
+    assert numero_ponto(vazio) is None
+    assert decimal_de_celula(vazio) is None
+    assert taxa_pct_de_celula(vazio) == (None, "VAZIO")
+    assert parse_vigencia(vazio) == (None, None)
+
+
+def test_src_desliga_inferencia_de_string_do_pandas_3():
+    """pandas 2 e 3 têm que gerar o mesmo saida/: texto vazio é None (object), nunca NaN (dtype str)."""
+    import src  # noqa: F401  (o pacote ajusta a opção ao ser importado)
+    assert pd.get_option("future.infer_string") is False
+    assert pd.DataFrame([{"a": "x"}, {"a": None}])["a"].tolist() == ["x", None]

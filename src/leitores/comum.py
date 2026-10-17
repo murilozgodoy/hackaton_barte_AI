@@ -10,12 +10,30 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+import pandas as pd
+
 # Ordem de tentativa. "utf-8-sig" aceita arquivo com ou sem BOM.
 ENCODINGS = ("utf-8-sig", "cp1252", "latin-1")
 
 
 class ErroLeitura(Exception):
     """Arquivo de entrada fora do formato esperado (mensagem em português)."""
+
+
+def celula_vazia(valor) -> bool:
+    """None, texto em branco, NaN, pd.NA ou NaT: célula vazia, venha de onde vier.
+
+    Com pandas 3 uma célula vazia chega aos conversores como NaN (dtype str) e não como
+    None (dtype object); os dois têm que significar a mesma coisa em todos os leitores.
+    """
+    if valor is None:
+        return True
+    if isinstance(valor, str):
+        return valor.strip() == ""
+    try:
+        return bool(pd.isna(valor))
+    except (TypeError, ValueError):
+        return False
 
 
 # --------------------------------------------------------------------------- texto
@@ -71,7 +89,7 @@ def linhas_fisicas(texto: str) -> list[str]:
 
 def numero_br(valor) -> Decimal | None:
     """'612.334,81' -> Decimal('612334.81'). Ponto é milhar, vírgula é decimal."""
-    if valor is None:
+    if celula_vazia(valor):
         return None
     s = str(valor).strip().replace("R$", "").replace(" ", "").replace(" ", "")
     if not s:
@@ -85,7 +103,7 @@ def numero_br(valor) -> Decimal | None:
 
 def numero_ponto(valor) -> Decimal | None:
     """'207215.87' -> Decimal. Para formatos com ponto decimal (OFX)."""
-    if valor is None or str(valor).strip() == "":
+    if celula_vazia(valor):
         return None
     try:
         return Decimal(str(valor).strip())
@@ -95,7 +113,7 @@ def numero_ponto(valor) -> Decimal | None:
 
 def decimal_de_celula(valor) -> Decimal | None:
     """Célula do Excel -> Decimal sem ruído de ponto flutuante (0.0149 continua 0.0149)."""
-    if valor is None:
+    if celula_vazia(valor):
         return None
     if isinstance(valor, bool):
         raise ErroLeitura(f"Valor booleano onde se esperava número: {valor!r}")
@@ -116,7 +134,7 @@ def taxa_pct_de_celula(valor) -> tuple[Decimal | None, str]:
     Número no Excel é fração (0.0149 = 1,49%), como o Excel guarda percentuais.
     Texto precisa trazer '%' ("1,49%"); texto numérico sem '%' é ambíguo e para a leitura.
     """
-    if valor is None or str(valor).strip() == "":
+    if celula_vazia(valor):
         return None, "VAZIO"
     if isinstance(valor, (int, float, Decimal)) and not isinstance(valor, bool):
         return decimal_de_celula(valor) * 100, "VALOR"
@@ -135,7 +153,7 @@ def taxa_pct_de_celula(valor) -> tuple[Decimal | None, str]:
 
 def normalizar_cnpj(valor) -> str | None:
     """Qualquer formato (com máscara, int sem zero à esquerda) -> 14 dígitos."""
-    if valor is None:
+    if celula_vazia(valor):
         return None
     if isinstance(valor, float):
         if not valor.is_integer():
@@ -151,7 +169,7 @@ def normalizar_cnpj(valor) -> str | None:
 
 def normalizar_ec(valor) -> str | None:
     """Código de estabelecimento como texto só de dígitos (o Excel pode gravar 1086291869.0)."""
-    if valor is None:
+    if celula_vazia(valor):
         return None
     if isinstance(valor, float):
         if not valor.is_integer():
@@ -170,7 +188,7 @@ _RE_DATA_BR = re.compile(r"(\d{2})/(\d{2})/(\d{4})")
 
 def data_br(valor) -> date | None:
     """'15/03/2027' -> date(2027, 3, 15). Aceita também datetime/date do Excel."""
-    if valor is None:
+    if celula_vazia(valor):
         return None
     if isinstance(valor, datetime):
         return valor.date()
@@ -191,7 +209,7 @@ def parse_vigencia(valor) -> tuple[date | None, date | None]:
     "01/01/2026" (data simples) = a partir dessa data; "até 14/03/2027" = até essa
     data; "a partir de 15/03/2027" ou "desde ..." = a partir; "de X a Y" = intervalo.
     """
-    if valor is None or str(valor).strip() == "":
+    if celula_vazia(valor):
         return None, None
     if isinstance(valor, (datetime, date)):
         return data_br(valor), None
