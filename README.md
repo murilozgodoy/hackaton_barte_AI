@@ -9,6 +9,10 @@ facilitadora opcional (skill `fechamento-tarvo`): conduz, explica e propõe regr
 
 Time MN AI: Nader Taha e Murilo Godoy.
 
+> **Comece por aqui:** [SOLUCAO.md](SOLUCAO.md) explica a ideia sem código: a causa raiz, por que entregamos
+> um motor com skill de IA em vez de uma plataforma web, o fluxo completo de uso (o que a analista faz, o que o
+> motor faz, o que a IA faz) e em quais assistentes a solução foi testada.
+
 ## Rodar em 3 passos
 
 1. **Instale o Python** 3.10 ou mais novo ([python.org/downloads](https://www.python.org/downloads/)).
@@ -95,7 +99,7 @@ dados da Orbe, da Ponte ou de lojistas. A sugestão volta com `metodo=IA`, confi
 ## Usar com assistente de IA (opcional)
 
 A skill `skills/fechamento-tarvo/SKILL.md` segue o padrão aberto Agent Skills (atalho em `.agents/skills/`;
-testada em: Claude Code) e ensina um assistente a conduzir o fechamento **usando os mesmos
+testada no Claude Code e no Claude.ai; ver [SOLUCAO.md](SOLUCAO.md), seção 5) e ensina um assistente a conduzir o fechamento **usando os mesmos
 comandos deste README**: ele roda `validar` e `fechar`, lê `saida/resumo.json` e o relatório,
 explica de onde vem cada número (`explicar`), conduz as pendências e propõe regras, que só são
 gravadas com aprovação nominal. Ele nunca calcula nem edita entradas. `AGENTS.md` resume o fluxo
@@ -156,15 +160,15 @@ regras/                 base de conhecimento do financeiro (CSV que abre no Exce
   complemento_cadastro.csv  só lacunas da planilha de taxas (EC em branco, lojista sem contrato)
   historico_alteracoes.csv  quem mudou o quê e por quê
   fontes.csv              padrões de nome dos arquivos e abas
+  COMO_CRIAR_REGRA.md     guia de uma página para quem não é técnico
 entrada/                onde deixar o zip ou os arquivos do mês (ignorada pelo git)
 fechar.sh / fechar.bat  um comando: cria o venv, instala, valida e fecha
-  COMO_CRIAR_REGRA.md     guia de uma página para quem não é técnico
 src/                    motor: leitores/ (uma fonte cada), regras.py (validação), checkout.py,
                         remessa.py, divergencias.py, notas.py, extratos.py, pendencias.py, carteira.py,
                         conciliacao.py, comunicacoes.py (rascunhos), relatorio.py, simulacao.py (efeito de
                         regra antes de gravar), validacao.py, cli.py
 skills/fechamento-tarvo/  Agent Skill (SKILL.md + references + evals); atalho em .agents/skills/
-tests/                  quase 300 testes (pytest), inclusive casos sintéticos que rodam sem o data pack e o
+tests/                  mais de 300 testes (pytest), inclusive casos sintéticos que rodam sem o data pack e o
                         outubro sintético (tests/outubro_sintetico.py) fechado de ponta a ponta com --anterior
 ```
 
@@ -220,9 +224,15 @@ pendência com dono, nunca palpite.
   foram rodados num modelo; o comportamento do motor que eles cobram tem teste automatizado.
 - A sugestão de conta por IA, quando ligada, usa o modelo definido em `ANTHROPIC_MODEL`
   (padrão `claude-opus-5-5`) e não foi exercitada com dados reais neste mês.
+- **`ref_origem` em pendências.** Nas pendências por lojista (ex.: Atlas sem contrato), `ref_origem` é o CNPJ,
+  porque a pendência não tem uma linha de origem só; as linhas que a compõem estão no `rastro.csv`. Na PEN-0006
+  (CONFERIR_REPASSE_PONTE), R$ 0,56 vêm da linha de total "SPREAD TOTAL R$:" do relatório da Ponte (linha 241),
+  que não tem Nº Operação; o `ref_origem` aponta a linha do relatório. As outras 5 parcelas usam o Nº Operação.
+  A soma do rastro bate com o valor da pendência.
 
 ## Documentos
 
+- [SOLUCAO.md](SOLUCAO.md): a ideia, por que não uma plataforma, fluxo de uso e onde roda.
 - [HIPOTESES.md](HIPOTESES.md): premissas, perguntas ao financeiro e respostas usadas.
 - [PROMPTS/](PROMPTS/): histórico das sessões de IA e os momentos que importaram.
 - [COMO_FECHAR_O_MES.md](COMO_FECHAR_O_MES.md): roteiro sem IA.
