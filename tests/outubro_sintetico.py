@@ -72,12 +72,13 @@ def _pasta_setembro(origem: Path | None) -> Path:
         origem = candidatos[0]
     origem = Path(origem)
     if origem.suffix.lower() == ".zip":
+        # extrai dentro de data/<nome do zip>/ (com ou sem pasta interna no zip); os arquivos são achados por rglob
         destino = Path(RAIZ / "data" / origem.stem)
-        if not destino.exists():
+        if not any(destino.rglob("01_orbe*")):
+            destino.mkdir(parents=True, exist_ok=True)
             with zipfile.ZipFile(origem) as z:
-                z.extractall(destino.parent)
-        pastas = [p for p in destino.rglob("*") if p.is_dir() and list(p.glob("01_orbe*"))] or [destino]
-        return pastas[0]
+                z.extractall(destino)
+        return destino
     return origem
 
 
