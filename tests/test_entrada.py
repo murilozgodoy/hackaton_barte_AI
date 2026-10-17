@@ -193,6 +193,11 @@ def _fechar(pasta: Path, saida: Path, capsys):
     return codigo, (json.loads(out.out) if codigo in (0, 3) and out.out.strip().startswith("{") else None), out.err
 
 
+def _avisos_do_mes(j: dict) -> list[str]:
+    """Avisos do fechamento sem os da base de regras (data da última alteração, aprovação), que saem em todo mês."""
+    return [a for a in j["avisos"] if not a.startswith("base de regras:")]
+
+
 def _iguais_ao_versionado(saida: Path, nomes=("comissoes_por_lojista.csv", "notas_a_emitir.csv", "divergencias_taxa.csv",
                                              "lancamentos_classificados.csv", "pendencias.csv")) -> list[str]:
     return [n for n in nomes if (saida / n).read_bytes() != (RAIZ / "saida" / n).read_bytes()]
@@ -203,7 +208,7 @@ def test_ajuste_tardio_e_reconhecido_pelo_conteudo_com_qualquer_nome(pasta_dados
     mesmo resultado que com o nome original."""
     pasta = _pasta_mes(pasta_dados, tmp_path, renomear={"06_orbe": "orbe_ajustes_qualquer.csv"})
     codigo, j, _ = _fechar(pasta, tmp_path / "saida", capsys)
-    assert codigo == 0 and j["avisos"] == [] and _iguais_ao_versionado(tmp_path / "saida") == []
+    assert codigo == 0 and _avisos_do_mes(j) == [] and _iguais_ao_versionado(tmp_path / "saida") == []
     assert j["entrada"]["arquivos"]["orbe"] == "01_orbe_relatorio_comissoes_set2026.csv, orbe_ajustes_qualquer.csv"
     assert j["totais"]["comissao_checkout_brl"] == "203735.34" and j["contexto"]["fontes"]["orbe"]["linhas"] == 1957
     rastro = list(csv.DictReader(open(tmp_path / "saida" / "rastro.csv", encoding="utf-8"), delimiter=";"))
@@ -233,7 +238,7 @@ def test_sem_o_ajuste_tardio_da_os_valores_antigos(pasta_dados, tmp_path, capsys
     """R5c: o ajuste tardio é só somado. Sem o 06, setembro fecha com os valores de antes."""
     pasta = _pasta_mes(pasta_dados, tmp_path, excluir=("06_orbe",))
     codigo, j, _ = _fechar(pasta, tmp_path / "saida", capsys)
-    assert codigo == 0 and j["avisos"] == []
+    assert codigo == 0 and _avisos_do_mes(j) == []
     assert j["totais"]["comissao_checkout_brl"] == "207039.73" and j["totais"]["comissao_remessa_brl"] == "39543.45"
     assert j["totais"]["notas"] == {"quantidade": 21, "valor_total_brl": "246588.68"}
     assert j["contexto"]["fontes"]["orbe"]["linhas"] == 1943 and j["entrada"]["arquivos"]["orbe"] == "01_orbe_relatorio_comissoes_set2026.csv"
@@ -274,7 +279,7 @@ def test_lixo_de_sistema_no_zip_e_ignorado_sem_aviso(pasta_dados, tmp_path, caps
         zf.writestr("Pacote/~$02_tabela_taxas_contratadas.xlsx", b"lock do Excel")
         zf.writestr("Pacote/Thumbs.db", b"thumbs")
     codigo, j, _ = _fechar(z, tmp_path / "saida", capsys)
-    assert codigo == 0 and j["avisos"] == [] and _iguais_ao_versionado(tmp_path / "saida") == []
+    assert codigo == 0 and _avisos_do_mes(j) == [] and _iguais_ao_versionado(tmp_path / "saida") == []
 
 
 def test_id_transacao_repetido_entre_arquivos_da_orbe(pasta_dados, tmp_path, capsys):

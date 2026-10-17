@@ -63,6 +63,13 @@ class BaseRegras:
     zip_origem: Path | None     # zip de onde veio, se veio
 
     raiz_extracao: Path | None = None   # onde o zip foi extraído (para gravar o novo com o mesmo layout)
+    fallback: bool = False              # --regras não informado e a base veio de assets/regras_iniciais/
+
+    @property
+    def inicial(self) -> bool:
+        """A base usada é a base inicial da skill (por fallback ou apontada diretamente)."""
+        nomes = [p.lower() for p in self.pasta.parts] + ([self.zip_origem.stem.lower()] if self.zip_origem else [])
+        return self.fallback or any(NOME_REGRAS_INICIAIS in n for n in nomes)
 
     def gravar_zip_novo(self, hoje: date) -> Path:
         """Em modo zip, a base alterada vira um zip novo ao lado do original (o original não é tocado)."""
@@ -75,7 +82,17 @@ class BaseRegras:
         return destino
 
 
-def resolver_regras(caminho: Path) -> BaseRegras:
+# base inicial que vai dentro da skill empacotada (assets/regras_iniciais/, ao lado de scripts/)
+REGRAS_INICIAIS = RAIZ.parent / "assets" / "regras_iniciais"
+NOME_REGRAS_INICIAIS = "regras_iniciais"
+
+
+def resolver_regras(caminho: Path | None) -> BaseRegras:
+    """Sem --regras: regras/ do repositório; na skill empacotada (sem regras/), a base inicial da skill, com aviso."""
+    if caminho is None:
+        caminho = RAIZ / "regras"
+        if not caminho.exists() and REGRAS_INICIAIS.is_dir():
+            return BaseRegras(REGRAS_INICIAIS, None, fallback=True)
     caminho = Path(caminho)
     if caminho.is_dir():
         return BaseRegras(caminho, None)
@@ -133,6 +150,7 @@ def carregar_contexto(args, base: BaseRegras) -> Contexto:
         config = carregar_config(base.pasta, dados["taxas"], dados["plano_contas"], bancos)
     except ErroConfig as e:
         raise Parada(SAIDA_REGRAS, str(e)) from None
+    config.avisos[:0] = avisos_execucao(base, config)
     competencia = getattr(args, "competencia", None) or inferir_competencia(dados)
     primeiro = primeiro_dia(competencia)
     ultimo = (pd.Timestamp(primeiro) + pd.offsets.MonthEnd(0)).date()
@@ -146,6 +164,21 @@ def carregar_contexto(args, base: BaseRegras) -> Contexto:
     if falhas:
         raise Parada(SAIDA_ENTRADA, "Arquivos de entrada não fecham:\n  - " + "\n  - ".join(f"{c.fonte}: {c.detalhe}" for c in falhas))
     return Contexto(pasta, arquivos, dados, config, competencia, not getattr(args, "competencia", None), checagens)
+
+
+def avisos_execucao(base: BaseRegras, config: Config) -> list[str]:
+    """Avisos sobre a execução que quem roda sem IA também precisa ver: vão para config.avisos, de onde chegam ao
+    `validar`, ao resumo.json ("avisos") e ao topo do RELATORIO_FECHAMENTO.md."""
+    avisos = []
+    if base.inicial:
+        como = ("--regras não foi informado: usei" if base.fallback else "--regras aponta para")
+        avisos.append(f"base de regras: {como} a base inicial da skill ({NOME_REGRAS_INICIAIS}/), não uma pasta ou zip "
+                      "do financeiro. Se houver base mais nova (regras aprovadas depois do empacotamento), rode de novo "
+                      "com --regras <pasta ou zip>")
+    ultima = config.historico_ultima_alteracao
+    avisos.append(f"base de regras: última alteração registrada em historico_alteracoes.csv em {ultima}" if ultima else
+                  "base de regras: historico_alteracoes.csv sem data de alteração; não dá para saber de quando é a base")
+    return avisos
 
 
 def contexto_validacao(args, base: BaseRegras) -> tuple[_Contexto | None, Contexto | None]:
@@ -348,7 +381,8 @@ def cmd_validar(args) -> int:
 
 
 def cmd_fechar(args) -> int:
-    ctx = carregar_contexto(args, resolver_regras(args.regras))
+    base = resolver_regras(args.regras)
+    ctx = carregar_contexto(args, base)
     entrada = {"arquivos": {f: nome_arquivo(p) for f, p in ctx.arquivos.items() if not f.startswith("_")},
                "competencia_inferida": ctx.competencia_inferida}
     carteira, contestacao = None, None
@@ -365,7 +399,7 @@ def cmd_fechar(args) -> int:
                         contestacao_anterior=contestacao)
         # avisos dos leitores (checagens AVISO que falharam) vão para o relatório e o resumo, não só para a tela
         fech.avisos = avisos_dos_leitores(ctx.checagens) + fech.avisos
-        arquivos, res = escrever(fech, args.saida, ctx.config, entrada, dir_regras=resolver_regras(args.regras).pasta,
+        arquivos, res = escrever(fech, args.saida, ctx.config, entrada, dir_regras=base.pasta,
                                  pasta_anterior=getattr(args, "anterior", None))
     except ErroConfig as e:
         raise Parada(SAIDA_REGRAS, str(e)) from None
@@ -527,7 +561,7 @@ def _cmd_regra_propor(args, base: BaseRegras, ctx_val, ctx: Contexto | None, hoj
                   f"conforme regras/aprovadores.csv")
         if p.valida:
             qa = (p.aprovacao or {}).get("quem_aprova") or "<nome>"
-            print(f"\nNada foi gravado. Para aplicar: python -m src regra aplicar --regras {args.regras} "
+            print(f"\nNada foi gravado. Para aplicar: python -m src regra aplicar --regras {args.regras or base.pasta} "
                   f"--proposta {destino} --aprovado-por \"<nome> ({qa})\" [--registrado-por \"<quem registra>\"]")
         return codigo
 
@@ -551,8 +585,9 @@ def _comuns(p: argparse.ArgumentParser, entrada=True, saida=True, regras=True, c
     if entrada:
         p.add_argument("--entrada", type=Path, help="zip do pacote do mês ou pasta com os arquivos")
     if regras:
-        p.add_argument("--regras", type=Path, default=RAIZ / "regras",
-                       help="pasta ou .zip da base de regras do financeiro (padrão: regras/)")
+        p.add_argument("--regras", type=Path, default=None,
+                       help="pasta ou .zip da base de regras do financeiro (padrão: regras/; na skill empacotada, "
+                            "assets/regras_iniciais/, com aviso)")
     if saida:
         p.add_argument("--saida", type=Path, default=RAIZ / "saida")
     if competencia:

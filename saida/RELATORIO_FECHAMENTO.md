@@ -6,6 +6,10 @@ Arquivos do mês: `01_orbe_relatorio_comissoes_set2026.csv, 06_orbe_ajustes_tard
 
 Base de regras: 68 regras ativas, 25 lojistas no cadastro (planilha de taxas + complemento). Última alteração registrada no histórico de regras: 2026-10-17.
 
+## Avisos desta execução
+
+- base de regras: última alteração registrada em historico_alteracoes.csv em 2026-10-17
+
 ## Página 1 — o que o CFO precisa saber
 
 ### Totais do mês

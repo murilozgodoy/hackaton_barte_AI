@@ -447,6 +447,9 @@ def markdown(f, config, res: dict, causas: dict | None = None, historico: list[d
     partes += ["", f"Base de regras: {b['regras_ativas']} regras ativas, {b['lojistas']} lojistas no cadastro "
                f"(planilha de taxas + complemento). Última alteração registrada no histórico de regras: "
                f"{b['ultima_alteracao_historico'] or 'não informada'}.", ""]
+    if f.avisos:
+        # no topo: quem roda sem IA lê aqui o que a execução teve de diferente (base inicial, regra sem aprovador...)
+        partes += ["## Avisos desta execução", ""] + [f"- {a}" for a in f.avisos] + [""]
     partes += _pagina_cfo(f, config, res, causas or {}, historico or [], pend_anteriores, arquivos or {})
 
     total_com = soma(f.comissoes["comissao_brl"])
@@ -584,9 +587,6 @@ def markdown(f, config, res: dict, causas: dict | None = None, historico: list[d
                       f"Diferença {brl(pc['diferenca'])} = " + " ".join(partes_dif)
                       + (" — ver pendência CONFERIR_REPASSE_PONTE." if pc["diferenca"] != ZERO else "."))
     partes.append("")
-
-    if f.avisos:
-        partes += ["## Avisos", ""] + [f"- {a}" for a in f.avisos] + [""]
 
     partes += ["## Checagens de integridade", ""]
     partes += [f"- {'✅' if ch.ok else '❌'} {ch.nome}: {ch.detalhe}" for ch in f.checagens]

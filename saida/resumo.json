@@ -336,7 +336,9 @@
       "detalhe": "612334.81 + -2532423.41 = -1920088.60; extrato diz -1920088.60"
     }
   ],
-  "avisos": [],
+  "avisos": [
+    "base de regras: última alteração registrada em historico_alteracoes.csv em 2026-10-17"
+  ],
   "arquivos": {
     "comissoes": "comissoes_por_lojista.csv",
     "divergencias": "divergencias_taxa.csv",

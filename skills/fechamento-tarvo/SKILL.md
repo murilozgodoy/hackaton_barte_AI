@@ -25,7 +25,7 @@ metadata:
 ## Onde fica o motor
 
 - No repositório: a raiz tem `src/` e `regras/`. Todos os comandos abaixo rodam a partir da raiz, com `.venv/bin/python` (ou `python`) e são **os mesmos do README**.
-- Na skill empacotada: o motor está em `scripts/` (`scripts/src`) e a base inicial em `assets/regras_iniciais/`. Rode a partir de `scripts/` e aponte `--regras` para a pasta (ou zip) de regras que a pessoa fornecer; se não houver, use `assets/regras_iniciais/` **e avise** que é a base inicial.
+- Na skill empacotada: o motor está em `scripts/` (`scripts/src`) e a base inicial em `assets/regras_iniciais/`. Rode a partir de `scripts/` e aponte `--regras` para a pasta (ou zip) de regras que a pessoa fornecer; se não houver, omita `--regras`: o motor usa `assets/regras_iniciais/` e ele mesmo grava o aviso de base inicial em `resumo.json` ("avisos") e no topo do relatório.
 - Dependências: `pip install -r requirements.txt` (pandas, openpyxl). Nenhuma chave de API é necessária.
 
 Use os comandos exatamente como escritos. Não invente flags. Prefira `--json` para ler resultados.
@@ -46,6 +46,7 @@ Use os comandos exatamente como escritos. Não invente flags. Prefira `--json` p
 
 ### 3. Apresentar
 - Leia `<saida>/resumo.json` e `<saida>/RELATORIO_FECHAMENTO.md` (a página 1 é para o CFO: totais, notas, dinheiro em jogo por natureza, nunca somado entre naturezas, pendências por responsável, rascunhos prontos, conhecimento capturado). Apresente: comissão por linha de negócio, notas a emitir, divergências por natureza em R$, pendências por responsável (quantidade e valor em jogo), lembretes, avisos.
+- **Avisos:** apresente os avisos de `resumo.json` ("avisos", os mesmos do topo do relatório: base inicial, regra sem aprovador, premissas em uso, data da base de regras). Não crie avisos próprios sobre a execução: se algo não está em "avisos", não é aviso do fechamento.
 - Se a plataforma permitir painel visual, monte-o **a partir desses arquivos**; senão, tabela em markdown. Entregue os CSVs de `<saida>/`.
 - Não some, não reconcilie, não "ajuste para bater". Se um número parecer estranho, use `explicar`.
 
