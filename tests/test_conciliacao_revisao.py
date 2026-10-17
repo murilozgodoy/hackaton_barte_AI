@@ -83,9 +83,12 @@ def test_contagens_sao_inteiras_no_csv(dados, tmp_path):
 def test_saida_versionada_e_a_do_codigo_atual(dados, tmp_path):
     """saida/ é o que a banca vê: tem que ser exatamente o que o código gera hoje."""
     assert main(["fechar", "--saida", str(tmp_path), "--sem-ia"]) == 0
-    gerados = list(tmp_path.glob("*.csv")) + [tmp_path / "resumo.json", tmp_path / "RELATORIO_FECHAMENTO.md"]
-    assert len(gerados) == 9
+    gerados = sorted(p for p in tmp_path.rglob("*") if p.is_file())
+    assert len(gerados) == 9 + 6     # 7 CSVs + resumo + relatório + 6 rascunhos em comunicacoes/
     for p in gerados:
-        versionado = RAIZ / "saida" / p.name
-        assert versionado.exists(), f"saida/{p.name} não está versionado"
-        assert p.read_bytes() == versionado.read_bytes(), f"saida/{p.name} está desatualizado: rode o fechar"
+        rel = p.relative_to(tmp_path)
+        versionado = RAIZ / "saida" / rel
+        assert versionado.exists(), f"saida/{rel} não está versionado"
+        assert p.read_bytes() == versionado.read_bytes(), f"saida/{rel} está desatualizado: rode o fechar"
+    versionados = sorted(p.relative_to(RAIZ / "saida") for p in (RAIZ / "saida").rglob("*") if p.is_file())
+    assert versionados == [p.relative_to(tmp_path) for p in gerados]

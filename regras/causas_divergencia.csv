@@ -1,0 +1,6 @@
+﻿cnpj;linha_negocio;causa;informado_por;data
+95927868000148;CHECKOUT;Erro da Orbe: +0,50 p.p. no crédito desde 12/09 sem nenhuma mudança contratual;Helena (Financeiro), Slack, resposta ao Lucca Landeiro 16/10 20h49 e 21h06;2026-10-17
+22224579000109;CHECKOUT;Nova taxa contratada desde 15/09, avisada à Orbe alguns dias depois;Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta à MN AI 17/10 09h53;2026-10-17
+00520815000100;CHECKOUT;Isenção de tarifa (acordo comercial de 01/09 a 31/12) nunca avisada à Orbe: devolução ao lojista, não cobrança da Orbe;Helena (Financeiro), Slack #duvidas-hackathon-ai, respostas ao Barteman 17/10 09h44 e à MN AI 09h53;2026-10-17
+17217888000111;REMESSA;Spread contratado de 1,20% nunca avisado à Ponte, que aplicou cerca de 1,50%;Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta à MN AI 17/10 09h53;2026-10-17
+39566044000119;CHECKOUT;Sem contrato assinado: taxa a confirmar pelo Comercial (vale desde 10/09 quando confirmar);Helena (Financeiro), Slack, resposta à Fox AI 16/10 20h24 e à MN AI 17/10 09h47;2026-10-17

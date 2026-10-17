@@ -225,10 +225,16 @@
       "situacao": "Recurso de lojista para remessa sem operação no mês",
       "o_que_fazer": "É dinheiro do lojista para uma remessa que ainda não foi contratada: fica em 2.1.02.001 (recursos de lojistas para remessas a liquidar). Conferir no fechamento do mês seguinte que a operação saiu no relatório do parceiro. Não é pendência nem devolução",
       "quem_decide": "Financeiro"
+    },
+    {
+      "regra_id": "M-06",
+      "situacao": "Aviso à Orbe ou à Ponte antes de toda condição comercial nova",
+      "o_que_fazer": "Toda condição comercial nova (TAXA_EXCECAO ou vigência) exige aviso à Orbe (checkout) ou à Ponte (remessa) antes da data de início, com lojista, CNPJ/EC, produto, taxa e vigência. O fechamento seguinte confere se a taxa foi aplicada a partir da data. Rascunhos prontos em saida/comunicacoes/avisos_nova_condicao.md",
+      "quem_decide": "Comercial"
     }
   ],
   "base_de_regras": {
-    "regras_ativas": 60,
+    "regras_ativas": 61,
     "lojistas": 25,
     "ultima_alteracao_historico": "2026-10-17"
   },
@@ -322,6 +328,13 @@
     "lancamentos": "lancamentos_classificados.csv",
     "pendencias": "pendencias.csv",
     "rastro": "rastro.csv",
-    "carteira": "carteira_pendente.csv"
+    "carteira": "carteira_pendente.csv",
+    "comunicacoes": "comunicacoes",
+    "comunicacoes/orbe_contestacao": "comunicacoes/orbe_contestacao.csv",
+    "comunicacoes/orbe_md": "comunicacoes/orbe.md",
+    "comunicacoes/ponte_contestacao": "comunicacoes/ponte_contestacao.csv",
+    "comunicacoes/ponte_md": "comunicacoes/ponte.md",
+    "comunicacoes/comercial_md": "comunicacoes/comercial.md",
+    "comunicacoes/avisos_md": "comunicacoes/avisos_nova_condicao.md"
   }
 }

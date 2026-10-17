@@ -142,7 +142,7 @@ def test_exclusoes_duplicado_e_donos(config):
     assert config.parametro("remessa_cnpj_sem_cadastro", SET) == "COMISSAO"
     assert config.dono("DIVERGENCIA_TAXA", SET).quem_decide == "Helena (Financeiro)"
     lembretes = config.lembretes(SET)
-    assert [r.id for r in lembretes] == ["M-01", "M-02", "M-03", "M-04", "M-05"]
+    assert [r.id for r in lembretes] == ["M-01", "M-02", "M-03", "M-04", "M-05", "M-06"]
     alertas = config.por_tipo("ALERTA")
     assert [r.id for r in alertas] == ["A-01"] and alertas[0].params["criterio"] == "antecipacao_acima_das_vendas"
     assert alertas[0].params["so_para"] == {"SEM_CONTRATO", "PRIMEIRO_MES"} and alertas[0].tipo_pendencia == "ALERTA_ANTECIPACAO"

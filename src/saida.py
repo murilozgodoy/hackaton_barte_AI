@@ -26,6 +26,10 @@ COLUNAS_OBRIGATORIAS = {
     "pendencias.csv": ["id_saida", "tipo", "ref_origem", "valor_brl", "motivo", "quem_decide"],
     "carteira_pendente.csv": ["arquivo_origem", "ref_origem", "cnpj", "ec", "data_venda", "produto", "valor_bruto",
                               "motivo", "competencia_origem"],
+    "orbe_contestacao.csv": ["ref_origem", "cnpj", "lojista", "linha_negocio", "data", "produto", "taxa_contratada_pct",
+                             "taxa_aplicada_pct", "valor_brl", "natureza"],
+    "ponte_contestacao.csv": ["ref_origem", "cnpj", "lojista", "linha_negocio", "data", "produto", "taxa_contratada_pct",
+                              "taxa_aplicada_pct", "valor_brl", "natureza"],
     "rastro.csv": ["id_saida", "arquivo_origem", "ref_origem", "valor"],
 }
 # colunas Decimal que não são dinheiro

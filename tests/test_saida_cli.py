@@ -69,8 +69,10 @@ def test_cli_fechar_e_deterministico(dados, tmp_path):
     a, b = tmp_path / "a", tmp_path / "b"
     assert main(["fechar", "--saida", str(a), "--sem-ia"]) == 0
     assert main(["fechar", "--saida", str(b), "--sem-ia"]) == 0
-    for p in a.iterdir():
-        assert p.read_bytes() == (b / p.name).read_bytes()
+    arquivos = [p for p in a.rglob("*") if p.is_file()]
+    assert len(arquivos) == 15
+    for p in arquivos:
+        assert p.read_bytes() == (b / p.relative_to(a)).read_bytes(), p.name
 
 
 def test_cli_competencia_invalida_ou_vazia(dados, tmp_path, capsys):

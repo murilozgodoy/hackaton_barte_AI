@@ -131,7 +131,8 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
                            "ultima_alteracao_historico": str(config.historico_ultima_alteracao or "")},
         "integridade": [{"nome": c.nome, "ok": c.ok, "detalhe": c.detalhe} for c in f.checagens],
         "avisos": list(f.avisos),
-        "arquivos": {k: Path(v).name for k, v in arquivos.items()},   # relativos à pasta deste resumo
+        "arquivos": {k: (f"comunicacoes/{Path(v).name}" if k.startswith("comunicacoes/") else Path(v).name)
+                     for k, v in arquivos.items()},   # relativos à pasta deste resumo
     }
 
 

@@ -265,7 +265,7 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert res["lancamentos"] == {"REGRA": 184, "IA": 0, "HUMANO": 0}
     assert res["conciliacao"]["adquirente_x_banco"]["conciliavel"] is False
     assert res["base_de_regras"]["ultima_alteracao_historico"] == "2026-10-17"
-    assert [l["regra_id"] for l in res["lembretes"]] == ["M-01", "M-02", "M-03", "M-04", "M-05"]
+    assert [l["regra_id"] for l in res["lembretes"]] == ["M-01", "M-02", "M-03", "M-04", "M-05", "M-06"]
     assert all(isinstance(c["ok"], bool) for c in res["integridade"])
     rel = (tmp_path / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
     assert rel.startswith("# Fechamento Tarvo — competência 09/2026") and "Integridade: OK" in rel

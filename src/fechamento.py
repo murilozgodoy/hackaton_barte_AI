@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from . import carteira as carteira_mod
-from . import checkout, conciliacao, divergencias, extratos, notas, pendencias, relatorio, remessa
+from . import checkout, comunicacoes, conciliacao, divergencias, extratos, notas, pendencias, relatorio, remessa
 from .notas import primeiro_dia  # noqa: F401  (usado em executar)
 from .saida import escrever_csv
 from .validacao import (Checagem, checar_destinos, checar_lancamentos, checar_notas, checar_rastro,
@@ -31,6 +31,8 @@ class Fechamento:
     conciliacao: dict
     carteira: pd.DataFrame = field(default_factory=lambda: pd.DataFrame(columns=carteira_mod.COLUNAS))
     carteira_anterior: int = 0           # linhas lidas de --anterior
+    taxas: pd.DataFrame | None = None    # planilha de taxas (vigências, para os avisos)
+    meta_ponte: dict = field(default_factory=dict)   # remetente, data do e-mail, data de repasse, prazo
     checagens: list[Checagem] = field(default_factory=list)
     avisos: list[str] = field(default_factory=list)
 
@@ -108,16 +110,16 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
     checagens += checar_lancamentos(ext.lancamentos, bancos)
     checagens += checar_saldo_extratos(bancos)
 
+    meta_ponte = {k: dados["ponte"].attrs.get(k) for k in ("remetente", "assunto", "data_envio", "data_repasse", "prazo_dias_uteis")}
     return Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, dv.fora_contrato, nf, sem_nota,
-                      ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, cart, n_cart, checagens,
-                      list(config.avisos) + ext.avisos)
+                      ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, cart, n_cart, dados["taxas"],
+                      meta_ponte, checagens, list(config.avisos) + ext.avisos)
 
 
-def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None) -> tuple[dict[str, Path], dict]:
-    """Grava os 6 CSVs, o RELATORIO_FECHAMENTO.md e, só se a integridade passou, o resumo.json.
-
-    Devolve (arquivos gravados, dicionário do resumo).
-    """
+def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None,
+             dir_regras: Path | None = None) -> tuple[dict[str, Path], dict]:
+    """Grava os 6 CSVs, a carteira, os rascunhos de comunicação, o RELATORIO_FECHAMENTO.md e, só se a
+    integridade passou, o resumo.json. Devolve (arquivos gravados, dicionário do resumo)."""
     pasta = Path(pasta)
     pasta.mkdir(parents=True, exist_ok=True)
     arquivos = {
@@ -130,6 +132,11 @@ def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None) ->
         "rastro": escrever_csv(f.rastro, pasta / "rastro.csv", "rastro.csv"),
         "carteira": escrever_csv(f.carteira, pasta / "carteira_pendente.csv", "carteira_pendente.csv"),
     }
+    if dir_regras is not None and (Path(dir_regras) / "comunicacoes.csv").exists():
+        from .notas import competencia_texto
+        gerados = comunicacoes.gerar(f, config, dir_regras, pasta, competencia_texto(f.competencia), f.meta_ponte)
+        arquivos["comunicacoes"] = pasta / "comunicacoes"
+        arquivos.update({f"comunicacoes/{k}": v for k, v in gerados.items()})
     res = relatorio.resumo(f, config, arquivos, entrada)
     arquivos["relatorio"] = relatorio.escrever_relatorio(relatorio.markdown(f, config, res),
                                                          pasta / "RELATORIO_FECHAMENTO.md")

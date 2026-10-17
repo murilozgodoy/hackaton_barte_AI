@@ -4,7 +4,7 @@
 
 Arquivos do mês: `01_orbe_relatorio_comissoes_set2026.csv`, `02_tabela_taxas_contratadas.xlsx`, `03_email_ponte_cambio_relatorio_set2026.eml`, `04_plano_de_contas_fenix_erp.csv`, `05a_extrato_banco_aurora_cc4471_set2026.csv`, `05b_extrato_banco_meridiano_cc90233_set2026.ofx` (competência inferida dos dados).
 
-Base de regras: 60 regras ativas, 25 lojistas no cadastro (planilha de taxas + complemento). Última alteração registrada no histórico de regras: 2026-10-17.
+Base de regras: 61 regras ativas, 25 lojistas no cadastro (planilha de taxas + complemento). Última alteração registrada no histórico de regras: 2026-10-17.
 
 ## Totais do mês
 
@@ -99,6 +99,7 @@ Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticam
 - **M-02 · Nota de intermediação antes da data de repasse da Ponte** (Financeiro): Emitir a nota de intermediação para a Ponte Câmbio antes da data de repasse informada no e-mail mensal. Sem a nota, o repasse da participação não é creditado
 - **M-03 · Estorno da metade da Tarvo se a Ponte devolver excesso contestado** (Helena (Financeiro)): Se a Ponte devolver ao lojista o excesso de spread contestado, a metade da Tarvo sobre esse excesso é estornada no mês em que o ajuste ocorrer (não se reabre o mês faturado)
 - **M-05 · Recurso de lojista para remessa sem operação no mês** (Financeiro): É dinheiro do lojista para uma remessa que ainda não foi contratada: fica em 2.1.02.001 (recursos de lojistas para remessas a liquidar). Conferir no fechamento do mês seguinte que a operação saiu no relatório do parceiro. Não é pendência nem devolução
+- **M-06 · Aviso à Orbe ou à Ponte antes de toda condição comercial nova** (Comercial): Toda condição comercial nova (TAXA_EXCECAO ou vigência) exige aviso à Orbe (checkout) ou à Ponte (remessa) antes da data de início, com lojista, CNPJ/EC, produto, taxa e vigência. O fechamento seguinte confere se a taxa foi aplicada a partir da data. Rascunhos prontos em saida/comunicacoes/avisos_nova_condicao.md
 
 ## Conciliação entre fontes (informativa)
 
@@ -125,4 +126,4 @@ Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticam
 - ✅ 5. lançamento classificado por REGRA tem conta: 0 sem conta
 - ✅ 6. saldo do AURORA fecha linha a linha: 612334.81 + -2532423.41 = -1920088.60; extrato diz -1920088.60
 
-Arquivos: `comissoes_por_lojista.csv`, `divergencias_taxa.csv`, `notas_a_emitir.csv`, `lancamentos_classificados.csv`, `pendencias.csv`, `rastro.csv`, `carteira_pendente.csv`.
+Arquivos: `comissoes_por_lojista.csv`, `divergencias_taxa.csv`, `notas_a_emitir.csv`, `lancamentos_classificados.csv`, `pendencias.csv`, `rastro.csv`, `carteira_pendente.csv`, `comunicacoes`, `comunicacoes/orbe_contestacao.csv`, `comunicacoes/orbe.md`, `comunicacoes/ponte_contestacao.csv`, `comunicacoes/ponte.md`, `comunicacoes/comercial.md`, `comunicacoes/avisos_nova_condicao.md`.

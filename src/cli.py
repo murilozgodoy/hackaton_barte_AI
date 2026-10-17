@@ -313,7 +313,11 @@ def imprimir_resumo_final(f: Fechamento, res: dict, arquivos: dict[str, Path], c
         print(f"Carteira pendente: {cj['linhas']} transações sem contrato/taxa ({brl(Decimal(cj['valor_bruto_brl']))}) "
               f"guardadas para o próximo mês; {cj['faturadas_de_meses_anteriores']} de meses anteriores faturadas agora")
     pasta = Path(arquivos["relatorio"]).parent
-    print(f"Arquivos em {pasta}: " + ", ".join(Path(p).name for k, p in arquivos.items() if k != "relatorio"))
+    print(f"Arquivos em {pasta}: " + ", ".join(Path(p).name for k, p in arquivos.items()
+                                              if k != "relatorio" and not k.startswith("comunicacoes")))
+    if "comunicacoes" in arquivos:
+        print(f"Rascunhos de e-mail (não enviados; revisão de quem decide) em {arquivos['comunicacoes']}: "
+              + ", ".join(Path(p).name for k, p in arquivos.items() if k.startswith("comunicacoes/")))
     print(f"Relatório: {arquivos['relatorio']}")
 
 
@@ -345,7 +349,7 @@ def cmd_fechar(args) -> int:
         entrada["carteira_anterior"] = {"pasta": str(args.anterior), "linhas": int(len(carteira))}
     try:
         fech = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=not args.sem_ia, carteira=carteira)
-        arquivos, res = escrever(fech, args.saida, ctx.config, entrada)
+        arquivos, res = escrever(fech, args.saida, ctx.config, entrada, dir_regras=resolver_regras(args.regras).pasta)
     except ErroConfig as e:
         raise Parada(SAIDA_REGRAS, str(e)) from None
     codigo = SAIDA_OK if fech.integro else SAIDA_INTEGRIDADE

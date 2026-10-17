@@ -134,8 +134,8 @@ def test_base_de_regras_em_zip(tmp_path, dados, capsys):
     novos = list(tmp_path.glob("regras_tarvo_*.zip"))
     assert len(novos) == 1 and "substitui o anterior" in out
     with zipfile.ZipFile(novos[0]) as z:
-        assert "\nM-06;" in z.read("regras/regras_negocio.csv").decode("utf-8")
-    assert "M-06" not in zipfile.ZipFile(zip_path).read("regras/regras_negocio.csv").decode("utf-8")  # original intacto
+        assert "\nM-07;" in z.read("regras/regras_negocio.csv").decode("utf-8")
+    assert "M-07" not in zipfile.ZipFile(zip_path).read("regras/regras_negocio.csv").decode("utf-8")  # original intacto
 
 
 def test_empacotar_skill(tmp_path, capsys):
