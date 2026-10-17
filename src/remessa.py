@@ -189,6 +189,11 @@ def _destino_da_linha(r, idx, duplicatas: dict, tabela: TabelaSpread, config: Co
             origem = f"planilha:{ref}"
         elif situacao == "AMBIGUA":
             contratado, origem = None, f"ambígua na planilha ({ref})"
+            # mais de uma linha vigente para o CNPJ: a comissão segue pelo realizado (não depende do contratado), mas a
+            # divergência de spread não pode ser conferida; não some em silêncio: pendência CADASTRO/TAXA_AMBIGUA
+            out.update(tipo_pendencia="CADASTRO", subtipo="TAXA_AMBIGUA",
+                       motivo=f"spread contratado ambíguo: mais de uma linha de {PRODUTO_SPREAD} vigente em {data} na "
+                              f"planilha de taxas ({ref}); divergência de spread não conferida")
         else:
             regra_padrao = config.regra_parametro("spread_padrao", data)
             contratado = regra_padrao.valor * 100

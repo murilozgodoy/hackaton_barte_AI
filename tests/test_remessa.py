@@ -175,3 +175,29 @@ def regras_tmp_excluir(tmp_path):
     assert "remessa_cnpj_sem_cadastro=COMISSAO" in t
     p.write_text(t.replace("remessa_cnpj_sem_cadastro=COMISSAO", "remessa_cnpj_sem_cadastro=EXCLUIR"), encoding="utf-8")
     return destino
+
+
+def test_spread_ambiguo_na_planilha_vira_pendencia_e_nao_some(dados, config):
+    """Duas linhas de spread vigentes para o mesmo CNPJ na planilha: o contratado não pode sumir em silêncio (sem
+    divergência e sem pendência). A operação continua na comissão pelo realizado (a comissão de remessa não depende do
+    contratado) e vira pendência CADASTRO/TAXA_AMBIGUA para o Comercial, com o CNPJ e as células conflitantes."""
+    from src.fechamento import executar
+    taxas = dados["taxas"]
+    extra = taxas[(taxas.cnpj == MUNDO_ABERTO) & (taxas.produto == "SPREAD REMESSA")].copy()
+    assert len(extra) == 1
+    extra["taxa_pct"], extra["ref_origem"], extra["linha_planilha"] = D("1.5"), "Taxas vigentes!J99", 99
+    f = executar({**dados, "taxas": pd.concat([taxas, extra], ignore_index=True)}, config, "2026-09", usar_ia=False)
+    ops = f.ponte_linhas[f.ponte_linhas.cnpj == MUNDO_ABERTO]
+    com = ops[ops.destino == "COMISSAO"]
+    assert len(com) == 23 and com.spread_contratado_pct.isna().all() and com.diferenca_brl.isna().all()
+    assert set(com.tipo_pendencia) == {"CADASTRO"} and set(com.subtipo) == {"TAXA_AMBIGUA"}
+    assert com.spread_contratado_origem.iloc[0].startswith("ambígua na planilha (") and "J99" in com.spread_contratado_origem.iloc[0]
+    assert soma(f.comissoes_remessa.comissao_brl) == D("39543.45")   # comissão pelo realizado: não muda
+    assert MUNDO_ABERTO not in set(f.divergencias.cnpj)               # divergência não conferida, não inventada
+    p = f.pendencias[(f.pendencias.tipo == "CADASTRO") & (f.pendencias.subtipo == "TAXA_AMBIGUA")]
+    assert len(p) == 1
+    r = p.iloc[0]
+    assert (r.cnpj, r.quem_decide, r.qtd_itens, r.linha_negocio) == (MUNDO_ABERTO, "Comercial", 23, "REMESSA")
+    assert "Taxas vigentes!J99" in r.motivo and "NÃO pôde ser conferida" in r.motivo and MUNDO_ABERTO in r.motivo
+    assert r.valor_brl == soma(com.comissao_brl) and len(f.rastro[f.rastro.id_saida == r.id_saida]) == 23
+    assert f.integro

@@ -382,6 +382,19 @@ def _cadastro(c: _Coletor, chk: pd.DataFrame, rem: pd.DataFrame) -> None:
                   f"sobre o spread realizado; sem spread contratado, não há conferência de divergência. {regra_ponte.o_que_fazer}")
         c.add("CADASTRO", cnpj, valor, motivo, regra_ponte, _rastro(g, "comissao_brl", "regra_id"), subtipo="CNPJ_PONTE",
               linha_negocio="REMESSA", cnpj=cnpj, lojista=_nomes(g["cliente_ponte"]), qtd_itens=len(g))
+    # spread contratado ambíguo (mais de uma linha vigente para o CNPJ na planilha): a comissão entrou pelo realizado,
+    # a divergência de spread não pôde ser conferida; não some em silêncio
+    com = rem[(rem["destino"] == "COMISSAO") & (rem["subtipo"] == "TAXA_AMBIGUA")]
+    for cnpj, g in com.groupby("cnpj", sort=False):
+        regra_amb = c.config.dono("CADASTRO", c.ref, subtipo="TAXA_AMBIGUA")
+        valor = soma(g["comissao_brl"])
+        motivo = (f"{g['lojista'].iloc[0]} (CNPJ {cnpj}) tem mais de uma linha de spread de remessa vigente na planilha "
+                  f"de taxas para a data das operações: {_nomes(g['spread_contratado_origem'])}. {len(g)} operações "
+                  f"({brl(soma(g['valor_brl']))}, spread {brl(soma(g['spread_brl']))}) entraram na comissão e na nota pelo "
+                  f"spread realizado ({brl(valor)}), mas a divergência de spread (contratado x aplicado) NÃO pôde ser "
+                  f"conferida. {regra_amb.o_que_fazer}")
+        c.add("CADASTRO", cnpj, valor, motivo, regra_amb, _rastro(g, "comissao_brl", "regra_id"), subtipo="TAXA_AMBIGUA",
+              linha_negocio="REMESSA", cnpj=cnpj, lojista=g["lojista"].iloc[0], qtd_itens=len(g))
     sem = chk[chk["destino"] == "SEM_TAXA"]
     for (cnpj, subtipo), g in sem.groupby(["cnpj", "subtipo"], sort=False):
         regra_sub = c.config.dono("CADASTRO", c.ref, subtipo=subtipo)   # ex.: PARCELAS_FORA_FAIXA tem dono próprio
