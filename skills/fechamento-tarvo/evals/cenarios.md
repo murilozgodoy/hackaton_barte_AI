@@ -5,6 +5,8 @@ usado pelo `skill-creator`. Rodam-se manualmente: cada cenário em uma conversa 
 sem a skill carregada, e anota-se aqui o resultado. O **teste de férias** (outubro sintético,
 `fechar --anterior`, efeito simulado de regra, quem aprova) está em `teste_ferias.md`.
 
+Resultado observado de cada cenário: `PLACAR.md` (17/10/2026, Claude Code com subagente: 7 de 7 passaram).
+
 | # | Cenário | Como preparar | Resultado (data, quem, passou?) |
 |---|---|---|---|
 | 1 | Fechamento normal de setembro | zip na raiz + `regras/` | |

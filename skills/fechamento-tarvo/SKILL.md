@@ -56,6 +56,7 @@ Use os comandos exatamente como escritos. Não invente flags. Prefira `--json` p
 
 ### 5. Transformar decisão em regra (só com aprovação de quem pode)
 - `python -m src regra propor --regras <regras> --saida <saida> --entrada <zip ou pasta> [--anterior <saida anterior>] --tipo <TIPO> --campos chave=valor ...`
+  Os campos são as colunas de `regras_negocio.csv`; os parâmetros da regra vão juntos, num só campo `parametros`, separados por ` | `. Ex.: `--campos "parametros=cnpj=<CNPJ> | linha_negocio=CHECKOUT | produto=TODOS | taxa_pct=2" vigencia_de=AAAA-MM-DD quem_decide=Comercial "informado_por=<quem disse, canal, data>"` (cnpj, taxa_pct etc. soltos são recusados com código 2).
   Mostre a linha exata que seria gravada, os avisos/erros, o efeito esperado e o **efeito simulado** no fechamento (o comando fecha o mês de novo numa pasta temporária com a regra: comissão e nota por lojista que mudam, pendências que somem ou aparecem, carteira que entraria; nada gravado). Leia `references/regras_e_tipos.md` para escolher o tipo e preencher os campos. Na dúvida, `--tipo MANUAL`.
 - Quem pode aprovar depende do tipo (`regras/aprovadores.csv`; o `propor` mostra "Aprovação: ..."): taxa e condição comercial (TAXA_EXCECAO) = Comercial aprova e a Helena registra; regra de como fechar (demais tipos) = Helena aprova. Pergunte: "Posso gravar esta regra? Quem aprova?" Só com um sim explícito **de quem pode aprovar**:
   `python -m src regra aplicar --regras <regras> --proposta <arquivo gerado> --aprovado-por "<nome> (<papel>)" [--registrado-por "<quem registra>"]`
