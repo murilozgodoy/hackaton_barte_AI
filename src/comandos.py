@@ -19,7 +19,7 @@ from .dinheiro import brl, soma
 from .regras import (COLUNAS_COMPLEMENTO, COLUNAS_REGRAS, STATUS_CADASTRO, TIPOS, Regra, _Contexto, cnpj_config,
                      formatar_parametros, ler_csv_regras, normalizar, parse_parametros, validar_conjunto,
                      validar_linha_regra)
-from .saida import COLUNAS_OBRIGATORIAS
+from .saida import COLUNAS_OBRIGATORIAS, gravar_texto
 
 ARQUIVOS_COM_ID = {
     "comissoes_por_lojista.csv": "comissao_brl", "divergencias_taxa.csv": "diferenca_brl",
@@ -431,8 +431,7 @@ def _propor_complemento(dir_regras: Path, campos: dict[str, str], hoje: date) ->
 
 
 def gravar_proposta(p: Proposta, caminho: Path) -> Path:
-    Path(caminho).write_text(json.dumps(p.para_json(), ensure_ascii=False, indent=2), encoding="utf-8")
-    return Path(caminho)
+    return gravar_texto(caminho, json.dumps(p.para_json(), ensure_ascii=False, indent=2))
 
 
 def ler_proposta(caminho: Path) -> Proposta:
@@ -488,7 +487,7 @@ def aplicar(dir_regras: Path, proposta: Proposta, aprovado_por: str, contexto: _
 def _garantir_colunas_historico(caminho: Path) -> None:
     """Histórico antigo (sem aprovado_por/registrado_por) ganha as colunas, com as linhas antigas em branco."""
     if not caminho.exists():
-        caminho.write_text("\ufeff" + ";".join(COLUNAS_HISTORICO) + "\n", encoding="utf-8")
+        gravar_texto(caminho, "\ufeff" + ";".join(COLUNAS_HISTORICO) + "\n")
         return
     texto = caminho.read_text(encoding="utf-8")
     linhas = texto.split("\n")
@@ -498,7 +497,7 @@ def _garantir_colunas_historico(caminho: Path) -> None:
         return
     bom = "\ufeff" if texto.startswith("\ufeff") else ""
     novas = [bom + ";".join(cab + faltam)] + [l + (";" * len(faltam) if l.strip() else "") for l in linhas[1:]]
-    caminho.write_text("\n".join(novas), encoding="utf-8")
+    gravar_texto(caminho, "\n".join(novas))
 
 
 def _anexar_csv(caminho: Path, valores: list[str]) -> None:
@@ -506,4 +505,4 @@ def _anexar_csv(caminho: Path, valores: list[str]) -> None:
     buf = io.StringIO()
     csv.writer(buf, delimiter=";", lineterminator="\n").writerow(valores)
     novo = texto if texto.endswith("\n") else texto + "\n"
-    caminho.write_text(novo + buf.getvalue(), encoding="utf-8")
+    gravar_texto(caminho, novo + buf.getvalue())

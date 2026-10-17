@@ -73,6 +73,15 @@ def formatar_celula(valor, coluna: str) -> str:
     return str(valor)
 
 
+def gravar_texto(caminho: Path, texto: str) -> Path:
+    """Grava texto de saída (relatório, resumo, rascunhos, propostas, CSVs de regras) com final de linha fixo em LF:
+    o saida/ tem que sair idêntico em macOS, Linux e Windows (sem newline= o Windows gravaria CRLF)."""
+    caminho = Path(caminho)
+    with open(caminho, "w", encoding="utf-8", newline="\n") as f:
+        f.write(texto)
+    return caminho
+
+
 def escrever_csv(df: pd.DataFrame, caminho: Path, nome: str) -> Path:
     obrigatorias = COLUNAS_OBRIGATORIAS[nome]
     faltando = [c for c in obrigatorias if c not in df.columns]

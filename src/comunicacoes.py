@@ -16,7 +16,7 @@ import pandas as pd
 from .dinheiro import ZERO, arredondar, brl, soma
 from .pendencias import COLUNAS_CONTESTACAO, lista_contestacao
 from .regras import ErroConfig, ler_csv_regras
-from .saida import escrever_csv
+from .saida import escrever_csv, gravar_texto
 
 COLUNAS_COMUNICACOES = ["contraparte", "destinatario", "assunto", "abertura", "fechamento", "quem_decide", "informado_por", "data"]
 COLUNAS_CAUSAS = ["cnpj", "linha_negocio", "causa", "informado_por", "data"]
@@ -262,5 +262,5 @@ def _vigencia_planilha(f, cnpj: str, origem: str):
 
 
 def _gravar(caminho: Path, linhas: list[str]) -> Path:
-    caminho.write_text("\n".join(linhas), encoding="utf-8")
+    gravar_texto(caminho, "\n".join(linhas))
     return caminho

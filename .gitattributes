@@ -1,0 +1,4 @@
+# Finais de linha fixos em LF em todo texto versionado (saida/ tem que ser igual em macOS, Linux e Windows)
+* text=auto eol=lf
+*.zip binary
+*.xlsx binary

@@ -18,6 +18,7 @@ import pandas as pd
 
 from .dinheiro import CENTAVO, ZERO, brl, soma
 from .notas import competencia_texto, primeiro_dia
+from .saida import gravar_texto
 
 # pendências cuja causa é a do lojista (regras/causas_divergencia.csv), não o tipo
 TIPOS_POR_CAUSA = {"DIVERGENCIA_TAXA", "TARIFA_ZERO_COBRADA", "SEM_CONTRATO"}
@@ -291,7 +292,7 @@ def dinheiro_em_jogo_por_causa(f, causas: dict) -> list[dict]:
 
 
 def escrever_resumo(res: dict, caminho: Path) -> Path:
-    Path(caminho).write_text(json.dumps(res, ensure_ascii=False, indent=2, default=str) + "\n", encoding="utf-8")
+    gravar_texto(caminho, json.dumps(res, ensure_ascii=False, indent=2, default=str) + "\n")
     return Path(caminho)
 
 
@@ -559,5 +560,5 @@ def markdown(f, config, res: dict, causas: dict | None = None, historico: list[d
 
 
 def escrever_relatorio(texto: str, caminho: Path) -> Path:
-    Path(caminho).write_text(texto, encoding="utf-8")
+    gravar_texto(caminho, texto)
     return Path(caminho)

@@ -189,3 +189,17 @@ def test_aviso_dos_leitores_chega_ao_resumo_e_ao_relatorio(pasta_dados, tmp_path
     assert res["avisos"] == j["avisos"]
     rel = (tmp_path / "saida" / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
     assert "## Avisos" in rel and "- AURORA: lançamentos na competência (3 de 84" in rel
+
+
+# ---------------------------------------------------------------- finais de linha: saida/ idêntico em macOS, Linux e Windows
+
+def test_saida_so_com_lf_e_gitattributes(dados, tmp_path):
+    """Todo arquivo de saída é gravado com newline fixo em LF (open(..., newline="\\n")); no git, .gitattributes fixa LF
+    para texto e marca zip/xlsx como binário. Assim o teste "saida/ versionado = gerado" passa também no Windows."""
+    assert main(["fechar", "--saida", str(tmp_path / "saida"), "--sem-ia"]) == 0
+    arquivos = [p for p in (tmp_path / "saida").rglob("*") if p.is_file()]
+    assert len(arquivos) == 15
+    for p in arquivos:
+        assert b"\r" not in p.read_bytes(), p.name
+    attrs = (RAIZ / ".gitattributes").read_text(encoding="utf-8")
+    assert "* text=auto eol=lf" in attrs and "*.zip binary" in attrs and "*.xlsx binary" in attrs
