@@ -89,7 +89,7 @@ def test_notas(partes):
     chk = nf[nf.linha_negocio == "CHECKOUT"]
     rem = nf[nf.linha_negocio == "REMESSA"]
     assert len(chk) == 20 and len(rem) == 1 and nf.id_saida.tolist() == [f"NF-{i:04d}" for i in range(1, 22)]
-    assert soma(chk.valor_brl) == D("207039.73") + D("5.50")   # todos menos a Casa (-5,50)
+    assert soma(chk.valor_brl) == D("203735.34") + D("5.50")   # todos menos a Casa (-5,50)
     assert CASA not in set(chk.tomador_cnpj)
     assert len(sem_nota) == 1 and sem_nota.iloc[0].cnpj == CASA and sem_nota.iloc[0].comissao_brl == D("-5.50")
     r = rem.iloc[0]
@@ -107,4 +107,4 @@ def test_rastro_das_notas_sao_as_transacoes(partes):
     rem_id = nf[nf.linha_negocio == "REMESSA"].id_saida.iloc[0]
     assert (rastro[rastro.id_saida == rem_id].ref_origem.str.startswith("PC-")).all()
     assert len(rastro[rastro.id_saida == rem_id]) == 228
-    assert len(rastro) == 228 + (1886 - 119)   # Casa (119 linhas) não tem nota
+    assert len(rastro) == 228 + (1900 - 119)   # Casa (119 linhas) não tem nota

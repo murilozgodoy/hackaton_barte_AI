@@ -285,6 +285,7 @@ COM-CHK-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88440395;180.35;planilha:
 COM-CHK-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88440659;92.04;planilha:Taxas vigentes!E9;2.59
 COM-CHK-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88441111;84.30;planilha:Taxas vigentes!F9;3.19
 COM-CHK-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88442772;5.13;planilha:Taxas vigentes!D9;1.49
+COM-CHK-0003;06_orbe_ajustes_tardios_set2026.csv;TX88447225;174.81;planilha:Taxas vigentes!F9;3.19
 COM-CHK-0004;01_orbe_relatorio_comissoes_set2026.csv;TX88410667;658.68;planilha:Taxas vigentes!G25;3.79
 COM-CHK-0004;01_orbe_relatorio_comissoes_set2026.csv;TX88410045;41.21;planilha:Taxas vigentes!E25;2.69
 COM-CHK-0004;01_orbe_relatorio_comissoes_set2026.csv;TX88412086;15.51;planilha:Taxas vigentes!E25;2.69
@@ -464,6 +465,8 @@ COM-CHK-0005;01_orbe_relatorio_comissoes_set2026.csv;TX88442867;36.96;planilha:T
 COM-CHK-0005;01_orbe_relatorio_comissoes_set2026.csv;TX88443192;93.11;planilha:Taxas vigentes!F17;3.19
 COM-CHK-0005;01_orbe_relatorio_comissoes_set2026.csv;TX88442588;176.13;planilha:Taxas vigentes!F17;3.19
 COM-CHK-0005;01_orbe_relatorio_comissoes_set2026.csv;TX88443797;5.34;planilha:Taxas vigentes!H17;0.89
+COM-CHK-0005;06_orbe_ajustes_tardios_set2026.csv;TX88447057;-124.36;planilha:Taxas vigentes!F17;3.19
+COM-CHK-0005;06_orbe_ajustes_tardios_set2026.csv;TX88447109;-87.65;planilha:Taxas vigentes!F17;3.19
 COM-CHK-0006;01_orbe_relatorio_comissoes_set2026.csv;TX88410886;33.15;planilha:Taxas vigentes!E15;2.49
 COM-CHK-0006;01_orbe_relatorio_comissoes_set2026.csv;TX88411123;13.48;planilha:Taxas vigentes!E15;2.49
 COM-CHK-0006;01_orbe_relatorio_comissoes_set2026.csv;TX88410554;9.21;planilha:Taxas vigentes!H15;0.89
@@ -632,6 +635,7 @@ COM-CHK-0006;01_orbe_relatorio_comissoes_set2026.csv;TX88444082;98.62;planilha:T
 COM-CHK-0006;01_orbe_relatorio_comissoes_set2026.csv;TX88446943;-694.95;planilha:Taxas vigentes!G15;3.79
 COM-CHK-0006;01_orbe_relatorio_comissoes_set2026.csv;TX88443765;90.74;planilha:Taxas vigentes!F15;2.99
 COM-CHK-0006;01_orbe_relatorio_comissoes_set2026.csv;TX88444056;192.47;planilha:Taxas vigentes!F15;2.99
+COM-CHK-0006;06_orbe_ajustes_tardios_set2026.csv;TX88447030;-14.00;planilha:Taxas vigentes!E15;2.49
 COM-CHK-0007;01_orbe_relatorio_comissoes_set2026.csv;TX88410997;20.54;planilha:Taxas vigentes!E11;2.69
 COM-CHK-0007;01_orbe_relatorio_comissoes_set2026.csv;TX88411617;128.41;planilha:Taxas vigentes!F11;3.19
 COM-CHK-0007;01_orbe_relatorio_comissoes_set2026.csv;TX88412460;213.88;planilha:Taxas vigentes!G11;3.79
@@ -857,6 +861,8 @@ COM-CHK-0009;01_orbe_relatorio_comissoes_set2026.csv;TX88442753;3.60;planilha:Ta
 COM-CHK-0009;01_orbe_relatorio_comissoes_set2026.csv;TX88444329;15.52;planilha:Taxas vigentes!E7;2.19
 COM-CHK-0009;01_orbe_relatorio_comissoes_set2026.csv;TX88443632;3.64;planilha:Taxas vigentes!H7;0.89
 COM-CHK-0009;01_orbe_relatorio_comissoes_set2026.csv;TX88443575;6.16;planilha:Taxas vigentes!H7;0.89
+COM-CHK-0009;06_orbe_ajustes_tardios_set2026.csv;TX88447044;-63.23;planilha:Taxas vigentes!F6;3.19
+COM-CHK-0009;06_orbe_ajustes_tardios_set2026.csv;TX88447070;-83.05;planilha:Taxas vigentes!F6;3.19
 COM-CHK-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88410316;42.62;planilha:Taxas vigentes!E20;2.59
 COM-CHK-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88411115;422.69;planilha:Taxas vigentes!G20;3.79
 COM-CHK-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88444848;-83.12;planilha:Taxas vigentes!G20;3.79
@@ -955,6 +961,10 @@ COM-CHK-0010;01_orbe_relatorio_comissoes_set2026.csv;AN88446810;1219.93;planilha
 COM-CHK-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88444183;5.49;planilha:Taxas vigentes!H20;0.89
 COM-CHK-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88443668;83.85;planilha:Taxas vigentes!F20;3.09
 COM-CHK-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88443842;321.85;planilha:Taxas vigentes!G20;3.79
+COM-CHK-0010;06_orbe_ajustes_tardios_set2026.csv;TX88447087;-327.73;planilha:Taxas vigentes!G20;3.79
+COM-CHK-0010;06_orbe_ajustes_tardios_set2026.csv;TX88447140;-61.28;planilha:Taxas vigentes!E20;2.59
+COM-CHK-0010;06_orbe_ajustes_tardios_set2026.csv;AN88447152;-967.69;planilha:Taxas vigentes!I20;2.10
+COM-CHK-0010;06_orbe_ajustes_tardios_set2026.csv;AN88447178;-875.49;planilha:Taxas vigentes!I20;2.10
 COM-CHK-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88410990;423.24;planilha:Taxas vigentes!G19;3.79
 COM-CHK-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88410442;139.10;planilha:Taxas vigentes!F19;3.19
 COM-CHK-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88411202;115.22;planilha:Taxas vigentes!E19;2.69
@@ -1060,6 +1070,9 @@ COM-CHK-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88443793;227.03;planilha:
 COM-CHK-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88444370;7.51;planilha:Taxas vigentes!H19;0.89
 COM-CHK-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88443743;235.50;planilha:Taxas vigentes!G19;3.79
 COM-CHK-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88444468;205.64;planilha:Taxas vigentes!F19;3.19
+COM-CHK-0011;06_orbe_ajustes_tardios_set2026.csv;TX88447011;-6.27;planilha:Taxas vigentes!D19;1.49
+COM-CHK-0011;06_orbe_ajustes_tardios_set2026.csv;TX88447093;-70.49;planilha:Taxas vigentes!E19;2.69
+COM-CHK-0011;06_orbe_ajustes_tardios_set2026.csv;AN88447194;-768.25;planilha:Taxas vigentes!I19;2.10
 COM-CHK-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88412281;396.18;planilha:Taxas vigentes!G24;3.79
 COM-CHK-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88412026;41.10;planilha:Taxas vigentes!F24;3.19
 COM-CHK-0012;01_orbe_relatorio_comissoes_set2026.csv;TX88412495;126.57;planilha:Taxas vigentes!F24;3.19
@@ -1550,6 +1563,7 @@ COM-CHK-0017;01_orbe_relatorio_comissoes_set2026.csv;TX88443984;4.52;planilha:Ta
 COM-CHK-0017;01_orbe_relatorio_comissoes_set2026.csv;TX88444363;68.37;planilha:Taxas vigentes!F18;3.19
 COM-CHK-0017;01_orbe_relatorio_comissoes_set2026.csv;TX88444149;193.30;planilha:Taxas vigentes!F18;3.19
 COM-CHK-0017;01_orbe_relatorio_comissoes_set2026.csv;TX88443603;10.88;planilha:Taxas vigentes!H18;0.89
+COM-CHK-0017;06_orbe_ajustes_tardios_set2026.csv;TX88446992;-29.71;planilha:Taxas vigentes!E18;2.59
 COM-CHK-0018;01_orbe_relatorio_comissoes_set2026.csv;TX88410916;8.36;planilha:Taxas vigentes!H8;0.89
 COM-CHK-0018;01_orbe_relatorio_comissoes_set2026.csv;TX88410633;46.59;planilha:Taxas vigentes!E8;2.69
 COM-CHK-0018;01_orbe_relatorio_comissoes_set2026.csv;TX88410782;119.24;planilha:Taxas vigentes!F8;3.19
@@ -2395,6 +2409,7 @@ NF-0002;01_orbe_relatorio_comissoes_set2026.csv;TX88440395;180.35;planilha:Taxas
 NF-0002;01_orbe_relatorio_comissoes_set2026.csv;TX88440659;92.04;planilha:Taxas vigentes!E9;2.59
 NF-0002;01_orbe_relatorio_comissoes_set2026.csv;TX88441111;84.30;planilha:Taxas vigentes!F9;3.19
 NF-0002;01_orbe_relatorio_comissoes_set2026.csv;TX88442772;5.13;planilha:Taxas vigentes!D9;1.49
+NF-0002;06_orbe_ajustes_tardios_set2026.csv;TX88447225;174.81;planilha:Taxas vigentes!F9;3.19
 NF-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88410667;658.68;planilha:Taxas vigentes!G25;3.79
 NF-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88410045;41.21;planilha:Taxas vigentes!E25;2.69
 NF-0003;01_orbe_relatorio_comissoes_set2026.csv;TX88412086;15.51;planilha:Taxas vigentes!E25;2.69
@@ -2574,6 +2589,8 @@ NF-0004;01_orbe_relatorio_comissoes_set2026.csv;TX88442867;36.96;planilha:Taxas 
 NF-0004;01_orbe_relatorio_comissoes_set2026.csv;TX88443192;93.11;planilha:Taxas vigentes!F17;3.19
 NF-0004;01_orbe_relatorio_comissoes_set2026.csv;TX88442588;176.13;planilha:Taxas vigentes!F17;3.19
 NF-0004;01_orbe_relatorio_comissoes_set2026.csv;TX88443797;5.34;planilha:Taxas vigentes!H17;0.89
+NF-0004;06_orbe_ajustes_tardios_set2026.csv;TX88447057;-124.36;planilha:Taxas vigentes!F17;3.19
+NF-0004;06_orbe_ajustes_tardios_set2026.csv;TX88447109;-87.65;planilha:Taxas vigentes!F17;3.19
 NF-0005;01_orbe_relatorio_comissoes_set2026.csv;TX88410886;33.15;planilha:Taxas vigentes!E15;2.49
 NF-0005;01_orbe_relatorio_comissoes_set2026.csv;TX88411123;13.48;planilha:Taxas vigentes!E15;2.49
 NF-0005;01_orbe_relatorio_comissoes_set2026.csv;TX88410554;9.21;planilha:Taxas vigentes!H15;0.89
@@ -2742,6 +2759,7 @@ NF-0005;01_orbe_relatorio_comissoes_set2026.csv;TX88444082;98.62;planilha:Taxas 
 NF-0005;01_orbe_relatorio_comissoes_set2026.csv;TX88446943;-694.95;planilha:Taxas vigentes!G15;3.79
 NF-0005;01_orbe_relatorio_comissoes_set2026.csv;TX88443765;90.74;planilha:Taxas vigentes!F15;2.99
 NF-0005;01_orbe_relatorio_comissoes_set2026.csv;TX88444056;192.47;planilha:Taxas vigentes!F15;2.99
+NF-0005;06_orbe_ajustes_tardios_set2026.csv;TX88447030;-14.00;planilha:Taxas vigentes!E15;2.49
 NF-0006;01_orbe_relatorio_comissoes_set2026.csv;TX88410997;20.54;planilha:Taxas vigentes!E11;2.69
 NF-0006;01_orbe_relatorio_comissoes_set2026.csv;TX88411617;128.41;planilha:Taxas vigentes!F11;3.19
 NF-0006;01_orbe_relatorio_comissoes_set2026.csv;TX88412460;213.88;planilha:Taxas vigentes!G11;3.79
@@ -2967,6 +2985,8 @@ NF-0008;01_orbe_relatorio_comissoes_set2026.csv;TX88442753;3.60;planilha:Taxas v
 NF-0008;01_orbe_relatorio_comissoes_set2026.csv;TX88444329;15.52;planilha:Taxas vigentes!E7;2.19
 NF-0008;01_orbe_relatorio_comissoes_set2026.csv;TX88443632;3.64;planilha:Taxas vigentes!H7;0.89
 NF-0008;01_orbe_relatorio_comissoes_set2026.csv;TX88443575;6.16;planilha:Taxas vigentes!H7;0.89
+NF-0008;06_orbe_ajustes_tardios_set2026.csv;TX88447044;-63.23;planilha:Taxas vigentes!F6;3.19
+NF-0008;06_orbe_ajustes_tardios_set2026.csv;TX88447070;-83.05;planilha:Taxas vigentes!F6;3.19
 NF-0009;01_orbe_relatorio_comissoes_set2026.csv;TX88410316;42.62;planilha:Taxas vigentes!E20;2.59
 NF-0009;01_orbe_relatorio_comissoes_set2026.csv;TX88411115;422.69;planilha:Taxas vigentes!G20;3.79
 NF-0009;01_orbe_relatorio_comissoes_set2026.csv;TX88444848;-83.12;planilha:Taxas vigentes!G20;3.79
@@ -3065,6 +3085,10 @@ NF-0009;01_orbe_relatorio_comissoes_set2026.csv;AN88446810;1219.93;planilha:Taxa
 NF-0009;01_orbe_relatorio_comissoes_set2026.csv;TX88444183;5.49;planilha:Taxas vigentes!H20;0.89
 NF-0009;01_orbe_relatorio_comissoes_set2026.csv;TX88443668;83.85;planilha:Taxas vigentes!F20;3.09
 NF-0009;01_orbe_relatorio_comissoes_set2026.csv;TX88443842;321.85;planilha:Taxas vigentes!G20;3.79
+NF-0009;06_orbe_ajustes_tardios_set2026.csv;TX88447087;-327.73;planilha:Taxas vigentes!G20;3.79
+NF-0009;06_orbe_ajustes_tardios_set2026.csv;TX88447140;-61.28;planilha:Taxas vigentes!E20;2.59
+NF-0009;06_orbe_ajustes_tardios_set2026.csv;AN88447152;-967.69;planilha:Taxas vigentes!I20;2.10
+NF-0009;06_orbe_ajustes_tardios_set2026.csv;AN88447178;-875.49;planilha:Taxas vigentes!I20;2.10
 NF-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88410990;423.24;planilha:Taxas vigentes!G19;3.79
 NF-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88410442;139.10;planilha:Taxas vigentes!F19;3.19
 NF-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88411202;115.22;planilha:Taxas vigentes!E19;2.69
@@ -3170,6 +3194,9 @@ NF-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88443793;227.03;planilha:Taxas
 NF-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88444370;7.51;planilha:Taxas vigentes!H19;0.89
 NF-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88443743;235.50;planilha:Taxas vigentes!G19;3.79
 NF-0010;01_orbe_relatorio_comissoes_set2026.csv;TX88444468;205.64;planilha:Taxas vigentes!F19;3.19
+NF-0010;06_orbe_ajustes_tardios_set2026.csv;TX88447011;-6.27;planilha:Taxas vigentes!D19;1.49
+NF-0010;06_orbe_ajustes_tardios_set2026.csv;TX88447093;-70.49;planilha:Taxas vigentes!E19;2.69
+NF-0010;06_orbe_ajustes_tardios_set2026.csv;AN88447194;-768.25;planilha:Taxas vigentes!I19;2.10
 NF-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88412281;396.18;planilha:Taxas vigentes!G24;3.79
 NF-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88412026;41.10;planilha:Taxas vigentes!F24;3.19
 NF-0011;01_orbe_relatorio_comissoes_set2026.csv;TX88412495;126.57;planilha:Taxas vigentes!F24;3.19
@@ -3660,6 +3687,7 @@ NF-0016;01_orbe_relatorio_comissoes_set2026.csv;TX88443984;4.52;planilha:Taxas v
 NF-0016;01_orbe_relatorio_comissoes_set2026.csv;TX88444363;68.37;planilha:Taxas vigentes!F18;3.19
 NF-0016;01_orbe_relatorio_comissoes_set2026.csv;TX88444149;193.30;planilha:Taxas vigentes!F18;3.19
 NF-0016;01_orbe_relatorio_comissoes_set2026.csv;TX88443603;10.88;planilha:Taxas vigentes!H18;0.89
+NF-0016;06_orbe_ajustes_tardios_set2026.csv;TX88446992;-29.71;planilha:Taxas vigentes!E18;2.59
 NF-0017;01_orbe_relatorio_comissoes_set2026.csv;TX88410916;8.36;planilha:Taxas vigentes!H8;0.89
 NF-0017;01_orbe_relatorio_comissoes_set2026.csv;TX88410633;46.59;planilha:Taxas vigentes!E8;2.69
 NF-0017;01_orbe_relatorio_comissoes_set2026.csv;TX88410782;119.24;planilha:Taxas vigentes!F8;3.19

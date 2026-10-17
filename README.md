@@ -19,6 +19,7 @@ Time MN AI: Nader Taha e Murilo Godoy.
 3. **Rode um comando** na raiz do projeto:
    ```bash
    ./fechar.sh caminho/do/zip_ou_pasta      # macOS/Linux
+   ./fechar.sh pasta_do_mes                 # pasta com o zip + os arquivos que chegarem depois (ex.: 06_orbe_ajustes_tardios)
    fechar.bat caminho\do\zip_ou_pasta      # Windows
    ```
    Sem argumento, usa `entrada/` (e, se ela estiver vazia, o único `Tarvo_Data_Pack_*.zip` da raiz).
@@ -125,8 +126,9 @@ checagens de integridade: soma do rastro = valor reportado para todo id; notas =
 positivas; nota de remessa = soma da remessa; toda linha da Orbe e toda operação da Ponte em
 exatamente um destino (nada some); todo lançamento classificado; saldo do Aurora fecha.
 
-Setembro/2026: comissão CHECKOUT R$ 207.039,73 (21 lojistas), REMESSA R$ 39.543,45 (14),
-21 notas (R$ 246.588,68), 115 divergências de contrato (R$ 1.576,23 checkout + R$ 1.418,85 remessa,
+Setembro/2026 (relatório da Orbe + os 14 ajustes tardios do arquivo 06, publicados em 17/10): comissão
+CHECKOUT R$ 203.735,34 (21 lojistas, 1.900 transações), REMESSA R$ 39.543,45 (14), 21 notas (R$ 243.284,29;
+sem o 06 seriam R$ 207.039,73 e R$ 246.588,68), 115 divergências de contrato (R$ 1.576,23 checkout + R$ 1.418,85 remessa,
 contestadas), 184 lançamentos classificados por regra, 16 pendências. As 118 transações da Casa do
 Estudante ficam fora de `divergencias_taxa.csv` por regra (X-01, `destino=PENDENCIA`): são uma concessão
 comercial fora do contrato, e a devolução ao lojista por conta da Tarvo (R$ 15.396,77, o que a Orbe cobrou de
@@ -134,6 +136,12 @@ fato; a fórmula daria R$ 15.397,42) existe só na pendência TARIFA_ZERO_COBRAD
 no rastro. O `RELATORIO_FECHAMENTO.md` abre com a página do CFO (totais, notas, dinheiro em jogo por
 natureza, nunca somado entre naturezas, pendências por responsável, rascunhos prontos em
 `saida/comunicacoes/`, conhecimento capturado) e traz o detalhe em anexo.
+
+Arquivos que chegarem depois (ajustes tardios, reenvios): coloque o zip e os arquivos novos na mesma pasta e rode
+`./fechar.sh <pasta>`. Cada arquivo é reconhecido pelo **conteúdo** (assinatura da fonte em `regras/fontes.csv`: cabeçalho
+do CSV, aba do xlsx, anexo do e-mail, tag e conta do OFX), não pelo nome; a Orbe e a Ponte aceitam vários arquivos no
+mesmo formato, e o que não for reconhecido vira aviso no relatório ("arquivo X não reconhecido; não foi usado"), nunca
+some em silêncio. Fonte obrigatória ausente para com código 1 dizendo o que falta e o que foi encontrado.
 
 ## Como funciona
 

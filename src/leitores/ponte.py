@@ -174,3 +174,24 @@ def _converter(r: dict, linha: int, arquivo: str) -> dict:
     out["spread_pct"] = out["spread_frac"] * 100 if out["spread_frac"] is not None else None
     out.update(linha_planilha=linha, ref_origem=out["num_operacao"], arquivo_origem=arquivo)
     return out
+
+
+# --------------------------------------------------------------------------- vários arquivos (relatório + reenvio)
+
+def ler_ponte_varios(caminhos: list[Path], aba: str) -> pd.DataFrame:
+    """Lê o e-mail principal e eventuais reenvios (mesmo formato) e concatena, cada linha com o seu arquivo_origem.
+    Os totais declarados, o remetente e as datas vêm do arquivo principal (o primeiro); as linhas ignoradas se somam.
+    Nº Operação repetido entre arquivos é tratado pela regra IGNORAR_DUPLICADO (idêntico conta uma vez; diferente,
+    nenhuma entra), como já acontece dentro de um arquivo só."""
+    caminhos = [Path(c) for c in caminhos]
+    partes = [ler_ponte(c, aba=aba) for c in caminhos]
+    if len(partes) == 1:
+        df = partes[0]
+        df.attrs.update(arquivos=[caminhos[0].name], arquivo_principal=caminhos[0].name)
+        return df
+    df = pd.concat(partes, ignore_index=True)
+    attrs = dict(partes[0].attrs)
+    attrs["linhas_ignoradas"] = [l for p in partes for l in (p.attrs.get("linhas_ignoradas") or [])]
+    attrs.update(arquivos=[c.name for c in caminhos], arquivo_principal=caminhos[0].name)
+    df.attrs.update(attrs)
+    return df

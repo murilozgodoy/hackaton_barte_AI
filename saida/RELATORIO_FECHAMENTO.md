@@ -2,7 +2,7 @@
 
 **Integridade: OK.** Todos os números abaixo têm rastro até as linhas de origem (`rastro.csv`) e passaram nas checagens listadas no fim.
 
-Arquivos do mês: `01_orbe_relatorio_comissoes_set2026.csv`, `02_tabela_taxas_contratadas.xlsx`, `03_email_ponte_cambio_relatorio_set2026.eml`, `04_plano_de_contas_fenix_erp.csv`, `05a_extrato_banco_aurora_cc4471_set2026.csv`, `05b_extrato_banco_meridiano_cc90233_set2026.ofx` (competência inferida dos dados).
+Arquivos do mês: `01_orbe_relatorio_comissoes_set2026.csv, 06_orbe_ajustes_tardios_set2026.csv`, `02_tabela_taxas_contratadas.xlsx`, `03_email_ponte_cambio_relatorio_set2026.eml`, `04_plano_de_contas_fenix_erp.csv`, `05a_extrato_banco_aurora_cc4471_set2026.csv`, `05b_extrato_banco_meridiano_cc90233_set2026.ofx` (competência inferida dos dados).
 
 Base de regras: 68 regras ativas, 25 lojistas no cadastro (planilha de taxas + complemento). Última alteração registrada no histórico de regras: 2026-10-17.
 
@@ -12,13 +12,13 @@ Base de regras: 68 regras ativas, 25 lojistas no cadastro (planilha de taxas + c
 
 | Linha | Lojistas | Comissão (receita da Tarvo) | Notas a emitir |
 |---|---|---|---|
-| CHECKOUT | 21 | R$ 207.039,73 | 20 notas, R$ 207.045,23 (Casa do Estudante Viagens Ltda sem nota (-R$ 5,50)) |
+| CHECKOUT | 21 | R$ 203.735,34 | 20 notas, R$ 203.740,84 (Casa do Estudante Viagens Ltda sem nota (-R$ 5,50)) |
 | REMESSA | 14 | R$ 39.543,45 | 1 nota, R$ 39.543,45 |
-| **Total** |  | **R$ 246.583,18** | **21 notas, R$ 246.588,68** |
+| **Total** |  | **R$ 243.278,79** | **21 notas, R$ 243.284,29** |
 
 Divergências: 115 transações, todas 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08); fora do arquivo, por regra, 118 transações de concessão comercial fora do contrato (R$ 15.396,77 cobrados de fato pela adquirente, devolução ao lojista por conta da Tarvo, só em pendência).
 
-**2.360 linhas de origem conferidas** (1.943 da adquirente + 233 do parceiro de câmbio + 184 dos extratos) → **16 decisões para pessoas** (pendências com dono). O motor não mede tempo de espera nem de decisão.
+**2.374 linhas de origem conferidas** (1.957 da adquirente + 233 do parceiro de câmbio + 184 dos extratos) → **16 decisões para pessoas** (pendências com dono). O motor não mede tempo de espera nem de decisão.
 
 ### Dinheiro em jogo, por natureza
 
@@ -26,7 +26,7 @@ O que fazer com cada dinheiro. Naturezas diferentes nunca são somadas (faturar,
 
 | Natureza | O quê | Valor | Quem decide |
 |---|---|---|---|
-| Faturar | 21 notas a emitir (20 de checkout + 1 de remessa) | R$ 246.588,68 | Financeiro (emite) |
+| Faturar | 21 notas a emitir (20 de checkout + 1 de remessa) | R$ 243.284,29 | Financeiro (emite) |
 | Cobrar da adquirente | Escola Bridge de Idiomas Ltda: Divergência de contrato: aditivo assinado com 2,19% a partir de 15/09 e a Orbe cobrou 2,59%. Contestar com a Orbe e ressarcir o lojista. O aviso à Orbe saiu atrasado (falha de processo nossa), mas o que decide é o contrato, não o aviso (5 transações, R$ 29,95); Rota Global Intercâmbio Ltda: Erro da Orbe: +0,50 p.p. no crédito desde 12/09 sem nenhuma mudança contratual (87 transações, R$ 1.546,28). Rascunho: comunicacoes/orbe.md | R$ 1.576,23 | Helena (Financeiro) |
 | Contestar com o parceiro de câmbio | a: excesso de spread cobrado do lojista, volta ao lojista. Mundo Aberto: Divergência de contrato: spread de 1,20% negociado e registrado desde julho e a Ponte aplicou cerca de 1,50%. Contestar com a Ponte e ressarcir o lojista. A Ponte não foi avisada (falha de processo nossa), mas o que decide é o contrato, não o aviso (23 transações, R$ 1.418,85) | R$ 1.418,85 | Helena (Financeiro) |
 |  | b: 4 operações com spread negativo (trava vencida), fora da comissão e da nota. O que aconteceu: -R$ 1.834,05 de spread no relatório; o que se pede ao parceiro: a diferença até o spread contratado, R$ 3.565,98. Os dois valores, nunca somados | -R$ 1.834,05 aconteceu / R$ 3.565,98 pedido | Helena (Financeiro) |
@@ -77,32 +77,32 @@ O que fazer com cada dinheiro. Naturezas diferentes nunca são somadas (faturar,
 
 | Linha | Lojistas | Comissão |
 |---|---|---|
-| CHECKOUT | 21 | R$ 207.039,73 |
+| CHECKOUT | 21 | R$ 203.735,34 |
 | REMESSA | 14 | R$ 39.543,45 |
-| **Total** |  | **R$ 246.583,18** |
+| **Total** |  | **R$ 243.278,79** |
 
-Notas a emitir: 21, somando R$ 246.588,68. A diferença de R$ 5,50 para a comissão total é o saldo negativo sem nota (Casa do Estudante Viagens Ltda -R$ 5,50). Divergências: 115 transações, todas 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08); fora do arquivo, por regra, 118 transações de concessão comercial fora do contrato (R$ 15.396,77 cobrados de fato pela adquirente, devolução ao lojista por conta da Tarvo, só em pendência). Pendências: 16.
+Notas a emitir: 21, somando R$ 243.284,29. A diferença de R$ 5,50 para a comissão total é o saldo negativo sem nota (Casa do Estudante Viagens Ltda -R$ 5,50). Divergências: 115 transações, todas 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08); fora do arquivo, por regra, 118 transações de concessão comercial fora do contrato (R$ 15.396,77 cobrados de fato pela adquirente, devolução ao lojista por conta da Tarvo, só em pendência). Pendências: 16.
 
 ## Notas a emitir
 
 | Nota | Linha | Tomador | CNPJ | Valor |
 |---|---|---|---|---|
 | NF-0001 | CHECKOUT | Fluente Idiomas Online Ltda | 03229837000103 | R$ 7.316,07 |
-| NF-0002 | CHECKOUT | Kiwi Experience | 07752116000126 | R$ 10.711,41 |
+| NF-0002 | CHECKOUT | Kiwi Experience | 07752116000126 | R$ 10.886,22 |
 | NF-0003 | CHECKOUT | Campus Global Ltda | 08780784000120 | R$ 9.336,06 |
-| NF-0004 | CHECKOUT | EduAbroad | 16181276000153 | R$ 12.070,17 |
-| NF-0005 | CHECKOUT | Mundo Aberto | 17217888000111 | R$ 18.522,09 |
+| NF-0004 | CHECKOUT | EduAbroad | 16181276000153 | R$ 11.858,16 |
+| NF-0005 | CHECKOUT | Mundo Aberto | 17217888000111 | R$ 18.508,09 |
 | NF-0006 | CHECKOUT | Vela | 20987545000140 | R$ 9.315,31 |
 | NF-0007 | CHECKOUT | Trilha Jovem Turismo Ltda | 21394880000106 | R$ 5.628,57 |
-| NF-0008 | CHECKOUT | Escola Bridge de Idiomas Ltda | 22224579000109 | R$ 11.916,02 |
-| NF-0009 | CHECKOUT | Oxford Prep Cursos Ltda | 23109187000161 | R$ 16.077,90 |
-| NF-0010 | CHECKOUT | Maple Study Assessoria Educacional Ltda | 34671260000100 | R$ 15.010,78 |
+| NF-0008 | CHECKOUT | Escola Bridge de Idiomas Ltda | 22224579000109 | R$ 11.769,74 |
+| NF-0009 | CHECKOUT | Oxford Prep Cursos Ltda | 23109187000161 | R$ 13.845,71 |
+| NF-0010 | CHECKOUT | Maple Study Assessoria Educacional Ltda | 34671260000100 | R$ 14.165,77 |
 | NF-0011 | CHECKOUT | Bagagem Livre Turismo Ltda | 50900987000179 | R$ 7.703,98 |
 | NF-0012 | CHECKOUT | Canguru | 53857560000123 | R$ 11.679,43 |
 | NF-0013 | CHECKOUT | Lisboa Cursos e Viagens Ltda | 61720397000180 | R$ 8.470,78 |
 | NF-0014 | CHECKOUT | Novo Horizonte Intercambio | 66564512000199 | R$ 7.767,78 |
 | NF-0015 | CHECKOUT | Bem-Vindo Exchange Ltda | 67869675000142 | R$ 9.259,74 |
-| NF-0016 | CHECKOUT | Dublin Hub Intercâmbio Ltda | 68567965000102 | R$ 11.906,08 |
+| NF-0016 | CHECKOUT | Dublin Hub Intercâmbio Ltda | 68567965000102 | R$ 11.876,37 |
 | NF-0017 | CHECKOUT | Horizonte Viagens | 78576234000179 | R$ 9.014,42 |
 | NF-0018 | CHECKOUT | Andes Expedições Ltda | 85694108000184 | R$ 3.819,35 |
 | NF-0019 | CHECKOUT | Sol Nascente Viagens Ltda | 89779285000114 | R$ 5.898,02 |
@@ -178,16 +178,16 @@ Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticam
 
 ## Checagens de integridade
 
-- ✅ 4. transações em comissão de checkout = transações no rastro COM-CHK: 1886 transações
+- ✅ 4. transações em comissão de checkout = transações no rastro COM-CHK: 1900 transações
 - ✅ 1. soma do rastro = valor reportado (comissoes_por_lojista.csv): 35 ids conferidos
 - ✅ 1. soma do rastro = valor reportado (divergencias_taxa.csv): 115 ids conferidos
 - ✅ 1. soma do rastro = valor reportado (notas_a_emitir.csv): 21 ids conferidos
 - ✅ 1. soma do rastro = valor reportado (lancamentos_classificados.csv): 184 ids conferidos
 - ✅ 1. soma do rastro = valor reportado (pendencias.csv): 16 ids conferidos
 - ✅ 1. todo id do rastro existe nas saídas: 371 ids no rastro
-- ✅ 2. comissões de checkout com saldo > 0 = notas CHECKOUT: 20 lojistas somam 207045.23; 20 notas somam 207045.23
+- ✅ 2. comissões de checkout com saldo > 0 = notas CHECKOUT: 20 lojistas somam 203740.84; 20 notas somam 203740.84
 - ✅ 3. nota REMESSA = soma da comissão de remessa: comissão 39543.45; 1 nota(s) somam 39543.45
-- ✅ 4. toda linha da Orbe tem exatamente um destino: 1943 linhas -> COMISSAO 1886, EXCLUIDO 57
+- ✅ 4. toda linha da Orbe tem exatamente um destino: 1957 linhas -> COMISSAO 1900, EXCLUIDO 57
 - ✅ 4. há linhas da Orbe na competência fechada: ok
 - ✅ 4. toda operação única da Ponte tem exatamente um destino: 233 linhas, 232 operações únicas -> COMISSAO 228, EXCLUIDO 4, DUPLICATA_IGNORADA 1
 - ✅ 5. todo lançamento do AURORA está classificado: 84 lançamentos

@@ -49,8 +49,8 @@ def test_cli_fechar_gera_saidas_e_json(dados, tmp_path, capsys):
     assert codigo == 0
     j = json.loads(capsys.readouterr().out)
     assert j["ok"] is True and j["status_integridade"] == "OK" and j["competencia"] == "2026-09"
-    assert j["totais"]["comissao_checkout_brl"] == "207039.73" and j["totais"]["comissao_remessa_brl"] == "39543.45"
-    assert j["totais"]["notas"] == {"quantidade": 21, "valor_total_brl": "246588.68"}
+    assert j["totais"]["comissao_checkout_brl"] == "203735.34" and j["totais"]["comissao_remessa_brl"] == "39543.45"
+    assert j["totais"]["notas"] == {"quantidade": 21, "valor_total_brl": "243284.29"}
     assert j["totais"]["divergencias"] == {"linhas": 115, "contrato": {"linhas": 115, "valor_brl": "2995.08"},
                                            "checkout": {"linhas": 92, "valor_brl": "1576.23"},
                                            "remessa": {"linhas": 23, "valor_brl": "1418.85"},
@@ -113,9 +113,9 @@ def test_cli_fechar_imprime_resumo_final_em_portugues(dados, tmp_path, capsys):
     linhas = [l for l in bloco.strip().splitlines() if l.strip()]
     assert 12 <= len(linhas) <= 22, linhas
     assert "Competência: 09/2026 (inferida dos dados)" in bloco
-    assert "CHECKOUT" in bloco and "R$ 207.039,73" in bloco and "21 lojistas" in bloco
+    assert "CHECKOUT" in bloco and "R$ 203.735,34" in bloco and "21 lojistas" in bloco
     assert "REMESSA" in bloco and "R$ 39.543,45" in bloco and "14 lojistas" in bloco
-    assert "Notas a emitir: 21" in bloco and "R$ 246.588,68" in bloco
+    assert "Notas a emitir: 21" in bloco and "R$ 243.284,29" in bloco
     assert ("Divergências: 115 transações, todas 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08); "
             "fora do arquivo, por regra, 118 transações de concessão comercial fora do contrato (R$ 15.396,77 cobrados de fato "
             "pela adquirente, devolução ao lojista por conta da Tarvo, só em pendência)") in bloco

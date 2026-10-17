@@ -35,7 +35,8 @@ Use os comandos exatamente como escritos. Não invente flags. Prefira `--json` p
 ### 1. Preparar
 - Identifique os arquivos do mês (zip do data pack, pasta com o zip, ou pasta com os 6 arquivos soltos ou em subpastas) e a pasta/zip de regras. Cada arquivo é reconhecido pelo padrão de nome em `regras/fontes.csv`, nunca por mês.
 - `python -m src validar --entrada <zip ou pasta> --regras <pasta ou zip> --json`
-- Código 1: problema nos arquivos de entrada. Código 2: problema na base de regras. Explique a mensagem em português e **pare**; não tente contornar.
+- Código 1: problema nos arquivos de entrada (fonte obrigatória ausente ou repetida: a mensagem diz o que falta e o que foi encontrado). Código 2: problema na base de regras. Explique a mensagem em português e **pare**; não tente contornar. Nunca feche "só com o que tem".
+- Os arquivos são reconhecidos pelo conteúdo (assinatura de cada fonte em `regras/fontes.csv`); o nome é só atalho. A Orbe e a Ponte aceitam vários arquivos no mesmo formato (relatório + ajustes tardios ou reenvio): basta colocar todos na mesma pasta. Se `validar` trouxer o aviso "arquivo X não reconhecido; não foi usado", mostre o aviso e pergunte à pessoa se esse arquivo deveria ter entrado; não tente lê-lo à mão nem somar nada por conta própria.
 
 ### 2. Fechar
 - `python -m src fechar --entrada <zip ou pasta> --regras <pasta ou zip> --saida <pasta de saída> --json`

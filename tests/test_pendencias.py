@@ -279,7 +279,7 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert main(["fechar", "--saida", str(tmp_path), "--sem-ia"]) == 0
     res = json.loads((tmp_path / "resumo.json").read_text(encoding="utf-8"))
     assert res["status_integridade"] == "OK" and res["competencia"] == "2026-09"
-    assert res["totais"]["comissao_checkout_brl"] == "207039.73" and res["totais"]["comissao_remessa_brl"] == "39543.45"
+    assert res["totais"]["comissao_checkout_brl"] == "203735.34" and res["totais"]["comissao_remessa_brl"] == "39543.45"
     assert res["totais"]["pendencias"]["quantidade"] == 16
     pr = res["totais"]["pendencias"]["por_responsavel"]
     assert pr["Comercial"] == {"quantidade": 1, "valor_brl": "7876.05", "informativas": 0, "incluidas_em_outra": 0}
@@ -300,7 +300,7 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert all(isinstance(c["ok"], bool) for c in res["integridade"])
     rel = (tmp_path / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
     assert rel.startswith("# Fechamento Tarvo — competência 09/2026") and "Integridade: OK" in rel
-    assert "R$ 207.039,73" in rel and "Ponte Câmbio S.A." in rel and "### Comercial" in rel
+    assert "R$ 203.735,34" in rel and "Ponte Câmbio S.A." in rel and "### Comercial" in rel
     assert "Fora de `divergencias_taxa.csv`, por regra** (X-01): 118 transações" in rel and "R$ 15.396,77 cobrados de fato" in rel
     assert "a fórmula bruto × taxa daria R$ 15.397,42; R$ 0,65 de truncamento" in rel
     assert ("115 transações, todas 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08); fora do arquivo, "
@@ -322,7 +322,7 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert "1.5%–1.5%" not in rel and "+ -R$" not in rel
     # página 1: dinheiro por natureza, nunca somado; métrica de linhas conferidas; a causa de processo fica no interno
     assert "### Dinheiro em jogo, por natureza" in rel and "Total em jogo" not in rel and "48.364" not in rel
-    assert "| Faturar | 21 notas a emitir (20 de checkout + 1 de remessa) | R$ 246.588,68 |" in rel
+    assert "| Faturar | 21 notas a emitir (20 de checkout + 1 de remessa) | R$ 243.284,29 |" in rel
     assert "| Cobrar da adquirente |" in rel and "R$ 1.576,23 |" in rel and "comunicacoes/orbe.md" in rel
     assert "| Contestar com o parceiro de câmbio | a: excesso de spread cobrado do lojista, volta ao lojista." in rel and "R$ 1.418,85 |" in rel
     assert "b: 4 operações com spread negativo" in rel and "| -R$ 1.834,05 aconteceu / R$ 3.565,98 pedido |" in rel
@@ -330,6 +330,6 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert "| Devolver ao lojista por conta da Tarvo |" in rel and "R$ 15.396,77 |" in rel
     assert "| Não faturar até decidir |" in rel and "R$ 7.876,05 cobrados pela adquirente em 57 transações, R$ 262.138,61 brutos na carteira pendente" in rel
     assert "R$ 179.592,82 (informativa)" in rel and "| Só acompanhar |" in rel and "até R$ 506,65" in rel and "R$ 300.000,00 (informativa)" in rel
-    assert "**2.360 linhas de origem conferidas** (1.943 da adquirente + 233 do parceiro de câmbio + 184 dos extratos) → **16 decisões para pessoas**" in rel
+    assert "**2.374 linhas de origem conferidas** (1.957 da adquirente + 233 do parceiro de câmbio + 184 dos extratos) → **16 decisões para pessoas**" in rel
     assert "8 dias" not in rel and "falha de processo nossa" in rel   # causa de processo é interna: fica no relatório
 

@@ -4,7 +4,8 @@ Ambiente: **Claude Code, subagente** com acesso só à skill (`SKILL.md` + `refe
 (motor em `.venv`, regras em `regras/`, data pack de setembro na raiz), sem o contexto de quem desenvolveu e
 sem ninguém para responder perguntas. Cada pedido foi tratado como uma conversa independente. Toda saída foi
 gravada fora do repositório; nada em `regras/`, `saida/` ou `src/` foi alterado. Data: 17/10/2026, 13h40–14h05.
-Os cenários estão descritos em `evals.json` e `cenarios.md`; o teste de férias (outubro com `--anterior`) em
+Rodado antes de o arquivo 06 (ajustes tardios da Orbe, publicado 13h10) entrar no pacote: os valores de checkout e notas
+citados abaixo são os de então (hoje: R$ 203.735,34 e R$ 243.284,29). Os cenários estão descritos em `evals.json` e `cenarios.md`; o teste de férias (outubro com `--anterior`) em
 `teste_ferias.md`.
 
 | # | Pedido | Esperado | Observado | Passou? |

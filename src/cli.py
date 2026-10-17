@@ -23,7 +23,7 @@ from . import carteira as carteira_mod
 from . import comandos
 from .dinheiro import brl, soma
 from .fechamento import Fechamento, escrever, executar, extratos_de
-from .fontes import carregar_config_fontes, localizar, preparar_entrada
+from .fontes import NAO_RECONHECIDOS, carregar_config_fontes, localizar, nome_arquivo, preparar_entrada
 from .leitores import carregar_todas
 from .leitores.comum import ErroLeitura
 from .notas import competencia_texto, primeiro_dia
@@ -120,6 +120,10 @@ def carregar_contexto(args, base: BaseRegras) -> Contexto:
         raise Parada(SAIDA_ENTRADA, f"--competencia '{args.competencia}' inválida: use AAAA-MM (ano com quatro dígitos e mês com dois)")
     fontes, pasta, arquivos, dados = carregar_dados(args, base)
     checagens = validar_leitores(dados)
+    # arquivo na entrada que não bate com fonte nenhuma: não para, mas nunca some em silêncio (aviso persistido)
+    for nome in arquivos.get(NAO_RECONHECIDOS) or []:
+        checagens.append(Checagem("entrada", "arquivo reconhecido", False, f"arquivo {nome} não reconhecido; não foi usado", "AVISO",
+                                  acao="se ele deveria entrar no fechamento, confira o formato contra a assinatura da fonte em regras/fontes.csv"))
     falhas = [c for c in checagens if c.nivel == "ERRO" and not c.ok]
     if falhas:
         detalhe = "\n  - ".join(f"{c.fonte}: {c.nome} ({c.detalhe})" for c in falhas)
@@ -165,7 +169,7 @@ def resumo_contexto(ctx: Contexto) -> dict:
         "competencia": ctx.competencia,
         "competencia_inferida": ctx.competencia_inferida,
         "pasta_entrada": str(ctx.pasta),
-        "fontes": {f: {"arquivo": ctx.arquivos[f].name, "linhas": int(len(df)),
+        "fontes": {f: {"arquivo": nome_arquivo(ctx.arquivos[f]), "linhas": int(len(df)),
                        "encoding": df.attrs.get("encoding")} for f, df in ctx.dados.items()},
         "checagens": [{"fonte": c.fonte, "nome": c.nome, "ok": c.ok, "nivel": c.nivel, "detalhe": c.detalhe}
                       for c in ctx.checagens],
@@ -182,7 +186,7 @@ def imprimir_contexto(ctx: Contexto) -> None:
     print(f"Pasta de entrada: {ctx.pasta}")
     print(f"Competência: {ctx.competencia}{' (inferida dos dados)' if ctx.competencia_inferida else ''}")
     for fonte, df in ctx.dados.items():
-        print(f"  {fonte:<13} {len(df):>5} linhas  {ctx.arquivos[fonte].name}  "
+        print(f"  {fonte:<13} {len(df):>5} linhas  {nome_arquivo(ctx.arquivos[fonte])}  "
               f"(encoding: {df.attrs.get('encoding', '-')})")
     print("\nChecagens dos leitores:")
     for c in ctx.checagens:
@@ -345,7 +349,8 @@ def cmd_validar(args) -> int:
 
 def cmd_fechar(args) -> int:
     ctx = carregar_contexto(args, resolver_regras(args.regras))
-    entrada = {"arquivos": {f: p.name for f, p in ctx.arquivos.items()}, "competencia_inferida": ctx.competencia_inferida}
+    entrada = {"arquivos": {f: nome_arquivo(p) for f, p in ctx.arquivos.items() if not f.startswith("_")},
+               "competencia_inferida": ctx.competencia_inferida}
     carteira, contestacao = None, None
     if getattr(args, "anterior", None):
         try:

@@ -118,7 +118,10 @@ def _origens(linhas: list[dict], dados: dict) -> dict:
     for fonte, (cols, chave) in campos.items():
         df = dados.get(fonte)
         if df is not None:
-            indices[df.attrs.get("arquivo", "")] = (df.drop_duplicates(chave).set_index(chave), cols)
+            # fonte com vários arquivos (relatório + ajustes tardios): cada nome aponta para o mesmo DataFrame
+            indexado = (df.drop_duplicates(chave).set_index(chave), cols)
+            for nome in df.attrs.get("arquivos") or [df.attrs.get("arquivo", "")]:
+                indices[nome] = indexado
     out = {}
     for l in linhas:
         idx = indices.get(l["arquivo_origem"])

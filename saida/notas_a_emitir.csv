@@ -1,20 +1,20 @@
 id_saida;tomador_cnpj;tomador;linha_negocio;valor_brl;discriminacao;id_comissao;qtd_itens;competencia
 NF-0001;03229837000103;Fluente Idiomas Online Ltda;CHECKOUT;7316.07;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0002;82;2026-09
-NF-0002;07752116000126;Kiwi Experience;CHECKOUT;10711.41;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0003;85;2026-09
+NF-0002;07752116000126;Kiwi Experience;CHECKOUT;10886.22;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0003;86;2026-09
 NF-0003;08780784000120;Campus Global Ltda;CHECKOUT;9336.06;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0004;79;2026-09
-NF-0004;16181276000153;EduAbroad;CHECKOUT;12070.17;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0005;100;2026-09
-NF-0005;17217888000111;Mundo Aberto;CHECKOUT;18522.09;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0006;168;2026-09
+NF-0004;16181276000153;EduAbroad;CHECKOUT;11858.16;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0005;102;2026-09
+NF-0005;17217888000111;Mundo Aberto;CHECKOUT;18508.09;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0006;169;2026-09
 NF-0006;20987545000140;Vela;CHECKOUT;9315.31;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0007;51;2026-09
 NF-0007;21394880000106;Trilha Jovem Turismo Ltda;CHECKOUT;5628.57;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0008;67;2026-09
-NF-0008;22224579000109;Escola Bridge de Idiomas Ltda;CHECKOUT;11916.02;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0009;107;2026-09
-NF-0009;23109187000161;Oxford Prep Cursos Ltda;CHECKOUT;16077.90;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0010;98;2026-09
-NF-0010;34671260000100;Maple Study Assessoria Educacional Ltda;CHECKOUT;15010.78;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0011;105;2026-09
+NF-0008;22224579000109;Escola Bridge de Idiomas Ltda;CHECKOUT;11769.74;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0009;109;2026-09
+NF-0009;23109187000161;Oxford Prep Cursos Ltda;CHECKOUT;13845.71;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0010;102;2026-09
+NF-0010;34671260000100;Maple Study Assessoria Educacional Ltda;CHECKOUT;14165.77;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0011;108;2026-09
 NF-0011;50900987000179;Bagagem Livre Turismo Ltda;CHECKOUT;7703.98;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0012;74;2026-09
 NF-0012;53857560000123;Canguru;CHECKOUT;11679.43;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0013;80;2026-09
 NF-0013;61720397000180;Lisboa Cursos e Viagens Ltda;CHECKOUT;8470.78;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0014;76;2026-09
 NF-0014;66564512000199;Novo Horizonte Intercambio;CHECKOUT;7767.78;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0015;73;2026-09
 NF-0015;67869675000142;Bem-Vindo Exchange Ltda;CHECKOUT;9259.74;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0016;76;2026-09
-NF-0016;68567965000102;Dublin Hub Intercâmbio Ltda;CHECKOUT;11906.08;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0017;111;2026-09
+NF-0016;68567965000102;Dublin Hub Intercâmbio Ltda;CHECKOUT;11876.37;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0017;112;2026-09
 NF-0017;78576234000179;Horizonte Viagens;CHECKOUT;9014.42;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0018;75;2026-09
 NF-0018;85694108000184;Andes Expedições Ltda;CHECKOUT;3819.35;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0019;41;2026-09
 NF-0019;89779285000114;Sol Nascente Viagens Ltda;CHECKOUT;5898.02;Intermediação de pagamentos - MDR e antecipação - competência 09/2026;COM-CHK-0020;60;2026-09

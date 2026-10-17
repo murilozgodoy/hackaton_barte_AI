@@ -9,6 +9,7 @@ __pycache__/
 # arquivos do mês: nunca vão para o git (zip do data pack, extrações e a pasta entrada/, fora o README)
 Tarvo_Data_Pack_*.zip
 Tarvo_Data_Pack_*/
+/0[0-9]*_*
 data/
 entrada/*
 !entrada/README.md

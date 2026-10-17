@@ -1,8 +1,8 @@
-﻿fonte;padrao_arquivo;aba;rotulo;descricao
-pacote;Tarvo_Data_Pack_*.zip;;;Pacote mensal (zip) com todas as fontes, extraído automaticamente para data/
-orbe;01_orbe_*.csv;;;Relatório de comissões da adquirente Orbe (uma linha por transação)
-taxas;02_tabela_taxas*.xlsx;Taxas vigentes;;Planilha de taxas contratadas mantida pelo financeiro (só a aba indicada é lida)
-ponte;03_email_ponte*.eml;Operações;;E-mail da Ponte Câmbio com o relatório mensal em anexo (aba indicada)
-plano_contas;04_plano_de_contas*.csv;;;Plano de contas exportado do ERP Fênix
-aurora;05a_extrato_banco_aurora*.csv;;AURORA;Extrato CSV da conta principal (Banco Aurora)
-meridiano;05b_extrato_banco_meridiano*.ofx;;MERIDIANO;Extrato OFX da conta de remessas (Banco Meridiano)
+﻿fonte;padrao_arquivo;aba;rotulo;descricao;multiplos;assinatura
+pacote;Tarvo_Data_Pack_*.zip;;;Pacote mensal (zip) com todas as fontes, extraído automaticamente para data/;;
+orbe;01_orbe_*.csv OU 06_orbe_*.csv;;;Relatório de comissões da adquirente Orbe (uma linha por transação) mais ajustes tardios no mesmo formato (opcionais, qualquer nome: reconhecidos pelo cabeçalho);sim;tipo=csv | colunas=id_transacao,data_movimento,cod_estabelecimento,nome_estabelecimento,tipo_lancamento,modalidade,qtd_parcelas,bandeira,valor_bruto,taxa_aplicada_pct,valor_taxa,valor_liquido,id_referencia,data_venda_original
+taxas;02_tabela_taxas*.xlsx;Taxas vigentes;;Planilha de taxas contratadas mantida pelo financeiro (só a aba indicada é lida);nao;tipo=xlsx | aba=Taxas vigentes
+ponte;03_email_ponte*.eml;Operações;;E-mail da Ponte Câmbio com o relatório mensal em anexo (aba indicada) mais eventual reenvio no mesmo formato;sim;tipo=eml | anexo=xlsx | aba=Operações
+plano_contas;04_plano_de_contas*.csv;;;Plano de contas exportado do ERP Fênix;nao;tipo=csv | colunas=COD_CONTA,DESCRICAO,TIPO,NATUREZA,ACEITA_LANCTO,COD_SUPERIOR,DT_CRIACAO
+aurora;05a_extrato_banco_aurora*.csv;;AURORA;Extrato CSV da conta principal (Banco Aurora);nao;tipo=csv | colunas=Data,Lançamento,Documento,Valor (R$),Saldo (R$)
+meridiano;05b_extrato_banco_meridiano*.ofx;;MERIDIANO;Extrato OFX da conta de remessas (Banco Meridiano);nao;tipo=ofx | contem=<OFX> | conta=90233-5

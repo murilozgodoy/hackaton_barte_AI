@@ -127,7 +127,8 @@ def checar_destinos(orbe_linhas: pd.DataFrame, n_orbe: int, ponte_linhas: pd.Dat
     """Checagem 4: toda linha da Orbe e toda operação única da Ponte em exatamente um destino."""
     c = []
     dest_orbe = orbe_linhas["destino"].value_counts().to_dict()
-    ok = len(orbe_linhas) == n_orbe and orbe_linhas["destino"].notna().all() and orbe_linhas["ref_origem"].is_unique
+    unicas = orbe_linhas.loc[orbe_linhas["destino"] != "DUPLICATA_DIVERGENTE", "ref_origem"]   # repetidas divergentes ficam fora
+    ok = len(orbe_linhas) == n_orbe and orbe_linhas["destino"].notna().all() and unicas.is_unique
     c.append(Checagem("integridade", "4. toda linha da Orbe tem exatamente um destino", ok,
                       f"{n_orbe} linhas -> " + ", ".join(f"{k} {v}" for k, v in dest_orbe.items())))
     c.append(Checagem("integridade", "4. há linhas da Orbe na competência fechada",
@@ -195,8 +196,18 @@ def validar_leitores(d: dict[str, pd.DataFrame]) -> list[Checagem]:
 
     # Orbe
     o = d["orbe"]
-    dup = o["id_transacao"].duplicated().sum()
-    c.append(Checagem("orbe", "id_transacao único", dup == 0, f"{len(o)} linhas, {dup} ids repetidos"))
+    arquivos = o.attrs.get("arquivos") or [o.attrs.get("arquivo", "?")]
+    c.append(Checagem("orbe", "arquivos lidos", True, f"{len(o)} linhas de {len(arquivos)} arquivo(s): {', '.join(arquivos)}", "INFO"))
+    identicas = o.attrs.get("duplicatas_identicas") or []
+    c.append(Checagem("orbe", "id_transacao repetido entre arquivos (linhas idênticas)", not identicas,
+                      f"{len(identicas)} id(s) repetido(s) com a mesma linha, contado(s) uma vez: "
+                      + ", ".join(f"{x['id']} ({', '.join(x['arquivos'])})" for x in identicas[:5]) if identicas
+                      else "nenhum", "AVISO",
+                      acao="conferir se o ajuste tardio repetiu linhas do relatório principal; o motor contou cada uma só uma vez"))
+    divergentes = sorted(set(o.loc[o["id_transacao"].duplicated(keep=False), "id_transacao"]))
+    c.append(Checagem("orbe", "id_transacao repetido com valores diferentes", not divergentes,
+                      f"{len(divergentes)} id(s): {', '.join(divergentes[:5])}" if divergentes else "nenhum", "AVISO",
+                      acao="nenhuma dessas linhas entra na comissão; decidir na pendência DUPLICATA_DIVERGENTE qual vale"))
     ruins = sum(1 for b, t, l in zip(o.valor_bruto, o.valor_taxa, o.valor_liquido) if b - t != l)
     c.append(Checagem("orbe", "valor_liquido = valor_bruto - valor_taxa", ruins == 0,
                       f"{ruins} linhas não fecham"))
@@ -212,12 +223,19 @@ def validar_leitores(d: dict[str, pd.DataFrame]) -> list[Checagem]:
     # Ponte
     p = d["ponte"]
     tot = p.attrs.get("totais_declarados", {})
+    # os totais declarados são do relatório principal; um reenvio (segundo arquivo) não entra na conferência deles
+    principal = p.attrs.get("arquivo_principal")
+    pp = p[p["arquivo_origem"] == principal] if principal and "arquivo_origem" in p.columns else p
+    if principal and len(p.attrs.get("arquivos") or []) > 1:
+        c.append(Checagem("ponte", "arquivos lidos", True,
+                          f"{len(p)} linhas de {len(p.attrs['arquivos'])} arquivos: {', '.join(p.attrs['arquivos'])} "
+                          f"(totais declarados conferidos só no principal)", "INFO"))
     if "TOTAL DE OPERACOES:" in tot:
         n_decl = int(tot["TOTAL DE OPERACOES:"])
-        c.append(Checagem("ponte", "linhas lidas = total declarado no relatório", len(p) == n_decl,
-                          f"lidas {len(p)}, declarado {n_decl}"))
+        c.append(Checagem("ponte", "linhas lidas = total declarado no relatório", len(pp) == n_decl,
+                          f"lidas {len(pp)}, declarado {n_decl}"))
     if "SPREAD TOTAL R$:" in tot:
-        s, s_decl = _soma(p.spread_brl), tot["SPREAD TOTAL R$:"]
+        s, s_decl = _soma(pp.spread_brl), tot["SPREAD TOTAL R$:"]
         c.append(Checagem("ponte", "soma Spread R$ = total declarado no relatório", s == s_decl,
                           f"soma {s}, declarado {s_decl}"))
     ruins = sum(1 for me, tc, v in zip(p.valor_me, p.taxa_cliente, p.valor_brl) if _hu(me * tc) != v)

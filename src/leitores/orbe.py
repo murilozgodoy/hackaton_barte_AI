@@ -70,3 +70,38 @@ def _converter(r: dict, linha: int, arquivo: str) -> dict:
         "ref_origem": r["id_transacao"],
         "arquivo_origem": arquivo,
     }
+
+
+# --------------------------------------------------------------------------- vários arquivos (relatório + ajustes tardios)
+
+_COLUNAS_IDENTIDADE_EXCLUIDAS = ["linha_arquivo", "arquivo_origem", "ref_origem"]
+
+
+def ler_orbe_varios(caminhos: list[Path]) -> pd.DataFrame:
+    """Lê o relatório principal e os ajustes tardios (mesmo formato) e concatena, cada linha com o seu arquivo_origem.
+
+    id_transacao repetido entre (ou dentro de) arquivos: linhas IDÊNTICAS contam uma vez (attrs["duplicatas_identicas"],
+    aviso); linhas com valores DIFERENTES ficam todas no DataFrame (attrs["duplicatas_divergentes"]) e o cálculo de
+    checkout tira todas da comissão, com pendência DUPLICATA_DIVERGENTE."""
+    caminhos = [Path(c) for c in caminhos]
+    partes = [ler_orbe(c) for c in caminhos]
+    df = pd.concat(partes, ignore_index=True) if len(partes) > 1 else partes[0]
+    identicas, divergentes = [], []
+    ids = df["id_transacao"]
+    repetidos = sorted(set(ids[ids.duplicated(keep=False)]))
+    if repetidos:
+        comparavel = df.drop(columns=_COLUNAS_IDENTIDADE_EXCLUIDAS).astype(str)
+        manter = pd.Series(True, index=df.index)
+        for tid in repetidos:
+            idx = df.index[ids == tid]
+            arquivos = sorted(set(df.loc[idx, "arquivo_origem"]))
+            if (comparavel.loc[idx].nunique(dropna=False) <= 1).all():
+                identicas.append({"id": tid, "arquivos": arquivos, "vezes": int(len(idx))})
+                manter[idx[1:]] = False
+            else:
+                divergentes.append({"id": tid, "arquivos": arquivos, "vezes": int(len(idx))})
+        df = df[manter].reset_index(drop=True)
+    df.attrs.update(arquivo=", ".join(c.name for c in caminhos), arquivos=[c.name for c in caminhos],
+                    encoding=partes[0].attrs.get("encoding"), duplicatas_identicas=identicas,
+                    duplicatas_divergentes=divergentes)
+    return df

@@ -16,9 +16,10 @@ def _soma(s):
 
 def test_orbe_contagens(dados):
     o = dados["orbe"]
-    assert len(o) == 1943
+    assert len(o) == 1957 and o.attrs["arquivos"] == ["01_orbe_relatorio_comissoes_set2026.csv", "06_orbe_ajustes_tardios_set2026.csv"]
+    assert (o.arquivo_origem == "06_orbe_ajustes_tardios_set2026.csv").sum() == 14 and o.attrs["duplicatas_identicas"] == [] and o.attrs["duplicatas_divergentes"] == []
     assert o["tipo_lancamento"].value_counts().to_dict() == {
-        "VENDA": 1840, "ESTORNO": 59, "ANTECIPACAO": 38, "REVERSAO ANTECIPACAO": 6}
+        "VENDA": 1841, "ESTORNO": 69, "ANTECIPACAO": 38, "REVERSAO ANTECIPACAO": 9}
     assert o["cod_estabelecimento"].nunique() == 22
     assert o["nome_estabelecimento"].nunique() == 31
 
@@ -26,11 +27,11 @@ def test_orbe_contagens(dados):
 def test_orbe_somas_por_tipo(dados):
     o = dados["orbe"]
     bruto = o.groupby("tipo_lancamento")["valor_bruto"].apply(_soma).to_dict()
-    assert bruto == {"VENDA": D("6549199.22"), "ESTORNO": D("-216346.03"),
-                     "ANTECIPACAO": D("1451981.71"), "REVERSAO ANTECIPACAO": D("-288606.34")}
+    assert bruto == {"VENDA": D("6554679.22"), "ESTORNO": D("-243341.54"),            # com os 14 ajustes tardios (06)
+                     "ANTECIPACAO": D("1451981.71"), "REVERSAO ANTECIPACAO": D("-412960.21")}
     taxa = o.groupby("tipo_lancamento")["valor_taxa"].apply(_soma).to_dict()
-    assert taxa == {"VENDA": D("214558.33"), "ESTORNO": D("-7108.69"),
-                    "ANTECIPACAO": D("30491.41"), "REVERSAO ANTECIPACAO": D("-6060.69")}
+    assert taxa == {"VENDA": D("214733.14"), "ESTORNO": D("-7976.40"),
+                    "ANTECIPACAO": D("30491.41"), "REVERSAO ANTECIPACAO": D("-8672.11")}
 
 
 def test_orbe_trunca_valor_taxa_em_todas_as_linhas(dados):

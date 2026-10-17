@@ -3,7 +3,7 @@
   "status_integridade": "OK",
   "entrada": {
     "arquivos": {
-      "orbe": "01_orbe_relatorio_comissoes_set2026.csv",
+      "orbe": "01_orbe_relatorio_comissoes_set2026.csv, 06_orbe_ajustes_tardios_set2026.csv",
       "taxas": "02_tabela_taxas_contratadas.xlsx",
       "ponte": "03_email_ponte_cambio_relatorio_set2026.eml",
       "plano_contas": "04_plano_de_contas_fenix_erp.csv",
@@ -13,11 +13,11 @@
     "competencia_inferida": true
   },
   "totais": {
-    "comissao_checkout_brl": "207039.73",
+    "comissao_checkout_brl": "203735.34",
     "comissao_remessa_brl": "39543.45",
     "notas": {
       "quantidade": 21,
-      "valor_total_brl": "246588.68"
+      "valor_total_brl": "243284.29"
     },
     "divergencias": {
       "linhas": 115,
@@ -162,7 +162,7 @@
     "faturadas_de_meses_anteriores": 0
   },
   "orbe_destinos": {
-    "COMISSAO": 1886,
+    "COMISSAO": 1900,
     "EXCLUIDO": 57
   },
   "ponte_destinos": {
@@ -258,7 +258,7 @@
     {
       "nome": "4. transações em comissão de checkout = transações no rastro COM-CHK",
       "ok": true,
-      "detalhe": "1886 transações"
+      "detalhe": "1900 transações"
     },
     {
       "nome": "1. soma do rastro = valor reportado (comissoes_por_lojista.csv)",
@@ -293,7 +293,7 @@
     {
       "nome": "2. comissões de checkout com saldo > 0 = notas CHECKOUT",
       "ok": true,
-      "detalhe": "20 lojistas somam 207045.23; 20 notas somam 207045.23"
+      "detalhe": "20 lojistas somam 203740.84; 20 notas somam 203740.84"
     },
     {
       "nome": "3. nota REMESSA = soma da comissão de remessa",
@@ -303,7 +303,7 @@
     {
       "nome": "4. toda linha da Orbe tem exatamente um destino",
       "ok": true,
-      "detalhe": "1943 linhas -> COMISSAO 1886, EXCLUIDO 57"
+      "detalhe": "1957 linhas -> COMISSAO 1900, EXCLUIDO 57"
     },
     {
       "nome": "4. há linhas da Orbe na competência fechada",

@@ -47,7 +47,7 @@ def test_conciliacao_remessa_fecha_com_valor_mais_iof(fech):
 def test_conciliacao_adquirente_e_so_informativa(fech):
     o = fech.conciliacao["orbe_banco"]
     assert o["conciliavel"] is False and "limitacao" not in o   # a explicação é a regra M-04, não texto no código
-    assert o["liquido_orbe"] == D("7264348.20") and o["recebido_da_adquirente"] == D("3557246.29")
+    assert o["liquido_orbe"] == D("7121783.14") and o["recebido_da_adquirente"] == D("3557246.29")
     assert o["qtd_recebimentos"] == 21 and o["qtd_repasses"] == 45
     assert o["repassado_a_lojistas"] == D("4230267.61") - D("12400.00")
     assert not any(k.endswith("menos_recebido") or k.endswith("menos_repassado") for k in o)

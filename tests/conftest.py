@@ -34,7 +34,7 @@ def arquivos(fontes):
 @pytest.fixture(scope="session")
 def pasta_dados(arquivos) -> Path:
     """Pasta com os 6 arquivos do mês (extraídos do zip da raiz), para comandos que recebem --entrada."""
-    return arquivos["orbe"].parent
+    return arquivos["orbe"][0].parent
 
 
 @pytest.fixture(scope="session")

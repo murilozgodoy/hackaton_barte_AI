@@ -30,8 +30,8 @@ def _comissao(chk, cnpj):
 
 
 def test_toda_linha_tem_um_destino(chk, dados):
-    assert len(chk.linhas) == len(dados["orbe"]) == 1943
-    assert chk.linhas["destino"].value_counts().to_dict() == {"COMISSAO": 1886, "EXCLUIDO": 57}
+    assert len(chk.linhas) == len(dados["orbe"]) == 1957   # 1.943 do relatório + 14 ajustes tardios
+    assert chk.linhas["destino"].value_counts().to_dict() == {"COMISSAO": 1900, "EXCLUIDO": 57}
     excluidas = chk.linhas[chk.linhas.destino == "EXCLUIDO"]
     assert set(excluidas.cod_estabelecimento) == {ATLAS_EC}
     assert set(excluidas.destino_regra) == {"E-01"} and set(excluidas.tipo_pendencia) == {"SEM_CONTRATO"}
@@ -39,14 +39,14 @@ def test_toda_linha_tem_um_destino(chk, dados):
 
 def test_total_e_lojistas(chk):
     assert len(chk.comissoes) == 21            # 22 ECs na Orbe, menos a Atlas
-    assert soma(chk.comissoes.comissao_brl) == D("207039.73")
+    assert soma(chk.comissoes.comissao_brl) == D("203735.34")   # com os 14 ajustes tardios (06); sem eles, 207.039,73
     assert chk.comissoes.id_saida.tolist() == [f"COM-CHK-{i:04d}" for i in range(1, 22)]
     assert (chk.comissoes.linha_negocio == "CHECKOUT").all()
     assert chk.comissoes.cnpj.str.fullmatch(r"\d{14}").all()
 
 
 def test_bridge_duas_vigencias(chk):
-    assert _comissao(chk, BRIDGE).comissao_brl == D("11916.02")
+    assert _comissao(chk, BRIDGE).comissao_brl == D("11769.74")   # 11.916,02 do relatório − 146,28 dos 2 estornos do 06
     avista = chk.linhas[(chk.linhas.cnpj == BRIDGE) & (chk.linhas.produto == "CREDITO A VISTA")
                         & (chk.linhas.tipo_lancamento == "VENDA")]
     antes = avista[avista.data_taxa <= "2026-09-14"]
@@ -87,8 +87,8 @@ def test_oxford_com_estorno_de_venda_de_agosto(chk):
     assert est.taxa_contratada_pct == D("3.79") and est.regra_id == "planilha:Taxas vigentes!G20"
     assert est.comissao_brl == D("-83.12")              # -2193,16 x 3,79% = -83,1208
     assert est.destino == "COMISSAO"                    # abate em setembro
-    assert _comissao(chk, OXFORD).comissao_brl == D("16077.90")
-    assert _comissao(chk, OXFORD).qtd_transacoes == 98
+    assert _comissao(chk, OXFORD).comissao_brl == D("13845.71")   # 16.077,90 − 2.232,19 (2 estornos + 2 reversões do 06)
+    assert _comissao(chk, OXFORD).qtd_transacoes == 102
 
 
 def test_antecipacao_e_reversao(chk):
@@ -111,7 +111,7 @@ def test_half_up_por_linha_difere_da_orbe(chk):
 
 
 def test_rastro_fecha_com_a_comissao(chk):
-    assert len(chk.rastro) == 1886
+    assert len(chk.rastro) == 1900
     checagens = checar_rastro({"comissoes_por_lojista.csv": (chk.comissoes, "comissao_brl")}, chk.rastro)
     assert all(c.ok for c in checagens), [c.detalhe for c in checagens if not c.ok]
     por_id = chk.rastro.groupby("id_saida")["valor"].apply(soma)
@@ -119,7 +119,7 @@ def test_rastro_fecha_com_a_comissao(chk):
         assert por_id[r.id_saida] == r.comissao_brl
     assert set(chk.rastro.columns) >= {"id_saida", "arquivo_origem", "ref_origem", "valor", "regra_id", "taxa_pct"}
     assert chk.rastro.regra_id.notna().all() and chk.rastro.taxa_pct.notna().all()
-    assert (chk.rastro.arquivo_origem == "01_orbe_relatorio_comissoes_set2026.csv").all()
+    assert chk.rastro.arquivo_origem.value_counts().to_dict() == {"01_orbe_relatorio_comissoes_set2026.csv": 1886, "06_orbe_ajustes_tardios_set2026.csv": 14}
 
 
 def test_checagem_1_detecta_rastro_adulterado(chk):
@@ -140,7 +140,7 @@ def test_ec_desconhecido_vira_cadastro_e_nao_quebra(dados, config):
     assert set(sem.tipo_pendencia) == {"CADASTRO"} and set(sem.subtipo) == {"EC_ORBE"}
     assert "9999999999" in sem.motivo.iloc[0] and "ROTA GLOBAL" in sem.motivo.iloc[0]
     assert len(r.comissoes) == 20 and "95927868000148" not in set(r.comissoes.cnpj)
-    assert soma(r.comissoes.comissao_brl) == D("207039.73") - D("15621.27")
+    assert soma(r.comissoes.comissao_brl) == D("203735.34") - D("15621.27")
 
 
 def test_linha_fora_da_competencia(dados, config):
@@ -148,7 +148,7 @@ def test_linha_fora_da_competencia(dados, config):
     orbe.loc[orbe.index[0], "data_movimento"] = pd.Timestamp("2026-10-01")
     r = calcular(orbe, dados["taxas"], config, "2026-09")
     assert r.linhas.iloc[0].destino == "FORA_COMPETENCIA" and r.linhas.iloc[0].tipo_pendencia == "FORA_COMPETENCIA"
-    assert (r.linhas.destino == "COMISSAO").sum() == 1885
+    assert (r.linhas.destino == "COMISSAO").sum() == 1899
 
 
 def test_sem_taxa_contratada_vira_cadastro(dados, config):

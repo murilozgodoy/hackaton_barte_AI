@@ -58,7 +58,7 @@ def test_simulacao_da_taxa_da_atlas_muda_so_a_atlas_e_nao_grava_nada(dados, conf
     assert res["lancamentos_que_mudam_de_conta"] == []
     assert res["carteira_que_entraria"] == {"linhas": 57, "valor_bruto_brl": "262138.61", "de_meses_anteriores": 0}   # as 57 de setembro saem da carteira
     t = res["totais"]
-    assert D(t["comissao_checkout_brl"]["depois"]) == D("207039.73") + esperado and t["comissao_remessa_brl"]["antes"] == t["comissao_remessa_brl"]["depois"]
+    assert D(t["comissao_checkout_brl"]["depois"]) == D("203735.34") + esperado and t["comissao_remessa_brl"]["antes"] == t["comissao_remessa_brl"]["depois"]
     assert t["notas"]["depois"]["quantidade"] == 22 and t["notas"]["antes"]["quantidade"] == 21
     txt = "\n".join(res["texto"])
     assert f"ATLAS IDIOMAS ({ATLAS}, CHECKOUT) passa a gerar" in txt and "em 57 transações" in txt

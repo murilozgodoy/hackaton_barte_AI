@@ -11,6 +11,9 @@ lojista. Cada linha da Orbe recebe exatamente um destino:
   FORA_COMPETENCIA  data de movimento fora do mês que está sendo fechado
   DADO_INSUFICIENTE estorno ou reversão sem data da venda original e cuja venda (id_referencia) não está
                     no arquivo: sem a data não há taxa contratada; fica fora da comissão, com pendência
+  DUPLICATA_DIVERGENTE id_transacao repetido (entre o relatório e um ajuste tardio, ou dentro de um arquivo) com
+                    valores diferentes: nenhuma das linhas entra na comissão, pendência para a Helena. Repetição
+                    idêntica já foi contada uma vez pelo leitor (aviso)
 
 Estorno e reversão usam a data da venda original (coluna do arquivo; sem ela, a data da venda
 achada pelo id_referencia no próprio arquivo). Antecipação usa a data do movimento.
@@ -100,7 +103,9 @@ def calcular(orbe: pd.DataFrame, taxas: pd.DataFrame, config: Config, competenci
     tabela = TabelaTaxas(taxas)
     # data de movimento de cada transação do arquivo: estorno/reversão sem data da venda original procura a venda aqui
     datas = dict(zip(orbe["id_transacao"], orbe["data_movimento"]))
-    registros = [_destino_da_linha(r, tabela, config, competencia, datas) for r in orbe.itertuples(index=False)]
+    # id repetido que sobrou depois do leitor tirar as repetições idênticas: valores diferentes, nenhuma linha entra
+    repetidas = set(orbe.loc[orbe["id_transacao"].duplicated(keep=False), "id_transacao"])
+    registros = [_destino_da_linha(r, tabela, config, competencia, datas, repetidas) for r in orbe.itertuples(index=False)]
     if carteira is not None and len(carteira):
         registros += [{**_destino_da_linha(r, tabela, config, None, datas), "competencia_origem": r.competencia_origem}
                       for r in carteira.itertuples(index=False)]
@@ -110,7 +115,7 @@ def calcular(orbe: pd.DataFrame, taxas: pd.DataFrame, config: Config, competenci
 
 
 def _destino_da_linha(r, tabela: TabelaTaxas, config: Config, competencia: str | None,
-                      datas: dict | None = None) -> dict:
+                      datas: dict | None = None, repetidas: set | None = None) -> dict:
     data_mov = r.data_movimento.date()
     sem_original = None   # id da venda original que faltou (estorno/reversão sem data e sem a venda no arquivo)
     if pd.notna(r.data_venda_original):
@@ -146,6 +151,11 @@ def _destino_da_linha(r, tabela: TabelaTaxas, config: Config, competencia: str |
                           "de taxas nem no complemento"}
     out.update(cnpj=lojista.cnpj, lojista=lojista.nome or r.nome_estabelecimento,
                status_cadastro=lojista.status)
+
+    if repetidas and r.id_transacao in repetidas:
+        return {**out, "destino": "DUPLICATA_DIVERGENTE", "tipo_pendencia": "DUPLICATA_DIVERGENTE",
+                "motivo": f"id_transacao {r.id_transacao} aparece mais de uma vez nos arquivos da adquirente com valores "
+                          f"diferentes ({r.arquivo_origem}, linha {r.linha_arquivo}): nenhuma das linhas entra na comissão"}
 
     if sem_original is not None:
         return {**out, "destino": "DADO_INSUFICIENTE", "tipo_pendencia": "DADO_INSUFICIENTE",

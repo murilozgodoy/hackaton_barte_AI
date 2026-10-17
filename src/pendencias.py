@@ -100,7 +100,7 @@ def calcular(competencia_ref: date, chk_linhas, rem_linhas, divergencias, sem_no
     _dado_insuficiente(c, chk_linhas)
     _fora_competencia(c, chk_linhas, "CHECKOUT", "valor_taxa_orbe")
     _fora_competencia(c, rem_linhas, "REMESSA", "spread_brl")
-    _duplicatas_divergentes(c, rem_linhas)
+    _duplicatas_divergentes(c, rem_linhas, chk_linhas)
     _saldo_negativo(c, sem_nota, chk_rastro, rem_rastro)
     _extratos(c, lancamentos, em_transito)
     _recurso_sem_operacao(c, lancamentos, conciliacao)
@@ -492,7 +492,17 @@ def _fora_competencia(c: _Coletor, linhas: pd.DataFrame, linha_negocio: str, col
           linha_negocio=linha_negocio, qtd_itens=len(fora))
 
 
-def _duplicatas_divergentes(c: _Coletor, rem: pd.DataFrame) -> None:
+def _duplicatas_divergentes(c: _Coletor, rem: pd.DataFrame, chk: pd.DataFrame | None = None) -> None:
+    dup_chk = chk[chk["destino"] == "DUPLICATA_DIVERGENTE"] if chk is not None and len(chk) else None
+    if dup_chk is not None and len(dup_chk):
+        regra = c.dono("DUPLICATA_DIVERGENTE")
+        for tid, g in dup_chk.groupby("id_transacao", sort=False):
+            motivo = (f"Transação {tid} aparece {len(g)} vezes nos arquivos da adquirente ("
+                      f"{', '.join(str(a) for a in g['arquivo_origem'])}) com valores "
+                      f"diferentes: valor bruto {', '.join(brl(v) for v in g['valor_bruto'])}; taxa cobrada "
+                      f"{', '.join(brl(v) for v in g['valor_taxa_orbe'])}. Nenhuma das linhas entrou na comissão. {regra.o_que_fazer}")
+            c.add("DUPLICATA_DIVERGENTE", tid, None, motivo, regra, None, linha_negocio="CHECKOUT",
+                  cnpj=g["cnpj"].iloc[0], lojista=g["lojista"].iloc[0], qtd_itens=len(g))
     dup = rem[rem["destino"] == "DUPLICATA_DIVERGENTE"]
     if dup.empty:
         return
