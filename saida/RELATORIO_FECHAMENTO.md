@@ -18,24 +18,27 @@ Base de regras: 68 regras ativas, 25 lojistas no cadastro (planilha de taxas + c
 
 Divergências: 115 transações, todas 115 de contrato (checkout R$ 1.576,23 + remessa R$ 1.418,85 = R$ 2.995,08); fora do arquivo, por regra, 118 transações de concessão comercial fora do contrato (R$ 15.396,77 cobrados de fato pela adquirente, devolução ao lojista por conta da Tarvo, só em pendência).
 
-### Dinheiro em jogo, por causa
+**2.360 linhas de origem conferidas** (1.943 da adquirente + 233 do parceiro de câmbio + 184 dos extratos) → **16 decisões para pessoas** (pendências com dono). O motor não mede tempo de espera nem de decisão.
 
-Cada pendência entra em uma linha só (nenhuma linha de origem conta duas vezes); as informativas e as já incluídas em outra ficam fora da soma.
+### Dinheiro em jogo, por natureza
 
-| Causa | Valor em jogo | O que é | Quem decide |
+O que fazer com cada dinheiro. Naturezas diferentes nunca são somadas (faturar, cobrar, contestar, devolver e acompanhar são coisas distintas); dentro de uma linha só há pendências do mesmo tipo. Pendência já incluída em outra fica fora; informativa aparece marcada.
+
+| Natureza | O quê | Valor | Quem decide |
 |---|---|---|---|
-| Casa do Estudante Viagens Ltda (checkout) | R$ 15.396,77 | Concessão do Comercial fora do contrato, para segurar o cliente: a Orbe cobrou o que estava contratado e não há o que cobrar dela. A Tarvo abriu mão da receita, então a devolução ao lojista sai do nosso bolso (custo da Tarvo). TARIFA_ZERO_COBRADA em 118 linhas de origem | Helena (Financeiro) + Comercial |
-| Escola Bridge de Idiomas Ltda (checkout) | R$ 29,95 | Divergência de contrato: aditivo assinado com 2,19% a partir de 15/09 e a Orbe cobrou 2,59%. Contestar com a Orbe e ressarcir o lojista. O aviso à Orbe saiu atrasado (falha de processo nossa), mas o que decide é o contrato, não o aviso. DIVERGENCIA_TAXA em 5 linhas de origem | Helena (Financeiro) |
-| Rota Global Intercâmbio Ltda (checkout) | R$ 1.546,28 | Erro da Orbe: +0,50 p.p. no crédito desde 12/09 sem nenhuma mudança contratual. DIVERGENCIA_TAXA em 87 linhas de origem | Helena (Financeiro) |
-| Mundo Aberto (remessa) | R$ 1.418,85 | Divergência de contrato: spread de 1,20% negociado e registrado desde julho e a Ponte aplicou cerca de 1,50%. Contestar com a Ponte e ressarcir o lojista. A Ponte não foi avisada (falha de processo nossa), mas o que decide é o contrato, não o aviso. DIVERGENCIA_TAXA em 23 linhas de origem | Helena (Financeiro) |
-| Repasse do parceiro de câmbio a conferir (TED x nota) | R$ 506,65 | Conferir o TED do parceiro de câmbio previsto para 2026-10-06 (data do e-mail do parceiro) contra a nota NF-0021 (R$ 39.543,45). CONFERIR_REPASSE_PONTE em 6 linhas de origem | Helena (Financeiro) |
-| Spreads negativos no relatório do parceiro (trava vencida) | R$ 1.834,05 | Canguru; Dublin Hub Intercâmbio Ltda; Novo Horizonte Intercambio; Ponte Aérea Estudantil Ltda. SPREAD_NEGATIVO em 4 linhas de origem. o que aconteceu: -R$ 1.834,05; o que se pede ao parceiro: R$ 3.565,98 (até o spread contratado) | Helena (Financeiro) |
-| ATLAS IDIOMAS (checkout) | R$ 7.876,05 | Sem contrato assinado: taxa a confirmar pelo Comercial (vale desde 10/09 quando confirmar). SEM_CONTRATO em 57 linhas de origem. alerta ALERTA_ANTECIPACAO de R$ 179.592,82 (informativo) | Comercial |
-| Comissão negativa no mês (sem nota) | R$ 5,50 | Casa do Estudante Viagens Ltda. SALDO_NEGATIVO_LOJISTA em 119 linhas de origem | Helena (Financeiro) |
-| Lançamento de extrato sem identificação | R$ 7.350,00 | AURORA 2026-09-16: "PIX RECEBIDO 38686002000180 SEM IDENTIFICACAO" R$ 7.350,00, classificado em 1.1.09.002 (Créditos não identificados). EXTRATO_NAO_IDENTIFICADO em 1 linha de origem | Financeiro |
-| Repasse devolvido pelo banco | R$ 12.400,00 | AURORA 2026-09-23: "DEVOLUCAO PIX - MUNDO ABERTO INTERC" R$ 12.400,00, classificado em 2.1.01.001 (Repasses a lojistas a pagar). DEVOLUCAO em 1 linha de origem | Financeiro |
-
-**Total em jogo: R$ 48.364,10** (= soma das pendências não informativas, R$ 48.364,10).
+| Faturar | 21 notas a emitir (20 de checkout + 1 de remessa) | R$ 246.588,68 | Financeiro (emite) |
+| Cobrar da adquirente | Escola Bridge de Idiomas Ltda: Divergência de contrato: aditivo assinado com 2,19% a partir de 15/09 e a Orbe cobrou 2,59%. Contestar com a Orbe e ressarcir o lojista. O aviso à Orbe saiu atrasado (falha de processo nossa), mas o que decide é o contrato, não o aviso (5 transações, R$ 29,95); Rota Global Intercâmbio Ltda: Erro da Orbe: +0,50 p.p. no crédito desde 12/09 sem nenhuma mudança contratual (87 transações, R$ 1.546,28). Rascunho: comunicacoes/orbe.md | R$ 1.576,23 | Helena (Financeiro) |
+| Contestar com o parceiro de câmbio | a: excesso de spread cobrado do lojista, volta ao lojista. Mundo Aberto: Divergência de contrato: spread de 1,20% negociado e registrado desde julho e a Ponte aplicou cerca de 1,50%. Contestar com a Ponte e ressarcir o lojista. A Ponte não foi avisada (falha de processo nossa), mas o que decide é o contrato, não o aviso (23 transações, R$ 1.418,85) | R$ 1.418,85 | Helena (Financeiro) |
+|  | b: 4 operações com spread negativo (trava vencida), fora da comissão e da nota. O que aconteceu: -R$ 1.834,05 de spread no relatório; o que se pede ao parceiro: a diferença até o spread contratado, R$ 3.565,98. Os dois valores, nunca somados | -R$ 1.834,05 aconteceu / R$ 3.565,98 pedido | Helena (Financeiro) |
+|  | c: corrigir o relatório: PC-0926-0162 aparece mais de uma vez (contada uma vez no fechamento). Rascunho: comunicacoes/ponte.md | R$ 0,00 | Helena (Financeiro) |
+| Devolver ao lojista por conta da Tarvo | Casa do Estudante Viagens Ltda: Concessão do Comercial fora do contrato, para segurar o cliente: a Orbe cobrou o que estava contratado e não há o que cobrar dela. A Tarvo abriu mão da receita, então a devolução ao lojista sai do nosso bolso (custo da Tarvo) (118 transações, o que a adquirente cobrou de fato) | R$ 15.396,77 | Helena (Financeiro) + Comercial |
+| Não faturar até decidir | ATLAS IDIOMAS: Sem contrato assinado: taxa a confirmar pelo Comercial (vale desde 10/09 quando confirmar); R$ 7.876,05 cobrados pela adquirente em 57 transações, R$ 262.138,61 brutos na carteira pendente | R$ 7.876,05 | Comercial |
+|  | Alerta antecipacao: ATLAS IDIOMAS: Em 2026-09-15, R$ 179.592,82 antecipados contra R$ 55.357,50 vendidos até a data | R$ 179.592,82 (informativa) | Helena (Financeiro) + Comercial |
+|  | Comissão negativa no mês (sem nota): Casa do Estudante Viagens Ltda: A comissão de checkout de Casa do Estudante Viagens Ltda em 119 transações fechou em -R$ 5,50 (estornos ou reversões maiores que as vendas do mês) | R$ 5,50 | Helena (Financeiro) |
+| Só acompanhar | TED do parceiro de câmbio a conferir contra a nota de remessa: Conferir o TED do parceiro de câmbio previsto para 2026-10-06 (data do e-mail do parceiro) contra a nota NF-0021 (R$ 39.543,45) | até R$ 506,65 | Helena (Financeiro) |
+|  | Lançamento de extrato sem identificação: AURORA 2026-09-16: "PIX RECEBIDO 38686002000180 SEM IDENTIFICACAO" R$ 7.350,00, classificado em 1.1.09.002 (Créditos não identificados) | R$ 7.350,00 | Financeiro |
+|  | Repasse devolvido pelo banco: AURORA 2026-09-23: "DEVOLUCAO PIX - MUNDO ABERTO INTERC" R$ 12.400,00, classificado em 2.1.01.001 (Repasses a lojistas a pagar) | R$ 12.400,00 | Financeiro |
+|  | Em transito: AURORA 2026-09-30: "TRANSF ENTRE CONTAS P/ BCO MERIDIANO AG 0091 CC 90233-5" -R$ 300.000,00, em 1.1.09.001 (Transferências entre contas próprias): saiu do AUROR… | R$ 300.000,00 (informativa) | Financeiro |
 
 ### Pendências por responsável
 

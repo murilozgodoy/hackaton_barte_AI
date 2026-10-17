@@ -162,7 +162,7 @@ def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None,
         chaves = [relatorio._chave_pendencia(r) for r in f.pendencias.itertuples(index=False)]
         rec = sum(1 for c in chaves if c in pend_ant)
         res["totais"]["pendencias"]["recorrentes"], res["totais"]["pendencias"]["novas"] = rec, len(chaves) - rec
-    md = relatorio.markdown(f, config, res, relatorio.ler_causas(dir_regras), relatorio.ler_historico(dir_regras), pend_ant, arquivos)
+    md = relatorio.markdown(f, config, res, relatorio.ler_causas(dir_regras, internas=True), relatorio.ler_historico(dir_regras), pend_ant, arquivos)
     arquivos["relatorio"] = relatorio.escrever_relatorio(md, pasta / "RELATORIO_FECHAMENTO.md")
     resumo_path = pasta / "resumo.json"
     if f.integro:

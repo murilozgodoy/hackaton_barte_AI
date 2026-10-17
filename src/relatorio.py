@@ -204,14 +204,20 @@ def _carteira_json(f) -> dict:
             "faturadas_de_meses_anteriores": int((de_antes["destino"] == "COMISSAO").sum())}
 
 
-def ler_causas(dir_regras: Path | None) -> dict:
-    """{(cnpj, linha_negocio): causa} de regras/causas_divergencia.csv, na ordem do arquivo (vazio se não houver)."""
+def ler_causas(dir_regras: Path | None, internas: bool = False) -> dict:
+    """{(cnpj, linha_negocio): causa} de regras/causas_divergencia.csv, na ordem do arquivo (vazio se não houver).
+    `causa` cita só o contrato e pode ir para a contraparte; com `internas=True` entra também a coluna opcional
+    `observacao_interna` (a causa de processo), que fica só no relatório e nos rascunhos internos."""
     if dir_regras is None or not (Path(dir_regras) / "causas_divergencia.csv").exists():
         return {}
     from .regras import ler_csv_regras
     out = {}
     for _, r in ler_csv_regras(Path(dir_regras) / "causas_divergencia.csv", ["cnpj", "linha_negocio", "causa"]):
-        out[(r["cnpj"].strip(), r["linha_negocio"].strip().upper())] = r["causa"]
+        causa = r["causa"].strip()
+        obs = (r.get("observacao_interna") or "").strip()
+        if internas and obs:
+            causa = f"{causa.rstrip('.')}. {obs}"
+        out[(r["cnpj"].strip(), r["linha_negocio"].strip().upper())] = causa
     return out
 
 
@@ -235,59 +241,89 @@ def _chave_pendencia(r) -> tuple:
     return (r.tipo, r.subtipo or "", r.cnpj or str(r.ref_origem))
 
 
-def dinheiro_em_jogo_por_causa(f, causas: dict) -> list[dict]:
-    """Uma linha por causa (regras/causas_divergencia.csv) ou, para o resto, por tipo de pendência. Cada pendência não
-    informativa e não incluída em outra entra em exatamente uma linha: a soma das linhas é o "em jogo" total."""
+# apresentação (não é regra de negócio): o que se faz com o dinheiro de cada tipo de pendência. DIVERGENCIA_TAXA
+# depende da linha de negócio (checkout = adquirente, remessa = parceiro de câmbio); tipos fora da lista = só acompanhar
+NATUREZA_POR_TIPO = {
+    "SPREAD_NEGATIVO": "PARCEIRO", "DUPLICATA_DIVERGENTE": "PARCEIRO", "LINHA_NAO_INTERPRETADA": "PARCEIRO",
+    "COMPLIANCE": "PARCEIRO", "CONFERIR_AJUSTE_PONTE": "PARCEIRO",
+    "TARIFA_ZERO_COBRADA": "DEVOLVER",
+    "SEM_CONTRATO": "NAO_FATURAR", "ALERTA_ANTECIPACAO": "NAO_FATURAR", "CADASTRO": "NAO_FATURAR",
+    "SALDO_NEGATIVO_LOJISTA": "NAO_FATURAR", "DADO_INSUFICIENTE": "NAO_FATURAR", "FORA_COMPETENCIA": "NAO_FATURAR",
+}
+NATUREZAS = [("ADQUIRENTE", "Cobrar da adquirente"), ("PARCEIRO", "Contestar com o parceiro de câmbio"),
+             ("DEVOLVER", "Devolver ao lojista por conta da Tarvo"), ("NAO_FATURAR", "Não faturar até decidir"),
+             ("ACOMPANHAR", "Só acompanhar")]
+
+
+def _primeira_frase(texto, limite: int = 160) -> str:
+    s = str(texto or "").split(". ")[0].strip()
+    return s if len(s) <= limite else s[:limite].rstrip() + "…"
+
+
+def dinheiro_por_natureza(f, causas: dict) -> list[dict]:
+    """Uma linha por natureza do dinheiro e tipo de pendência: faturar, cobrar da adquirente, contestar com o parceiro,
+    devolver ao lojista, não faturar até decidir, só acompanhar. Naturezas diferentes NUNCA são somadas; dentro de uma
+    linha só se somam pendências do mesmo tipo. Pendência já incluída em outra fica fora; informativa aparece marcada."""
+    from .pendencias import lista_contestacao
+    nf_chk, nf_rem = f.notas[f.notas["linha_negocio"] == "CHECKOUT"], f.notas[f.notas["linha_negocio"] == "REMESSA"]
+    out = [{"natureza": "Faturar", "o_que": f"{len(f.notas)} notas a emitir ({len(nf_chk)} de checkout + {len(nf_rem)} de remessa)",
+            "valor": brl(soma(f.notas["valor_brl"])), "quem": "Financeiro (emite)"}]
     pend = f.pendencias
-    if pend.empty:
-        return []
-    ativas = pend[~pend["informativa"].astype(bool) & (pend["incluida_em"].isna() | (pend["incluida_em"] == ""))]
-    informativas = pend[pend["informativa"].astype(bool)]
-    linhas: dict = {}
-    ordem: list = []
+    ativas = pend[pend["incluida_em"].isna() | (pend["incluida_em"] == "")] if len(pend) else pend
+    grupos: dict = {}
     for r in ativas.itertuples(index=False):
-        chave_causa = (r.cnpj, r.linha_negocio) if r.cnpj and r.linha_negocio else None
-        if r.tipo in TIPOS_POR_CAUSA and chave_causa in causas:
-            chave = ("causa",) + chave_causa
+        if r.tipo == "DIVERGENCIA_TAXA":
+            nat = "ADQUIRENTE" if r.linha_negocio == "CHECKOUT" else "PARCEIRO"
         else:
-            chave = ("tipo", r.tipo)
-        if chave not in linhas:
-            linhas[chave] = {"valor": ZERO, "quem": [], "tipos": [], "lojistas": [], "n": 0, "ids": [],
-                             "spread_contratado": ZERO, "spread_relatorio": ZERO, "tem_dois_valores": True}
-            ordem.append(chave)
-        l = linhas[chave]
-        l["valor"] += abs(r.valor_brl) if r.valor_brl is not None else ZERO
-        l["n"] += int(r.qtd_itens) if r.qtd_itens is not None and not pd.isna(r.qtd_itens) else 0
-        l["ids"].append(r.id_saida)
-        for campo, v in (("quem", r.quem_decide), ("tipos", r.tipo), ("lojistas", r.lojista)):
-            if v and v not in l[campo]:
-                l[campo].append(v)
-        if getattr(r, "spread_contratado_brl", None) is not None and not pd.isna(r.spread_contratado_brl):
-            l["spread_contratado"] += r.spread_contratado_brl
-            l["spread_relatorio"] += r.spread_relatorio_brl
-        else:
-            l["tem_dois_valores"] = False
-    out = []
-    for chave in ordem:
-        l = linhas[chave]
-        if chave[0] == "causa":
-            cnpj, linha = chave[1], chave[2]
-            rotulo = f"{l['lojistas'][0] if l['lojistas'] else cnpj} ({linha.lower()})"
-            causa = causas[(cnpj, linha)]
-            alertas = informativas[informativas["cnpj"] == cnpj]
-            extra = "; ".join(f"alerta {a.tipo} de {brl(a.valor_brl)} (informativo)" for a in alertas.itertuples(index=False))
-        else:
-            tipo = chave[1]
-            rotulo = ROTULOS_TIPO.get(tipo, tipo.replace("_", " ").capitalize())
-            do_tipo = ativas[ativas["tipo"] == tipo]
-            lojistas = sorted({str(x) for x in do_tipo["lojista"] if x})
-            causa = "; ".join(lojistas) if lojistas else "; ".join(str(m).split(". ")[0][:140] for m in do_tipo["motivo"].head(3))
-            extra = ""
-            if tipo == "SPREAD_NEGATIVO" and l["tem_dois_valores"] and l["spread_contratado"] != ZERO:
-                extra = (f"o que aconteceu: {brl(l['spread_relatorio'])}; o que se pede ao parceiro: "
-                         f"{brl(l['spread_contratado'] - l['spread_relatorio'])} (até o spread contratado)")
-        out.append({"rotulo": rotulo, "causa": causa, "valor_brl": l["valor"], "quem_decide": " / ".join(l["quem"]),
-                    "tipos": ", ".join(l["tipos"]), "qtd": l["n"], "ids": l["ids"], "extra": extra})
+            nat = NATUREZA_POR_TIPO.get(r.tipo, "ACOMPANHAR")
+        grupos.setdefault((nat, r.tipo, r.linha_negocio or ""), []).append(r)
+    lc = lista_contestacao(f.ponte_linhas) if len(f.ponte_linhas) else pd.DataFrame(columns=["natureza", "ref_origem"])
+    repetidas = lc[lc["natureza"] == "REPETIDA"] if len(lc) else lc
+    for nat_key, rotulo in NATUREZAS:
+        primeira = True
+        for (nat, tipo, linha), rs in grupos.items():
+            if nat != nat_key:
+                continue
+            informativa = all(bool(r.informativa) for r in rs)
+            quem = " / ".join(dict.fromkeys(r.quem_decide for r in rs))
+            total = soma(abs(r.valor_brl) for r in rs if r.valor_brl is not None)
+            valor = brl(total) + (" (informativa)" if informativa else "")
+            if tipo == "DIVERGENCIA_TAXA":
+                itens = "; ".join(f"{r.lojista}: {causas.get((r.cnpj, linha), 'divergência de contrato').rstrip('.')} "
+                                  f"({int(r.qtd_itens)} transações, {brl(r.valor_brl)})" for r in rs)
+                o_que = (f"a: excesso de spread cobrado do lojista, volta ao lojista. {itens}" if linha == "REMESSA"
+                         else f"{itens}. Rascunho: comunicacoes/orbe.md")
+            elif tipo == "SPREAD_NEGATIVO":
+                rel = soma(r.spread_relatorio_brl for r in rs if r.spread_relatorio_brl is not None and not pd.isna(r.spread_relatorio_brl))
+                dif = soma(r.diferenca_contrato_brl for r in rs if r.diferenca_contrato_brl is not None and not pd.isna(r.diferenca_contrato_brl))
+                o_que = (f"b: {len(rs)} operações com spread negativo (trava vencida), fora da comissão e da nota. "
+                         f"O que aconteceu: {brl(rel)} de spread no relatório; o que se pede ao parceiro: a diferença até o "
+                         f"spread contratado, {brl(abs(dif))}. Os dois valores, nunca somados")
+                valor = f"{brl(rel)} aconteceu / {brl(abs(dif))} pedido"
+            elif tipo == "SEM_CONTRATO":
+                partes = []
+                for r in rs:
+                    cart = f.carteira[f.carteira["cnpj"] == r.cnpj] if len(f.carteira) else f.carteira
+                    partes.append(f"{r.lojista}: {causas.get((r.cnpj, linha), _primeira_frase(r.motivo)).rstrip('.')}; "
+                                  f"{brl(r.valor_brl)} cobrados pela adquirente em {int(r.qtd_itens)} transações"
+                                  + (f", {brl(soma(cart['valor_bruto']))} brutos na carteira pendente" if len(cart) else ""))
+                o_que = "; ".join(partes)
+            elif tipo == "TARIFA_ZERO_COBRADA":
+                o_que = "; ".join(f"{r.lojista}: {causas.get((r.cnpj, linha), _primeira_frase(r.motivo)).rstrip('.')} "
+                                  f"({int(r.qtd_itens)} transações, o que a adquirente cobrou de fato)" for r in rs)
+            elif tipo == "CONFERIR_REPASSE_PONTE":
+                o_que = "TED do parceiro de câmbio a conferir contra a nota de remessa: " + "; ".join(_primeira_frase(r.motivo) for r in rs)
+                valor = "até " + valor
+            else:
+                o_que = ROTULOS_TIPO.get(tipo, tipo.replace("_", " ").capitalize()) + ": " + "; ".join(
+                    f"{r.lojista + ': ' if r.lojista else ''}{_primeira_frase(r.motivo)}" for r in rs[:3]) + ("; …" if len(rs) > 3 else "")
+            out.append({"natureza": rotulo if primeira else "", "o_que": o_que, "valor": valor, "quem": quem})
+            primeira = False
+        if nat_key == "PARCEIRO" and len(repetidas):
+            out.append({"natureza": rotulo if primeira else "",
+                        "o_que": f"c: corrigir o relatório: {', '.join(repetidas['ref_origem'])} aparece mais de uma vez "
+                                 f"(contada uma vez no fechamento). Rascunho: comunicacoes/ponte.md",
+                        "valor": brl(ZERO), "quem": "Helena (Financeiro)"})
     return out
 
 
@@ -329,22 +365,19 @@ def _pagina_cfo(f, config, res: dict, causas: dict, historico: list[dict], pend_
                    f"{len(nf_rem)} nota, {brl(soma(nf_rem['valor_brl']))}" if len(nf_rem) else "sem nota (ver pendências)"],
                   ["**Total**", "", f"**{brl(total_com)}**", f"**{len(f.notas)} notas, {brl(total_nf)}**"]]), "",
               f"Divergências: {texto_divergencias(t['divergencias'])}.", ""]
-    linhas = dinheiro_em_jogo_por_causa(f, causas)
-    partes += ["### Dinheiro em jogo, por causa", "",
-               "Cada pendência entra em uma linha só (nenhuma linha de origem conta duas vezes); as informativas e as já "
-               "incluídas em outra ficam fora da soma.", ""]
-    if linhas:
-        partes.append(_tabela(["Causa", "Valor em jogo", "O que é", "Quem decide"], [
-            [l["rotulo"], brl(l["valor_brl"]),
-             (l["causa"] + (". " if l["causa"] and not l["causa"].endswith(".") else " ") if l["causa"] else "")
-             + (f"{l['tipos']} em {l['qtd']} linha{'s' if l['qtd'] != 1 else ''} de origem" if l["qtd"] else l["tipos"])
-             + (f". {l['extra']}" if l["extra"] else ""),
-             l["quem_decide"]] for l in linhas]))
-        partes.append("")
-        partes.append(f"**Total em jogo: {brl(soma(l['valor_brl'] for l in linhas))}** "
-                      f"(= soma das pendências não informativas, {brl(valor_em_jogo(f.pendencias))}).")
-    else:
-        partes.append("Nenhuma pendência com valor.")
+    n_orbe = (int(f.orbe_linhas["competencia_origem"].isna().sum()) if "competencia_origem" in f.orbe_linhas.columns
+              else len(f.orbe_linhas))
+    n_ponte, n_ext = len(f.ponte_linhas), len(f.lancamentos)
+    milhar = lambda n: f"{n:,}".replace(",", ".")
+    partes += [f"**{milhar(n_orbe + n_ponte + n_ext)} linhas de origem conferidas** ({milhar(n_orbe)} da adquirente + "
+               f"{milhar(n_ponte)} do parceiro de câmbio + {milhar(n_ext)} dos extratos) → **{len(f.pendencias)} decisões para "
+               f"pessoas** (pendências com dono). O motor não mede tempo de espera nem de decisão.", ""]
+    partes += ["### Dinheiro em jogo, por natureza", "",
+               "O que fazer com cada dinheiro. Naturezas diferentes nunca são somadas (faturar, cobrar, contestar, devolver e "
+               "acompanhar são coisas distintas); dentro de uma linha só há pendências do mesmo tipo. Pendência já incluída em "
+               "outra fica fora; informativa aparece marcada.", ""]
+    partes.append(_tabela(["Natureza", "O quê", "Valor", "Quem decide"],
+                          [[l["natureza"], l["o_que"], l["valor"], l["quem"]] for l in dinheiro_por_natureza(f, causas)]))
     partes += ["", "### Pendências por responsável", ""]
     for quem, g in f.pendencias.groupby("quem_decide", sort=False):
         n_inf = int(g["informativa"].astype(bool).sum())

@@ -302,8 +302,7 @@ def imprimir_resumo_final(f: Fechamento, res: dict, arquivos: dict[str, Path], c
     l = res["lancamentos"]
     print(f"Lançamentos classificados: {sum(l.values())} (REGRA {l['REGRA']}, IA {l['IA']}, HUMANO {l['HUMANO']})")
     n_inf = t["pendencias"].get("informativas", 0)
-    print(f"Pendências: {t['pendencias']['quantidade']}" + (f" ({n_inf} informativas)" if n_inf else "")
-          + f", {brl(Decimal(t['pendencias']['em_jogo_brl']))} em jogo, por responsável:")
+    print(f"Pendências: {t['pendencias']['quantidade']}" + (f" ({n_inf} informativas)" if n_inf else "") + ", por responsável:")
     for quem, g in t["pendencias"]["por_responsavel"].items():
         inf, incl = g.get("informativas", 0), g.get("incluidas_em_outra", 0)
         notas_g = [f"{inf} informativa{'s' if inf > 1 else ''}"] * bool(inf) + [f"{incl} já incluída{'s' if incl > 1 else ''} em outra"] * bool(incl)

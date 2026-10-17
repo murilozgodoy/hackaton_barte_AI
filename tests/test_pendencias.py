@@ -320,4 +320,16 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert "### Helena (Financeiro) — 10 pendência(s), R$ 5.341,28 em jogo" in rel
     assert "Rodapé: EXCESSO_SPREAD_CONTESTADO (R$ 709,46) já incluído em DIVERGENCIA_TAXA de Mundo Aberto" in rel
     assert "1.5%–1.5%" not in rel and "+ -R$" not in rel
+    # página 1: dinheiro por natureza, nunca somado; métrica de linhas conferidas; a causa de processo fica no interno
+    assert "### Dinheiro em jogo, por natureza" in rel and "Total em jogo" not in rel and "48.364" not in rel
+    assert "| Faturar | 21 notas a emitir (20 de checkout + 1 de remessa) | R$ 246.588,68 |" in rel
+    assert "| Cobrar da adquirente |" in rel and "R$ 1.576,23 |" in rel and "comunicacoes/orbe.md" in rel
+    assert "| Contestar com o parceiro de câmbio | a: excesso de spread cobrado do lojista, volta ao lojista." in rel and "R$ 1.418,85 |" in rel
+    assert "b: 4 operações com spread negativo" in rel and "| -R$ 1.834,05 aconteceu / R$ 3.565,98 pedido |" in rel
+    assert "c: corrigir o relatório: PC-0926-0162 aparece mais de uma vez" in rel
+    assert "| Devolver ao lojista por conta da Tarvo |" in rel and "R$ 15.396,77 |" in rel
+    assert "| Não faturar até decidir |" in rel and "R$ 7.876,05 cobrados pela adquirente em 57 transações, R$ 262.138,61 brutos na carteira pendente" in rel
+    assert "R$ 179.592,82 (informativa)" in rel and "| Só acompanhar |" in rel and "até R$ 506,65" in rel and "R$ 300.000,00 (informativa)" in rel
+    assert "**2.360 linhas de origem conferidas** (1.943 da adquirente + 233 do parceiro de câmbio + 184 dos extratos) → **16 decisões para pessoas**" in rel
+    assert "8 dias" not in rel and "falha de processo nossa" in rel   # causa de processo é interna: fica no relatório
 

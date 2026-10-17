@@ -25,14 +25,11 @@ COLUNAS_ANEXO = ["ref_origem", "cnpj", "lojista", "linha_negocio", "data", "prod
 CONTRAPARTE_POR_LINHA = {"CHECKOUT": "ORBE", "REMESSA": "PONTE"}
 
 
-def _config_textos(dir_regras: Path) -> tuple[dict, dict]:
+def _config_textos(dir_regras: Path) -> tuple[dict, dict, dict]:
     textos = {r["contraparte"].strip().upper(): r for _, r in ler_csv_regras(Path(dir_regras) / "comunicacoes.csv", COLUNAS_COMUNICACOES)}
-    caminho = Path(dir_regras) / "causas_divergencia.csv"
-    causas = {}
-    if caminho.exists():
-        for _, r in ler_csv_regras(caminho, COLUNAS_CAUSAS):
-            causas[(r["cnpj"].strip(), r["linha_negocio"].strip().upper())] = r["causa"]
-    return textos, causas
+    # causa de contrato (vai para a contraparte) e, à parte, a versão interna com a observação de processo
+    from .relatorio import ler_causas
+    return textos, ler_causas(dir_regras), ler_causas(dir_regras, internas=True)
 
 
 def dias_uteis_depois(inicio: date, n: int) -> date:
@@ -60,7 +57,7 @@ def _cabecalho(t: dict, competencia_txt: str, subst: dict) -> list[str]:
 def gerar(f, config, dir_regras: Path, pasta_saida: Path, competencia_txt: str, meta_ponte: dict | None = None) -> dict[str, Path]:
     """Grava saida/comunicacoes/: orbe_contestacao.csv + orbe.md, ponte_contestacao.csv + ponte.md, comercial.md,
     avisos_nova_condicao.md. Devolve {nome: caminho}."""
-    textos, causas = _config_textos(dir_regras)
+    textos, causas, causas_internas = _config_textos(dir_regras)
     for chave in ("ORBE", "PONTE", "COMERCIAL", "AVISO"):
         if chave not in textos:
             raise ErroConfig([f"comunicacoes.csv: falta a linha {chave}. Como corrigir: acrescente contraparte={chave}"])
@@ -145,7 +142,7 @@ def gerar(f, config, dir_regras: Path, pasta_saida: Path, competencia_txt: str, 
     pend = f.pendencias[f.pendencias["quem_decide"].str.contains("Comercial", case=False, na=False)]
     for r in pend.itertuples():
         valor = brl(r.valor_brl) if r.valor_brl is not None else "sem valor"
-        causa = causas.get((r.cnpj, r.linha_negocio or ""), "")
+        causa = causas_internas.get((r.cnpj, r.linha_negocio or ""), "")   # rascunho interno: leva a causa de processo
         motivo = r.motivo if r.motivo.endswith(".") else r.motivo + "."
         linhas.append(f"- **{r.id_saida} · {r.tipo}**{' (informativa)' if r.informativa else ''} — {r.lojista or ''} "
                       f"({valor}): {motivo}" + (f" Causa: {causa}." if causa else ""))

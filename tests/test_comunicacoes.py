@@ -52,7 +52,7 @@ def test_orbe_rota_mais_bridge_sem_a_casa(saida):
     md = (saida / "comunicacoes" / "orbe.md").read_text(encoding="utf-8")
     assert "valor LÍQUIDO R$ 1.546,28 (= R$ 1.644,72 a maior em 83 vendas − R$ 98,44 devolvidos em 4 estornos)" in md
     assert "R$ 29,95" in md and "Total a corrigir: R$ 1.576,23" in md and "Casa do Estudante" not in md
-    assert "Erro da Orbe" in md and "aditivo assinado com 2,19% a partir de 15/09" in md and "o que decide é o contrato, não o aviso" in md
+    assert "Erro da Orbe" in md and "aditivo assinado com 2,19% a partir de 15/09" in md and "não o aviso" not in md   # externo: só o contrato
 
 
 def test_ponte_mundo_aberto_negativos_e_repetida(saida):
@@ -81,6 +81,21 @@ def test_ponte_mundo_aberto_negativos_e_repetida(saida):
     assert set(anexo[anexo.pedido == "b"].regra_id) == {"E-03"} and set(anexo[anexo.pedido == "a"].regra_id) == {""}
 
 
+def test_rascunhos_externos_citam_so_o_contrato(saida):
+    """Helena (17/10 11h37): o que decide é o contrato, não o aviso. Para a Orbe e a Ponte, os rascunhos citam só o
+    contrato (aditivo da Bridge 2,19% desde 15/09; Mundo Aberto 1,20%); a causa de processo ("avisada dias depois",
+    "nunca avisada", "falha de processo nossa") fica só no relatório e em comercial.md (internos)."""
+    for nome in ("orbe.md", "ponte.md", "avisos_nova_condicao.md"):
+        md = (saida / "comunicacoes" / nome).read_text(encoding="utf-8")
+        assert "falha de processo" not in md and "avisad" not in md.lower().replace("aviso", ""), nome
+    orbe = (saida / "comunicacoes" / "orbe.md").read_text(encoding="utf-8")
+    assert "aditivo assinado com 2,19% a partir de 15/09" in orbe
+    ponte = (saida / "comunicacoes" / "ponte.md").read_text(encoding="utf-8")
+    assert "spread de 1,20% negociado e registrado desde julho" in ponte
+    rel = (saida / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
+    assert "falha de processo nossa" in rel
+
+
 def test_comercial(saida):
     md = (saida / "comunicacoes" / "comercial.md").read_text(encoding="utf-8")
     assert "SEM_CONTRATO" in md and "R$ 7.876,05" in md and "NÃO é receita da Tarvo" in md
@@ -97,7 +112,7 @@ def test_avisos_nova_condicao(saida):
     assert "Escola Bridge de Idiomas Ltda → Orbe" in md and "Mundo Aberto → Ponte" in md and "Casa do Estudante" not in md
     assert md.count("### ") == 2 and "X-01" not in md
     assert "de 2026-09-15 até sem fim" in md and "1.2%" in md and "EC 1075624862" in md
-    assert "O aviso é controle de processo: quem deve é definido pelo contrato" in md and "o que decide é o contrato, não o aviso" in md
+    assert "O aviso é controle de processo: quem deve é definido pelo contrato" in md and "não o aviso" not in md   # externo
     # T5 (Helena a confirmar): a linha da Mundo Aberto diz vigência 01/01/2026 (K15) e a observação "spread negociado em jul/26" (L15)
     ma = md.split("### Mundo Aberto")[1].split("### ")[0]
     assert "de 2026-01-01 até sem fim (planilha de taxas, célula Taxas vigentes!K15)" in ma
