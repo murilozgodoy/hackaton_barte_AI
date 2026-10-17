@@ -96,7 +96,7 @@ lançamentos**, mais a lista de contas analíticas do plano de contas. Nunca arq
 dados da Orbe, da Ponte ou de lojistas. A sugestão volta com `metodo=IA`, confiança menor que 1 e
 **sempre** vira pendência de revisão humana; a IA não calcula nem decide nada. Código: `src/ia.py`.
 
-## Usar com assistente de IA (opcional)
+## Usar com assistente de IA 
 
 A skill `skills/fechamento-tarvo/SKILL.md` segue o padrão aberto Agent Skills (atalho em `.agents/skills/`;
 testada no Claude Code e no Claude.ai; ver [SOLUCAO.md](SOLUCAO.md), seção 5) e ensina um assistente a conduzir o fechamento **usando os mesmos
