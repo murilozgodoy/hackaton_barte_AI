@@ -169,20 +169,27 @@ def imprimir_fechamento(f: Fechamento) -> None:
 def imprimir_conciliacao(f: Fechamento) -> None:
     c = f.conciliacao
     print("\nConciliação entre fontes (informativo, não gera pendência):")
-    o = c["orbe"]
-    print(f"  Orbe: bruto {brl(o['valor_bruto_total'])}, taxa cobrada {brl(o['valor_taxa_total'])}, "
-          f"líquido aos lojistas {brl(o['valor_liquido_total'])}")
-    for tipo, v in o["valor_liquido_por_tipo"].items():
-        print(f"    líquido {tipo:<22} {brl(v):>18}")
-    print("  Extratos por conta contábil (créditos / débitos):")
-    for r in c["extratos_por_conta"]:
-        print(f"    {r['banco']:<10}{r['conta_codigo']:<12}{str(r['conta_descricao'])[:44]:<46}{r['qtd']:>4}  "
-              f"{brl(r['creditos']):>18}  {brl(r['debitos']):>18}")
+    o = c["orbe_banco"]
+    print(f"  Adquirente x banco: líquido que a adquirente diz ter liquidado {brl(o['liquido_orbe'])} "
+          "(" + ", ".join(f"{t} {brl(v)}" for t, v in o["liquido_orbe_por_tipo"].items()) + ")")
+    print(f"    recebido da adquirente no banco: {brl(o['recebido_da_adquirente'])} ({o['qtd_recebimentos']} créditos) "
+          f"-> líquido - recebido = {brl(o['liquido_menos_recebido'])}")
+    print(f"    repassado a lojistas: {brl(o['repassado_a_lojistas'])} ({o['qtd_repasses']} lançamentos, devoluções abatidas) "
+          f"-> líquido - repassado = {brl(o['liquido_menos_repassado'])}; recebido - repassado = {brl(o['recebido_menos_repassado'])}")
+    r = c["remessa_banco"]
+    print(f"  Remessa x banco: recursos recebidos de lojistas {brl(r['recursos_recebidos'])} ({r['qtd_recursos']}); "
+          f"liquidado no parceiro {brl(r['liquidado_na_ponte'])} ({r['qtd_liquidacoes']}); "
+          f"operações do relatório (Valor R$ + IOF) {brl(r['operacoes_valor_mais_iof'])}")
+    print(f"    recursos - liquidado = {brl(r['recursos_menos_liquidado'])}; "
+          f"liquidado - operações = {brl(r['liquidado_menos_operacoes'])}")
     p = c["ponte"]
-    print(f"  Ponte: spread total declarado {brl(p['spread_total_declarado'])} (com duplicata e negativos); "
+    print(f"  Parceiro de câmbio: spread total declarado {brl(p['spread_total_declarado'])} (com repetições e negativos); "
           f"operações únicas {brl(p['spread_operacoes_unicas'])}")
     print(f"    repasse pelo total declarado x participação = {brl(p['repasse_pelo_total_declarado'])}; "
           f"comissão calculada = {brl(p['comissao_calculada'])}; diferença = {brl(p['diferenca'])}")
+    print(f"    = {brl(p['efeito_excluidas'])} das {p['qtd_excluidas']} operações excluídas "
+          f"+ {brl(p['efeito_duplicatas'])} das {p['qtd_duplicatas']} repetições "
+          f"+ {brl(p['efeito_arredondamento'])} de arredondamento por operação")
 
 
 def cmd_validar(args) -> int:

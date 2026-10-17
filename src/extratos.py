@@ -24,7 +24,8 @@ from .regras import Config
 
 PREFIXO_ID = "LAN-"
 COLUNAS = ["id_saida", "banco", "ref_origem", "data", "descricao", "valor", "conta_codigo", "metodo", "confianca",
-           "conta_descricao", "regra_id", "arquivo_origem", "tipo_pendencia", "subtipo", "motivo", "justificativa"]
+           "conta_descricao", "regra_id", "papel", "arquivo_origem", "tipo_pendencia", "subtipo", "motivo",
+           "justificativa"]
 COLUNAS_RASTRO = ["id_saida", "arquivo_origem", "ref_origem", "valor", "regra_id", "taxa_pct"]
 UM, ZERO = Decimal("1"), Decimal("0")
 
@@ -61,7 +62,7 @@ def classificar(extratos: list[pd.DataFrame], config: Config, plano: pd.DataFram
         "id_saida": lanc["id_saida"], "arquivo_origem": lanc["arquivo_origem"], "ref_origem": lanc["ref_origem"],
         "valor": lanc["valor"], "regra_id": lanc["regra_id"], "taxa_pct": None,
     })[COLUNAS_RASTRO]
-    return ResultadoExtratos(lanc, rastro, _em_transito(lanc), avisos)
+    return ResultadoExtratos(lanc, rastro, _em_transito(lanc, config.contas_transitorias()), avisos)
 
 
 def _classificar_linha(r, config: Config, descricao_conta: dict) -> dict:
@@ -72,7 +73,7 @@ def _classificar_linha(r, config: Config, descricao_conta: dict) -> dict:
     if c.regra is not None:
         p = c.regra.params
         reg.update(conta_codigo=p["conta"], conta_descricao=descricao_conta.get(p["conta"]), metodo="REGRA",
-                   confianca=UM, regra_id=c.regra.id)
+                   confianca=UM, regra_id=c.regra.id, papel=p.get("papel"))
         if p.get("gera_pendencia"):
             reg.update(tipo_pendencia=c.regra.tipo_pendencia, subtipo=c.regra.subtipo, motivo=c.regra.o_que_fazer)
     elif c.conflito:
@@ -112,17 +113,16 @@ def _sugerir_com_ia(registros: list, pendentes: list[int], plano: pd.DataFrame, 
                                    "criar regra CLASSIFICAR_CONTA")
 
 
-def _em_transito(lanc: pd.DataFrame) -> pd.DataFrame:
-    """Débitos em conta transitória sem crédito de mesmo valor em outro banco (e vice-versa)."""
+def _em_transito(lanc: pd.DataFrame, contas_transitorias: set[str]) -> pd.DataFrame:
+    """Nas contas marcadas transitoria=true: débito sem crédito de mesmo valor em outro banco (e vice-versa).
+
+    A conta vem das regras, não de observação dos dados: se nenhuma transferência cair no
+    outro banco dentro do mês, todas aparecem em trânsito (e não nenhuma).
+    """
     colunas = ["id_saida", "banco", "ref_origem", "data", "descricao", "valor", "conta_codigo", "motivo"]
-    base = lanc[(lanc["metodo"] == "REGRA") & (lanc["conta_codigo"] != "")]
+    base = lanc[(lanc["metodo"] == "REGRA") & lanc["conta_codigo"].isin(contas_transitorias)]
     pendentes = []
     for conta, g in base.groupby("conta_codigo"):
-        # só é transferência entre contas próprias se a conta recebe débito num banco e crédito em outro
-        bancos_debito = set(g.loc[g["valor"] < 0, "banco"])
-        bancos_credito = set(g.loc[g["valor"] > 0, "banco"])
-        if not bancos_debito or not bancos_credito or len(bancos_debito | bancos_credito) < 2:
-            continue
         debitos = g[g["valor"] < 0].sort_values("data").to_dict("records")
         creditos = g[g["valor"] > 0].sort_values("data").to_dict("records")
         usados = set()

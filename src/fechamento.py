@@ -67,9 +67,16 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
     colunas_com = ["id_saida", "cnpj", "lojista", "linha_negocio", "comissao_brl"]
     comissoes = pd.concat([chk.comissoes, rem.comissoes], ignore_index=True)
     comissoes = comissoes[colunas_com + [c for c in comissoes.columns if c not in colunas_com]]
+    for col in ("qtd_transacoes", "qtd_operacoes"):   # o concat promove inteiros a float por causa dos vazios
+        comissoes[col] = comissoes[col].astype("Int64")
     rastro = pd.concat([chk.rastro, rem.rastro, rastro_div, rastro_nf, ext.rastro], ignore_index=True)
 
-    checagens = checar_rastro({
+    refs_com = set(chk.linhas.loc[chk.linhas["destino"] == "COMISSAO", "ref_origem"])
+    refs_rastro = set(rastro.loc[rastro["id_saida"].str.startswith(checkout.PREFIXO_ID), "ref_origem"])
+    checagens = [Checagem("integridade", "4. transações em comissão de checkout = transações no rastro COM-CHK",
+                          refs_com == refs_rastro, f"{len(refs_com)} transações" if refs_com == refs_rastro else
+                          f"diferem em {len(refs_com ^ refs_rastro)} transações")]
+    checagens += checar_rastro({
         "comissoes_por_lojista.csv": (comissoes, "comissao_brl"),
         "divergencias_taxa.csv": (div, "diferenca_brl"),
         "notas_a_emitir.csv": (nf, "valor_brl"),
@@ -81,7 +88,7 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
     checagens += checar_saldo_extratos(bancos)
 
     ref = primeiro_dia(competencia)
-    conc = conciliacao.calcular(dados, rem.comissoes, ext.lancamentos,
+    conc = conciliacao.calcular(dados, rem.linhas, rem.comissoes, ext.lancamentos,
                                 config.parametro("participacao_spread", ref), config.parametro("arredondamento", ref))
     return Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, nf, sem_nota, ext.lancamentos,
                       ext.em_transito, rastro, conc, checagens, list(config.avisos) + ext.avisos)

@@ -88,8 +88,7 @@ def _mapear_duplicatas(ponte: pd.DataFrame) -> dict:
     for num, g in ponte.groupby("num_operacao", sort=False):
         if len(g) < 2:
             continue
-        valores = g[COLUNAS_DUPLICATA].astype(str)
-        iguais = (valores.nunique() == 1).all()
+        iguais = (g[COLUNAS_DUPLICATA].nunique() == 1).all()   # Decimal compara por valor (821.88 == 821.880)
         out[num] = ("IGUAIS", g.index[0]) if iguais else ("DIFERENTES", None)
     return out
 

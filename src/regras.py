@@ -74,6 +74,8 @@ CRITERIOS = {"orbe": {"status_cadastro"},
 VALOR_PENDENCIA = {"orbe": {"valor_taxa", "valor_bruto"}, "ponte": {"spread_brl", "valor_brl"}}
 AGRUPAR = {"cnpj", "ec", "linha", "tudo"}
 CHAVES_DUPLICADO = {"ponte": {"num_operacao"}, "orbe": {"id_transacao"}}
+# papel de um lançamento na conciliação entre fontes (CLASSIFICAR_CONTA, opcional)
+PAPEIS = {"recebimento_adquirente", "repasse_lojista", "recurso_remessa", "liquidacao_remessa"}
 _RE_IDENT = re.compile(r"[A-Z][A-Z0-9_]*")
 
 # chaves obrigatórias e opcionais de `parametros`, por tipo
@@ -83,7 +85,7 @@ ESQUEMA = {
     "EXCLUIR_E_PENDENCIA": ({"fonte", "criterio", "tipo_pendencia"},
                             {"status", "aceitos", "valor_pendencia", "agrupar", "subtipo"}),
     "CLASSIFICAR_CONTA": ({"banco", "contem", "conta", "prioridade"},
-                          {"sinal", "gera_pendencia", "tipo_pendencia", "subtipo"}),
+                          {"sinal", "gera_pendencia", "tipo_pendencia", "subtipo", "transitoria", "papel"}),
     "DONO_PENDENCIA": ({"tipo_pendencia"}, set()),
     "MANUAL": (set(), {"banco", "contem", "cnpj", "linha_negocio"}),
 }
@@ -320,6 +322,10 @@ class Config:
 
     def lembretes(self, em: date) -> list[Regra]:
         return [r for r in self.por_tipo("MANUAL") if r.vigente_em(em)]
+
+    def contas_transitorias(self) -> set[str]:
+        """Contas marcadas transitoria=true nas regras CLASSIFICAR_CONTA (transferências entre contas próprias)."""
+        return {r.params["conta"] for r in self.por_tipo("CLASSIFICAR_CONTA") if r.params.get("transitoria")}
 
     def classificar(self, banco: str, descricao: str, valor: Decimal, em: date) -> Classificacao:
         """Regra CLASSIFICAR_CONTA de menor prioridade (número) que casa com o lançamento.
@@ -643,6 +649,14 @@ def _validar_params(regra: Regra, erro, avisos, onde, ctx: _Contexto):
             erro(f"gera_pendencia: {e}", "use true ou false")
         if p["gera_pendencia"] and "tipo_pendencia" not in p:
             erro("gera_pendencia=true sem tipo_pendencia", "informe tipo_pendencia=... (ex.: DEVOLUCAO)")
+        try:
+            p["transitoria"] = sim_nao(p.get("transitoria", "false"))
+        except ValueError as e:
+            erro(f"transitoria: {e}", "use true ou false")
+        if "papel" in p:
+            p["papel"] = p["papel"].strip().lower()
+            if p["papel"] not in PAPEIS:
+                erro(f"papel '{p['papel']}' desconhecido", f"use um destes: {', '.join(sorted(PAPEIS))}")
 
     elif tipo == "DONO_PENDENCIA":
         if not regra.quem_decide:
