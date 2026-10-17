@@ -41,8 +41,13 @@ def test_parametro_com_vigencia_que_acaba_no_meio_do_mes_para(dados, tmp_path, c
     assert "participacao_spread" in capsys.readouterr().err
 
 
-def test_relatorio_invalido_nao_diz_ok(dados, tmp_path):
-    assert main(["fechar", "--saida", str(tmp_path), "--competencia", "2026-11", "--sem-ia"]) == 3
-    rel = (tmp_path / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
+def test_relatorio_invalido_nao_diz_ok(dados, pasta_dados, tmp_path):
+    """Orbe e Ponte de setembro com extratos de outubro e competência 2026-10: integridade falha (código 3) e o relatório
+    diz que é inválido. (Com os extratos também de setembro, o motor para antes, na entrada: código 1.)"""
+    from tests.test_saida_cli import _entrada_com_extratos_de_outubro
+    entrada = _entrada_com_extratos_de_outubro(pasta_dados, tmp_path)
+    saida = tmp_path / "saida"
+    assert main(["fechar", "--entrada", str(entrada), "--saida", str(saida), "--competencia", "2026-10", "--sem-ia"]) == 3
+    rel = (saida / "RELATORIO_FECHAMENTO.md").read_text(encoding="utf-8")
     assert "RELATÓRIO INVÁLIDO" in rel and "Integridade: OK" not in rel
-    assert not (tmp_path / "resumo.json").exists()
+    assert not (saida / "resumo.json").exists()
