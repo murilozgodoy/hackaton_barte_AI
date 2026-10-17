@@ -312,7 +312,41 @@ def por_natureza(f) -> dict:
                       "ids": list(conta["id_saida"]), "arquivo_origem": "pendencias.csv",
                       "fora_da_soma": [f"{r.id_saida} ({'informativa' if r.informativa else 'incluída em ' + str(r.incluida_em)})"
                                        for r in fora.itertuples(index=False)]}
+    out["CONTESTAR_PONTE"] = {**out["CONTESTAR_PONTE"], **_contestar_ponte(f)}
     return out
+
+
+def valor_pedido(linhas) -> Decimal:
+    """O que se PEDE à contraparte num pedido de ponte_contestacao.csv: a diferença até o spread contratado
+    (diferenca_contrato_brl) quando a linha a tem (spread negativo: a trava deveria ter sido honrada); senão o valor_brl
+    (excesso cheio a devolver; repetida = 0). Sempre em valor absoluto."""
+    total = ZERO
+    for r in linhas:
+        dif = r.get("diferenca_contrato_brl")
+        usar = dif if dif not in (None, "") and not (isinstance(dif, float) and pd.isna(dif)) else r.get("valor_brl")
+        total += abs(Decimal(str(usar))) if usar not in (None, "") else ZERO
+    return total
+
+
+def _contestar_ponte(f) -> dict:
+    """CONTESTAR_PONTE publica o que se pede ao parceiro: a soma dos pedidos de comunicacoes/ponte_contestacao.csv
+    (mesma lista do anexo), com o detalhe por pedido. As pendências da natureza ficam em `pendencias`; os valor_brl de
+    pendencias.csv não mudam (o spread negativo continua o que aconteceu)."""
+    from .pendencias import lista_contestacao
+    pend = f.pendencias
+    pend_ids = list(_na_soma(pend[pend["natureza"] == "CONTESTAR_PONTE"])["id_saida"]) if len(pend) else []
+    lc = lista_contestacao(f.ponte_linhas) if len(f.ponte_linhas) else pd.DataFrame()
+    pedidos = []
+    for pedido, g in (lc.groupby("pedido", sort=True) if len(lc) else []):
+        linhas = g.to_dict("records")
+        pedidos.append({"pedido": pedido, "natureza": str(g["natureza"].iloc[0]), "valor_brl": _s(valor_pedido(linhas)),
+                        "coluna": "diferenca_contrato_brl" if g["diferenca_contrato_brl"].notna().any() else "valor_brl",
+                        "ids": list(g["ref_origem"])})
+    return {"quantidade": len(pedidos), "quantidade_de": "pedidos",
+            "valor_brl": _s(soma(Decimal(x["valor_brl"]) for x in pedidos)) if pedidos else "0.00",
+            "ids": [i for x in pedidos for i in x["ids"]], "arquivo_origem": "comunicacoes/ponte_contestacao.csv",
+            "pedidos": pedidos, "pendencias": pend_ids,
+            "base": "o que se pede ao parceiro (soma dos pedidos do anexo da contestação), não o que aconteceu"}
 
 
 def _na_soma(g: pd.DataFrame) -> pd.DataFrame:
@@ -322,18 +356,40 @@ def _na_soma(g: pd.DataFrame) -> pd.DataFrame:
     return g[~g["informativa"].astype(bool) & (g["incluida_em"].isna() | (g["incluida_em"] == ""))]
 
 
-def checar_por_natureza(f):
-    """Integridade: para cada natureza, a soma (valor absoluto) dos ids listados nos arquivos de origem = valor_brl."""
+def checar_por_natureza(f, pasta: Path):
+    """Integridade, contra os arquivos gravados: FATURAR = soma dos ids em notas_a_emitir.csv; CONTESTAR_PONTE = soma
+    dos pedidos em comunicacoes/ponte_contestacao.csv (pedido a pedido); as demais = soma dos valores absolutos dos ids
+    em pendencias.csv."""
     from .validacao import Checagem
+    pasta = Path(pasta)
+
+    def ler(nome):
+        caminho = pasta / nome
+        return list(csv.DictReader(open(caminho, encoding="utf-8"), delimiter=";")) if caminho.exists() else None
+
+    notas, pend, contest = ler("notas_a_emitir.csv"), ler("pendencias.csv"), ler("comunicacoes/ponte_contestacao.csv")
     erros = []
     for chave, d in por_natureza(f).items():
-        origem = f.notas if d["arquivo_origem"] == "notas_a_emitir.csv" else f.pendencias
-        sel = origem[origem["id_saida"].isin(d["ids"])]
-        total = soma(abs(v) for v in sel["valor_brl"] if v is not None)
+        if chave == "CONTESTAR_PONTE":
+            if contest is None:
+                continue   # sem rascunhos de comunicação (base sem comunicacoes.csv): nada a conferir em arquivo
+            for p in d["pedidos"]:
+                linhas = [r for r in contest if r["pedido"] == p["pedido"]]
+                if [r["ref_origem"] for r in linhas] != p["ids"] or valor_pedido(linhas) != Decimal(p["valor_brl"]):
+                    erros.append(f"CONTESTAR_PONTE pedido {p['pedido']}: anexo soma {valor_pedido(linhas)}, publicado {p['valor_brl']}")
+            if sorted({r["pedido"] for r in contest}) != [p["pedido"] for p in d["pedidos"]]:
+                erros.append("CONTESTAR_PONTE: pedidos do anexo diferem dos publicados")
+            total = soma(Decimal(p["valor_brl"]) for p in d["pedidos"]) if d["pedidos"] else ZERO
+            if total != Decimal(d["valor_brl"]):
+                erros.append(f"CONTESTAR_PONTE: pedidos somam {total}, publicado {d['valor_brl']}")
+            continue
+        origem = notas if d["arquivo_origem"] == "notas_a_emitir.csv" else pend
+        sel = [r for r in origem or [] if r["id_saida"] in d["ids"]]
+        total = soma(abs(Decimal(r["valor_brl"])) for r in sel if r["valor_brl"] != "")
         if len(sel) != len(d["ids"]) or len(sel) != d["quantidade"] or total != Decimal(d["valor_brl"]):
             erros.append(f"{chave}: ids somam {total}, publicado {d['valor_brl']}")
-    return Checagem("integridade", "7. por natureza: soma dos ids listados = valor publicado", not erros,
-                    "; ".join(erros) if erros else f"{len(por_natureza(f))} naturezas conferidas")
+    return Checagem("integridade", "7. por natureza: soma dos ids nos arquivos de origem = valor publicado", not erros,
+                    "; ".join(erros) if erros else f"{len(por_natureza(f))} naturezas conferidas nos arquivos")
 
 
 def _primeira_frase(texto, limite: int = 160) -> str:

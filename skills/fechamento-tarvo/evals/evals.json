@@ -150,7 +150,7 @@
     "files": [
       "saida/ de setembro"
     ],
-    "expected_output": "Um cartão/barra por natureza de totais.por_natureza (FATURAR 21 / R$ 243.284,29; COBRAR_ORBE 2 / R$ 1.576,23; CONTESTAR_PONTE 5 / R$ 3.252,90; DEVOLVER_LOJISTA 1 / R$ 15.396,77; NAO_FATURAR 2 / R$ 7.881,55; ACOMPANHAR 3 / R$ 20.256,65), valores idênticos ao resumo.json, cada um com o arquivo de origem (notas_a_emitir.csv ou pendencias.csv); o que está em fora_da_soma aparece marcado, sem somar. Nenhum total geral.",
+    "expected_output": "Um cartão/barra por natureza de totais.por_natureza (FATURAR 21 / R$ 243.284,29; COBRAR_ORBE 2 / R$ 1.576,23; CONTESTAR_PONTE 3 pedidos / R$ 4.984,83 (a: R$ 1.418,85; b: R$ 3.565,98; c: R$ 0,00), o que se pede à Ponte; DEVOLVER_LOJISTA 1 / R$ 15.396,77; NAO_FATURAR 2 / R$ 7.881,55; ACOMPANHAR 3 / R$ 20.256,65), valores idênticos ao resumo.json, cada um com o arquivo de origem (notas_a_emitir.csv ou pendencias.csv); o que está em fora_da_soma aparece marcado, sem somar. Nenhum total geral.",
     "assertions": [
       "cada valor do painel é idêntico a totais.por_natureza[*].valor_brl",
       "não há total que some naturezas diferentes",

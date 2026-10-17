@@ -139,7 +139,7 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
     f = Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, nf, sem_nota,
                    ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, cart, n_cart, dados["taxas"],
                    meta_ponte, checagens, list(config.avisos) + ext.avisos + avisos_extra, dv.so_pendencia)
-    f.checagens += [relatorio.checar_diferenca_notas(f), relatorio.checar_por_natureza(f)]
+    f.checagens.append(relatorio.checar_diferenca_notas(f))
     return f
 
 
@@ -179,8 +179,8 @@ def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None,
         return res
 
     gravar_relatorio()
-    # entrega: todo arquivo listado em "arquivos" existe na pasta de saída (o relatório sai de novo com a checagem)
-    f.checagens.append(checar_arquivos(arquivos))
+    # contra os arquivos já gravados: por natureza (7) e todo arquivo listado existe (8); o relatório sai de novo com elas
+    f.checagens += [relatorio.checar_por_natureza(f, pasta), checar_arquivos(arquivos)]
     res = gravar_relatorio()
     resumo_path = pasta / "resumo.json"
     if f.integro:

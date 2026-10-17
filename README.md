@@ -216,9 +216,6 @@ pendência com dono, nunca palpite.
   aprova) só tem as mensagens da Helena relatando a concessão, sem aprovação nominal do Comercial no Slack.
   Regra confirmada pela Helena e alterada depois pelo time conta como premissa (a linha mais recente do
   histórico decide).
-- **Natureza CONTESTAR_PONTE em `totais.por_natureza`** soma o excesso da Mundo Aberto (R$ 1.418,85) com o
-  valor absoluto do spread negativo do relatório (R$ 1.834,05, o que aconteceu), não com o que se pede à
-  Ponte (R$ 3.565,98, que está em `diferenca_contrato_brl` e no `ponte.md`).
 - **Os cenários 10 a 13 dos evals** (prazo, total, painel, base inicial) estão descritos, mas ainda não
   foram rodados num modelo; o comportamento do motor que eles cobram tem teste automatizado.
 - A sugestão de conta por IA, quando ligada, usa o modelo definido em `ANTHROPIC_MODEL`

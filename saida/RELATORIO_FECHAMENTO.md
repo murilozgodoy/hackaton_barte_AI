@@ -200,7 +200,7 @@ Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticam
 - ✅ 5. lançamento classificado por REGRA tem conta: 0 sem conta
 - ✅ 6. saldo do AURORA fecha linha a linha: 612334.81 + -2532423.41 = -1920088.60; extrato diz -1920088.60
 - ✅ 2. notas − comissão total = − comissões sem nota: notas − comissão = 5.50; comissões sem nota somam -5.50
-- ✅ 7. por natureza: soma dos ids listados = valor publicado: 6 naturezas conferidas
+- ✅ 7. por natureza: soma dos ids nos arquivos de origem = valor publicado: 6 naturezas conferidas nos arquivos
 - ✅ 8. todo arquivo listado em "arquivos" existe na pasta de saída: 15 arquivos e pastas
 
 Arquivos: `comissoes_por_lojista.csv`, `divergencias_taxa.csv`, `notas_a_emitir.csv`, `lancamentos_classificados.csv`, `pendencias.csv`, `rastro.csv`, `carteira_pendente.csv`, `comunicacoes`, `comunicacoes/orbe_contestacao.csv`, `comunicacoes/orbe.md`, `comunicacoes/ponte_contestacao.csv`, `comunicacoes/ponte.md`, `comunicacoes/comercial.md`, `comunicacoes/avisos_nova_condicao.md`, `RELATORIO_FECHAMENTO.md`.

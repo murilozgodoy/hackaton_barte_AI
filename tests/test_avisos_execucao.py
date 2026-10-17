@@ -172,11 +172,27 @@ def test_por_natureza_bate_com_os_arquivos_e_nao_tem_total_geral(tmp_path, capsy
     for nome in ("notas_a_emitir.csv", "pendencias.csv"):
         linhas.update({r["id_saida"]: r for r in csv.DictReader(open(s / nome, encoding="utf-8"), delimiter=";")})
     for nat, d in pn.items():
+        if nat == "CONTESTAR_PONTE":
+            continue
         assert all(linhas[i]["natureza"] == nat for i in d["ids"] if i.startswith("PEN-"))
         assert sum(abs(D(linhas[i]["valor_brl"])) for i in d["ids"]) == D(d["valor_brl"]) and len(d["ids"]) == d["quantidade"]
     assert pn["FATURAR"]["valor_brl"] == t["notas"]["valor_total_brl"] and pn["FATURAR"]["arquivo_origem"] == "notas_a_emitir.csv"
-    # mesmas exclusões do por_responsavel: as naturezas de pendência somam o em jogo
-    assert sum(D(d["valor_brl"]) for n, d in pn.items() if n != "FATURAR") == D(t["pendencias"]["em_jogo_brl"])
+    # CONTESTAR_PONTE = o que se PEDE à Ponte: soma dos pedidos do anexo (a: excesso; b: diferença até o contratado; c: 0)
+    cp = pn["CONTESTAR_PONTE"]
+    anexo = list(csv.DictReader(open(s / "comunicacoes" / "ponte_contestacao.csv", encoding="utf-8"), delimiter=";"))
+    pedido = {p["pedido"]: p for p in cp["pedidos"]}
+    assert set(pedido) == {r["pedido"] for r in anexo} and cp["quantidade"] == len(pedido)
+    a = [r for r in anexo if r["pedido"] == "a"]
+    b = [r for r in anexo if r["pedido"] == "b"]
+    assert D(pedido["a"]["valor_brl"]) == sum(D(r["valor_brl"]) for r in a)
+    assert D(pedido["b"]["valor_brl"]) == -sum(D(r["diferenca_contrato_brl"]) for r in b) and pedido["c"]["valor_brl"] == "0.00"
+    assert D(cp["valor_brl"]) == sum(D(p["valor_brl"]) for p in cp["pedidos"])
+    assert all(linhas[i]["natureza"] == "CONTESTAR_PONTE" for i in cp["pendencias"])
+    # os valor_brl de pendencias.csv não mudam: o spread negativo segue o que aconteceu
+    assert all(D(linhas[i]["valor_brl"]) < 0 for i in cp["pendencias"] if linhas[i]["tipo"] == "SPREAD_NEGATIVO")
+    # demais naturezas de pendência: mesmas exclusões do por_responsavel
+    assert sum(D(d["valor_brl"]) for n, d in pn.items() if n not in ("FATURAR", "CONTESTAR_PONTE")) + sum(
+        abs(D(linhas[i]["valor_brl"])) for i in cp["pendencias"]) == D(t["pendencias"]["em_jogo_brl"])
     fora = [x for d in pn.values() for x in d.get("fora_da_soma", [])]
     assert any("informativa" in x for x in fora) and any("incluída em" in x for x in fora)
 
@@ -210,3 +226,19 @@ def test_arquivo_listado_que_nao_existe_falha_a_checagem(tmp_path):
     (tmp_path / "a.csv").write_text("x")
     c = checar_arquivos({"a": tmp_path / "a.csv", "b": tmp_path / "sumiu.csv"})
     assert not c.ok and c.nivel == "ERRO" and "sumiu.csv" in c.detalhe
+
+
+def test_checagem_7_falha_se_o_anexo_da_ponte_nao_bate(tmp_path, capsys):
+    from src.fechamento import executar
+    from src.relatorio import checar_por_natureza
+    from src import cli
+    assert main(["fechar", "--saida", str(tmp_path / "s"), "--sem-ia", "--json"]) == 0
+    capsys.readouterr()
+    base = cli.resolver_regras(None)
+    ctx = cli.carregar_contexto(type("A", (), {"entrada": None, "competencia": None})(), base)
+    f = executar(ctx.dados, ctx.config, ctx.competencia, usar_ia=False)
+    assert checar_por_natureza(f, tmp_path / "s").ok
+    anexo = tmp_path / "s" / "comunicacoes" / "ponte_contestacao.csv"
+    anexo.write_text(anexo.read_text(encoding="utf-8").replace(";-1351.87;", ";-1351.00;"), encoding="utf-8")
+    c = checar_por_natureza(f, tmp_path / "s")
+    assert not c.ok and "CONTESTAR_PONTE pedido b" in c.detalhe

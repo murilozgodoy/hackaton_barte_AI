@@ -97,19 +97,105 @@
         "fora_da_soma": []
       },
       "CONTESTAR_PONTE": {
-        "quantidade": 5,
-        "valor_brl": "3252.90",
+        "quantidade": 3,
+        "valor_brl": "4984.83",
         "ids": [
+          "PC-0926-0011",
+          "PC-0926-0016",
+          "PC-0926-0033",
+          "PC-0926-0039",
+          "PC-0926-0045",
+          "PC-0926-0075",
+          "PC-0926-0098",
+          "PC-0926-0141",
+          "PC-0926-0145",
+          "PC-0926-0180",
+          "PC-0926-0188",
+          "PC-0926-0236",
+          "PC-0926-0240",
+          "PC-0926-0266",
+          "PC-0926-0364",
+          "PC-0926-0373",
+          "PC-0926-0388",
+          "PC-0926-0409",
+          "PC-0926-0434",
+          "PC-0926-0487",
+          "PC-0926-0492",
+          "PC-0926-0516",
+          "PC-0926-0566",
+          "PC-0926-0210",
+          "PC-0926-0326",
+          "PC-0926-0491",
+          "PC-0926-0545",
+          "PC-0926-0162"
+        ],
+        "arquivo_origem": "comunicacoes/ponte_contestacao.csv",
+        "fora_da_soma": [
+          "PEN-0005 (incluída em DIVERGENCIA_TAXA)"
+        ],
+        "quantidade_de": "pedidos",
+        "pedidos": [
+          {
+            "pedido": "a",
+            "natureza": "EXCESSO_SPREAD",
+            "valor_brl": "1418.85",
+            "coluna": "valor_brl",
+            "ids": [
+              "PC-0926-0011",
+              "PC-0926-0016",
+              "PC-0926-0033",
+              "PC-0926-0039",
+              "PC-0926-0045",
+              "PC-0926-0075",
+              "PC-0926-0098",
+              "PC-0926-0141",
+              "PC-0926-0145",
+              "PC-0926-0180",
+              "PC-0926-0188",
+              "PC-0926-0236",
+              "PC-0926-0240",
+              "PC-0926-0266",
+              "PC-0926-0364",
+              "PC-0926-0373",
+              "PC-0926-0388",
+              "PC-0926-0409",
+              "PC-0926-0434",
+              "PC-0926-0487",
+              "PC-0926-0492",
+              "PC-0926-0516",
+              "PC-0926-0566"
+            ]
+          },
+          {
+            "pedido": "b",
+            "natureza": "SPREAD_NEGATIVO",
+            "valor_brl": "3565.98",
+            "coluna": "diferenca_contrato_brl",
+            "ids": [
+              "PC-0926-0210",
+              "PC-0926-0326",
+              "PC-0926-0491",
+              "PC-0926-0545"
+            ]
+          },
+          {
+            "pedido": "c",
+            "natureza": "REPETIDA",
+            "valor_brl": "0.00",
+            "coluna": "valor_brl",
+            "ids": [
+              "PC-0926-0162"
+            ]
+          }
+        ],
+        "pendencias": [
           "PEN-0004",
           "PEN-0007",
           "PEN-0008",
           "PEN-0009",
           "PEN-0010"
         ],
-        "arquivo_origem": "pendencias.csv",
-        "fora_da_soma": [
-          "PEN-0005 (incluída em DIVERGENCIA_TAXA)"
-        ]
+        "base": "o que se pede ao parceiro (soma dos pedidos do anexo da contestação), não o que aconteceu"
       },
       "DEVOLVER_LOJISTA": {
         "quantidade": 1,
@@ -444,9 +530,9 @@
       "detalhe": "notas − comissão = 5.50; comissões sem nota somam -5.50"
     },
     {
-      "nome": "7. por natureza: soma dos ids listados = valor publicado",
+      "nome": "7. por natureza: soma dos ids nos arquivos de origem = valor publicado",
       "ok": true,
-      "detalhe": "6 naturezas conferidas"
+      "detalhe": "6 naturezas conferidas nos arquivos"
     },
     {
       "nome": "8. todo arquivo listado em \"arquivos\" existe na pasta de saída",
