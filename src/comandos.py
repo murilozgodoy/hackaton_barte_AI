@@ -29,6 +29,7 @@ PREFIXOS = {"PARAMETRO": "P", "TAXA_EXCECAO": "X", "IGNORAR_DUPLICADO": "D", "EX
             "AJUSTE_PARCEIRO": "J", "CLASSIFICAR_CONTA": "C", "DONO_PENDENCIA": "DP", "ALERTA": "A", "MANUAL": "M"}
 _RE_ID_REGRA = re.compile(r"^[A-Z]+-\d+")
 COLUNAS_APROVADORES = ["tipo", "quem_aprova", "quem_registra", "informado_por", "data"]
+COLUNAS_REGRAS_SIM, COLUNAS_COMPLEMENTO_SIM = COLUNAS_REGRAS, COLUNAS_COMPLEMENTO   # usadas pela simulação do efeito
 COLUNAS_HISTORICO = ["data", "quem", "id_regra", "acao", "antes", "depois", "motivo", "fonte", "aprovado_por", "registrado_por"]
 
 

@@ -138,14 +138,16 @@ def carregar_contexto(args, base: BaseRegras) -> Contexto:
     return Contexto(pasta, arquivos, dados, config, competencia, not getattr(args, "competencia", None), checagens)
 
 
-def contexto_validacao(args, base: BaseRegras) -> tuple[_Contexto | None, dict | None]:
-    """Para regra propor/aplicar: com --entrada, confere contas e CNPJs contra os arquivos do mês."""
+def contexto_validacao(args, base: BaseRegras) -> tuple[_Contexto | None, Contexto | None]:
+    """Para regra propor/aplicar: com --entrada, confere contas e CNPJs contra os arquivos do mês (e permite simular
+    o efeito da regra no fechamento desse mês)."""
     if not getattr(args, "entrada", None):
         return None, None
     ctx = carregar_contexto(args, base)
     plano = ctx.dados["plano_contas"]
+    bancos = {f["rotulo"] for f in carregar_config_fontes(base.pasta).values() if f.get("rotulo")}
     return _Contexto(contas_ok=set(plano.loc[plano["aceita_lancto"], "cod_conta"]), contas_todas=set(plano["cod_conta"]),
-                     cnpjs=set(ctx.config.cadastro["cnpj"]), bancos={"AURORA", "MERIDIANO"}), ctx.dados
+                     cnpjs=set(ctx.config.cadastro["cnpj"]), bancos=bancos), ctx
 
 
 # --------------------------------------------------------------------------- impressão
@@ -404,18 +406,26 @@ def _campos(lista: list[str]) -> dict[str, str]:
 
 def cmd_regra(args) -> int:
     base = resolver_regras(args.regras)
-    ctx_val, _dados = contexto_validacao(args, base)
+    ctx_val, ctx = contexto_validacao(args, base)
     hoje = date.today()
     if args.acao == "propor":
-        lanc = None
         try:
-            return _cmd_regra_propor(args, base, ctx_val, hoje)
+            return _cmd_regra_propor(args, base, ctx_val, ctx, hoje)
         except ErroConfig as err:
             raise Parada(SAIDA_REGRAS, str(err)) from None
 
-    # aplicar
+    # aplicar: antes de tudo, quem pode aprovar aquele tipo (regras/aprovadores.csv)
     try:
         proposta = comandos.ler_proposta(args.proposta)
+    except (OSError, ValueError, KeyError) as err:
+        raise Parada(SAIDA_REGRAS, f"proposta ilegível: {err}") from None
+    tipo = proposta.linha.get("tipo", "COMPLEMENTO") if proposta.alvo == "regras_negocio.csv" else "COMPLEMENTO"
+    qa, qr = comandos.quem_aprova(base.pasta, tipo)
+    if not args.json:
+        print(f"Regra do tipo {tipo}: quem aprova é {qa or 'qualquer pessoa'}, quem registra é {qr or 'quem aprova'} "
+              f"(regras/aprovadores.csv). Aprovador informado: {args.aprovado_por}"
+              + (f"; registro: {args.registrado_por}" if args.registrado_por else "") + ".")
+    try:
         res = comandos.aplicar(base.pasta, proposta, args.aprovado_por, ctx_val, hoje, args.registrado_por)
     except comandos.ErroComando as err:
         raise Parada(err.codigo, err.mensagem) from None
@@ -425,6 +435,7 @@ def cmd_regra(args) -> int:
         raise Parada(SAIDA_REGRAS, f"proposta ilegível: {err}") from None
     if base.zip_origem is not None:
         res["zip_novo"] = str(base.gravar_zip_novo(hoje))
+    res["aprovacao"] = {"tipo": tipo, "quem_aprova": qa, "quem_registra": qr}
     if args.json:
         _json({"comando": "regra aplicar", "ok": True, "codigo": SAIDA_OK, **res})
     else:
@@ -436,7 +447,27 @@ def cmd_regra(args) -> int:
     return SAIDA_OK
 
 
-def _cmd_regra_propor(args, base: BaseRegras, ctx_val, hoje: date) -> int:
+def _simular_efeito(args, base: BaseRegras, ctx: Contexto | None, p) -> tuple[dict | None, str | None]:
+    """Com --entrada, fecha o mês duas vezes numa pasta temporária (base x base + proposta) e devolve a comparação.
+    Nada é gravado. Sem --entrada, devolve o aviso de que não dá para simular."""
+    if ctx is None:
+        return None, "sem --entrada não dá para simular o efeito no fechamento: passe o zip ou a pasta do mês"
+    from . import simulacao
+    carteira, contestacao = None, None
+    if getattr(args, "anterior", None):
+        try:
+            carteira = carteira_mod.ler(args.anterior)
+            contestacao = carteira_mod.ler_contestacao(args.anterior)
+        except ErroLeitura as e:
+            raise Parada(SAIDA_ENTRADA, f"Carteira anterior com problema: {e}") from None
+    bancos = {f["rotulo"] for f in carregar_config_fontes(base.pasta).values() if f.get("rotulo")}
+    try:
+        return simulacao.simular(base.pasta, p, ctx.dados, ctx.competencia, bancos, carteira, contestacao), None
+    except ErroConfig as e:
+        return None, f"a base com a proposta não fecha o mês: {e}"
+
+
+def _cmd_regra_propor(args, base: BaseRegras, ctx_val, ctx: Contexto | None, hoje: date) -> int:
     if True:
         lanc = None
         caminho_lanc = Path(args.saida) / "lancamentos_classificados.csv"
@@ -444,13 +475,16 @@ def _cmd_regra_propor(args, base: BaseRegras, ctx_val, hoje: date) -> int:
             lanc = pd.read_csv(caminho_lanc, sep=";", dtype=str, keep_default_na=False, encoding="utf-8")
         p = comandos.propor(base.pasta, args.tipo, _campos(args.campos), ctx_val, lanc, hoje)
         destino = Path(args.proposta) if args.proposta else Path(args.saida) / "propostas" / f"{p.linha.get('id') or p.linha.get('cnpj') or 'proposta'}.json"
+        efeito_sim, aviso_sim = (None, None)
         if p.valida:
             destino.parent.mkdir(parents=True, exist_ok=True)
             comandos.gravar_proposta(p, destino)
+            efeito_sim, aviso_sim = _simular_efeito(args, base, ctx, p)
         codigo = SAIDA_OK if p.valida else SAIDA_REGRAS
         if args.json:
             _json({"comando": "regra propor", "ok": p.valida, "codigo": codigo, **p.para_json(),
-                   "arquivo_proposta": str(destino) if p.valida else None})
+                   "arquivo_proposta": str(destino) if p.valida else None,
+                   "efeito_simulado": efeito_sim, "aviso_simulacao": aviso_sim})
             return codigo
         print(f"Proposta para {p.alvo} ({'VÁLIDA' if p.valida else 'INVÁLIDA'}):")
         print("  " + ";".join(str(p.linha.get(c, "")) for c in p.linha))
@@ -465,6 +499,13 @@ def _cmd_regra_propor(args, base: BaseRegras, ctx_val, hoje: date) -> int:
             print("Efeito esperado:")
             for e in p.efeito:
                 print(f"  - {e}")
+        if efeito_sim is not None:
+            print(f"Efeito simulado no fechamento de {competencia_texto(efeito_sim['competencia'])} (fechamento refeito numa pasta "
+                  f"temporária com a regra proposta; nada gravado):")
+            for e in efeito_sim["texto"]:
+                print(f"  - {e}")
+        elif aviso_sim:
+            print(f"  [aviso] {aviso_sim}")
         if p.aprovacao and p.aprovacao.get("quem_aprova"):
             print(f"Aprovação: {p.aprovacao['quem_aprova']} (registro: {p.aprovacao['quem_registra']}), "
                   f"conforme regras/aprovadores.csv")
@@ -528,6 +569,7 @@ def construir_parser() -> argparse.ArgumentParser:
     pp.add_argument("--tipo", required=True, help=f"um de {', '.join(comandos.TIPOS)} ou COMPLEMENTO")
     pp.add_argument("--campos", nargs="+", metavar="chave=valor", required=True)
     pp.add_argument("--proposta", type=Path, help="onde gravar a proposta (padrão: <saida>/propostas/<id>.json)")
+    pp.add_argument("--anterior", type=Path, help="pasta de saída do mês anterior, para a simulação considerar a carteira pendente")
     _comuns(pp)
     pa = acao.add_parser("aplicar", help="grava a proposta validada e registra no histórico")
     pa.add_argument("--proposta", type=Path, required=True)
