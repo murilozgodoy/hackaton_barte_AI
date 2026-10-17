@@ -13,6 +13,9 @@ metadata:
 ## Limites (leia antes de qualquer coisa)
 
 1. **Nunca calcule, estime, arredonde ou ajuste um valor.** Todo número vem de `saida/` gerado pelo motor. Se o motor não rodou ou falhou na integridade, não há número para apresentar.
+   **Todo número, data, prazo ou status que você apresentar tem que existir literalmente em `resumo.json`, `RELATORIO_FECHAMENTO.md` ou na saída de `explicar`.** Não some, não subtraia, não agrupe, não compare datas com a data de hoje. Se precisar de um valor que não está lá, diga que o motor não publica esse valor.
+   - Errado: "comissão total de R$ 243.278,79" somando checkout + remessa por conta própria; "as notas dão R$ 5,50 a mais" subtraindo. Certo: `totais.comissao_total_brl` e `totais.diferenca_notas_x_comissao_brl` do `resumo.json`, com o motivo em `totais.diferenca_notas_x_comissao.motivo`.
+   - Errado: "o prazo da Ponte era 09/10 e hoje já passou, pode ter vencido". Certo: "o prazo de contestação é até `data_limite` (lembrete M-01 do `resumo.json`), contado a partir de `base_da_data`". O motor não compara com hoje e você também não: o fechamento pode estar sendo simulado depois do mês, e quem diz se está no prazo é a Helena.
 2. **Nunca edite os arquivos de entrada** (relatório da Orbe, planilha, e-mail, extratos). O motor consome como vêm.
 3. **Nunca identifique lojista por nome.** Só por CNPJ ou EC cadastrado. EC/CNPJ desconhecido é pendência CADASTRO, não adivinhação.
 4. **Nunca decida uma pendência.** Mostre a evidência, pergunte, registre a decisão da pessoa.

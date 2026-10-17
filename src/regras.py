@@ -109,6 +109,9 @@ CHAVES_DUPLICADO = {"ponte": {"num_operacao"}, "orbe": {"id_transacao"}}
 # papel de um lançamento na conciliação entre fontes (CLASSIFICAR_CONTA, opcional)
 PAPEIS = {"recebimento_adquirente", "repasse_lojista", "recurso_remessa", "liquidacao_remessa"}
 _RE_IDENT = re.compile(r"[A-Z][A-Z0-9_]*")
+# prazo= de um lembrete MANUAL: de onde o motor tira data_base e data_limite (sempre das fontes do mês, nunca de hoje)
+PRAZOS = {"contestacao_parceiro": "data de envio do e-mail do parceiro + dias úteis informados no e-mail",
+          "repasse_parceiro": "data de repasse informada no corpo do e-mail do parceiro"}
 
 # chaves obrigatórias e opcionais de `parametros`, por tipo
 ESQUEMA = {
@@ -122,7 +125,7 @@ ESQUEMA = {
                           {"sinal", "gera_pendencia", "tipo_pendencia", "subtipo", "transitoria", "papel"}),
     "DONO_PENDENCIA": ({"tipo_pendencia"}, {"subtipo", "informativa", "incluida_em"}),
     "ALERTA": ({"fonte", "criterio", "tipo_pendencia"}, {"so_para", "subtipo", "informativa"}),
-    "MANUAL": (set(), {"banco", "contem", "cnpj", "linha_negocio", "assunto"}),
+    "MANUAL": (set(), {"banco", "contem", "cnpj", "linha_negocio", "assunto", "prazo"}),
 }
 
 COLUNAS_REGRAS = ["id", "situacao", "como_identificar", "tipo", "parametros", "o_que_fazer",
@@ -854,6 +857,10 @@ def _validar_params(regra: Regra, erro, avisos, onde, ctx: _Contexto):
             p["linha_negocio"] = normalizar(p["linha_negocio"])
             if p["linha_negocio"] not in PRODUTOS:
                 erro(f"linha_negocio '{p['linha_negocio']}' inválida", "use CHECKOUT ou REMESSA")
+        if "prazo" in p:
+            p["prazo"] = p["prazo"].strip().lower()
+            if p["prazo"] not in PRAZOS:
+                erro(f"prazo '{p['prazo']}' desconhecido", f"use um destes: {', '.join(sorted(PRAZOS))}")
         if "assunto" in p:
             p["assunto"] = p["assunto"].strip().lower()
             if not re.fullmatch(r"[a-z][a-z0-9_]*", p["assunto"]):

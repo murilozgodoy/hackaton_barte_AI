@@ -130,9 +130,11 @@ def executar(dados: dict[str, pd.DataFrame], config, competencia: str, usar_ia: 
                             f"contratação válida): {ign['conteudo']}")
 
     meta_ponte = {k: dados["ponte"].attrs.get(k) for k in ("remetente", "assunto", "data_envio", "data_repasse", "prazo_dias_uteis")}
-    return Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, nf, sem_nota,
-                      ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, cart, n_cart, dados["taxas"],
-                      meta_ponte, checagens, list(config.avisos) + ext.avisos + avisos_extra, dv.so_pendencia)
+    f = Fechamento(competencia, chk.linhas, rem.linhas, comissoes, div, nf, sem_nota,
+                   ext.lancamentos, ext.em_transito, pend.pendencias, rastro, conc, cart, n_cart, dados["taxas"],
+                   meta_ponte, checagens, list(config.avisos) + ext.avisos + avisos_extra, dv.so_pendencia)
+    f.checagens.append(relatorio.checar_diferenca_notas(f))
+    return f
 
 
 def escrever(f: Fechamento, pasta: Path, config, entrada: dict | None = None,

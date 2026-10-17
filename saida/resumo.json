@@ -15,6 +15,14 @@
   "totais": {
     "comissao_checkout_brl": "203735.34",
     "comissao_remessa_brl": "39543.45",
+    "comissao_total_brl": "243278.79",
+    "diferenca_notas_x_comissao_brl": "5.50",
+    "diferenca_notas_x_comissao": {
+      "motivo": "1 comissão(ões) com saldo <= 0 não vira(m) nota: COM-CHK-0001 (CHECKOUT, -R$ 5,50). A nota soma só as comissões positivas, por isso as notas superam a comissão total nesse valor",
+      "ids_sem_nota": [
+        "COM-CHK-0001"
+      ]
+    },
     "notas": {
       "quantidade": 21,
       "valor_total_brl": "243284.29"
@@ -216,13 +224,19 @@
       "regra_id": "M-01",
       "situacao": "Prazo de contestação com a Ponte Câmbio",
       "o_que_fazer": "Em caso de divergência, responder o e-mail mensal da Ponte em até 5 dias úteis do recebimento. Vale para os spreads negativos e para o excesso de spread contestado. Depois do prazo a Ponte considera o relatório aceito",
-      "quem_decide": "Helena (Financeiro)"
+      "quem_decide": "Helena (Financeiro)",
+      "data_base": "2026-10-02",
+      "data_limite": "2026-10-09",
+      "base_da_data": "data de envio do e-mail do parceiro (2026-10-02) + 5 dias úteis informados no e-mail (sem contar feriados)"
     },
     {
       "regra_id": "M-02",
       "situacao": "Nota de intermediação antes da data de repasse da Ponte",
       "o_que_fazer": "Emitir a nota de intermediação para a Ponte Câmbio antes da data de repasse informada no e-mail mensal. Sem a nota, o repasse da participação não é creditado",
-      "quem_decide": "Financeiro"
+      "quem_decide": "Financeiro",
+      "data_base": "2026-10-02",
+      "data_limite": "2026-10-06",
+      "base_da_data": "data de repasse informada no corpo do e-mail do parceiro de 2026-10-02; a nota sai antes dela"
     },
     {
       "regra_id": "M-03",
@@ -334,6 +348,11 @@
       "nome": "6. saldo do AURORA fecha linha a linha",
       "ok": true,
       "detalhe": "612334.81 + -2532423.41 = -1920088.60; extrato diz -1920088.60"
+    },
+    {
+      "nome": "2. notas − comissão total = − comissões sem nota",
+      "ok": true,
+      "detalhe": "notas − comissão = 5.50; comissões sem nota somam -5.50"
     }
   ],
   "avisos": [

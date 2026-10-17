@@ -165,6 +165,7 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
         "totais": {
             "comissao_checkout_brl": _s(soma(f.comissoes_checkout["comissao_brl"])),
             "comissao_remessa_brl": _s(soma(f.comissoes_remessa["comissao_brl"])),
+            **_total_e_diferenca(f),
             "notas": {"quantidade": int(len(f.notas)), "valor_total_brl": _s(soma(f.notas["valor_brl"]))},
             "divergencias": resumo_divergencias(f),
             "pendencias": {
@@ -185,8 +186,7 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
         "conciliacao": {**_conciliacao_json(f.conciliacao),
                         "remessa_x_banco": {**_conciliacao_json(f.conciliacao)["remessa_x_banco"],
                                             "observacao": observacao_recursos(f, config)}},
-        "lembretes": [{"regra_id": r.id, "situacao": r.situacao, "o_que_fazer": r.o_que_fazer,
-                       "quem_decide": r.quem_decide} for r in config.lembretes(ref)],
+        "lembretes": [_lembrete_json(r, getattr(f, "meta_ponte", {}) or {}) for r in config.lembretes(ref)],
         "base_de_regras": {"regras_ativas": len(config.regras), "lojistas": int(len(config.cadastro)),
                            "ultima_alteracao_historico": str(config.historico_ultima_alteracao or "")},
         "integridade": [{"nome": c.nome, "ok": c.ok, "detalhe": c.detalhe} for c in f.checagens],
@@ -194,6 +194,48 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
         "arquivos": {k: (f"comunicacoes/{Path(v).name}" if k.startswith("comunicacoes/") else Path(v).name)
                      for k, v in arquivos.items()},   # relativos à pasta deste resumo
     }
+
+
+def _lembrete_json(r, meta: dict) -> dict:
+    from .comunicacoes import prazo_lembrete
+    out = {"regra_id": r.id, "situacao": r.situacao, "o_que_fazer": r.o_que_fazer, "quem_decide": r.quem_decide}
+    pz = prazo_lembrete(r, meta)
+    return {**out, **pz} if pz else out
+
+
+def comissoes_sem_nota(f) -> pd.DataFrame:
+    """Comissões que não viram nota: as de `sem_nota` (checkout com saldo <= 0 e, quando a participação do mês fecha
+    <= 0, a remessa) e, se ainda assim não houver nota de remessa, toda a remessa."""
+    partes = [f.sem_nota[["id_saida", "cnpj", "linha_negocio", "comissao_brl"]]] if len(f.sem_nota) else []
+    rem = f.comissoes_remessa
+    ja_tem_remessa = len(f.sem_nota) and (f.sem_nota["linha_negocio"] == "REMESSA").any()
+    if len(rem) and not ja_tem_remessa and not (f.notas["linha_negocio"] == "REMESSA").any():
+        partes.append(rem[["id_saida", "cnpj", "linha_negocio", "comissao_brl"]])
+    return pd.concat(partes, ignore_index=True) if partes else pd.DataFrame(columns=["id_saida", "cnpj", "linha_negocio", "comissao_brl"])
+
+
+def checar_diferenca_notas(f):
+    """A diferença publicada (notas − comissão total) é exatamente o que ficou sem nota: − Σ comissões sem nota."""
+    from .validacao import Checagem
+    dif = soma(f.notas["valor_brl"]) - soma(f.comissoes["comissao_brl"])
+    sem = soma(comissoes_sem_nota(f)["comissao_brl"])
+    return Checagem("integridade", "2. notas − comissão total = − comissões sem nota", dif == -sem,
+                    f"notas − comissão = {dif}; comissões sem nota somam {sem}")
+
+
+def _total_e_diferenca(f) -> dict:
+    """Comissão total (checkout + remessa) e a diferença notas − comissão, com o motivo: só soma o que já foi calculado."""
+    total = soma(f.comissoes["comissao_brl"])
+    dif = soma(f.notas["valor_brl"]) - total
+    sem = comissoes_sem_nota(f)
+    if len(sem):
+        motivo = (f"{len(sem)} comissão(ões) com saldo <= 0 não vira(m) nota: "
+                  + ", ".join(f"{r.id_saida} ({r.linha_negocio}, {brl(r.comissao_brl)})" for r in sem.itertuples(index=False))
+                  + ". A nota soma só as comissões positivas, por isso as notas superam a comissão total nesse valor")
+    else:
+        motivo = "todas as comissões viram nota: notas = comissão total"
+    return {"comissao_total_brl": _s(total), "diferenca_notas_x_comissao_brl": _s(dif),
+            "diferenca_notas_x_comissao": {"motivo": motivo, "ids_sem_nota": list(sem["id_saida"])}}
 
 
 def _carteira_json(f) -> dict:
@@ -556,8 +598,13 @@ def markdown(f, config, res: dict, causas: dict | None = None, historico: list[d
     lembretes = [r for r in config.lembretes(ref) if r.params.get("assunto") != ASSUNTO_CONCILIACAO_ADQUIRENTE]
     if lembretes:
         partes += ["## Lembretes do fechamento (regras em português, não executadas pelo sistema)", ""]
+        from .comunicacoes import prazo_lembrete
         for r in lembretes:
-            partes.append(f"- **{r.id} · {r.situacao}** ({r.quem_decide}): {r.o_que_fazer}")
+            pz = prazo_lembrete(r, getattr(f, "meta_ponte", {}) or {})
+            prazo = (f" **Data limite: {pz['data_limite']}** ({pz['base_da_data']}; o sistema não compara com a data de hoje)."
+                     if pz and pz["data_limite"] else (f" Data limite: não informada ({pz['base_da_data']})." if pz else ""))
+            texto = f"{r.o_que_fazer.rstrip('.')}.{prazo}" if prazo else r.o_que_fazer
+            partes.append(f"- **{r.id} · {r.situacao}** ({r.quem_decide}): {texto}")
         partes.append("")
 
     c = f.conciliacao

@@ -41,6 +41,28 @@ def dias_uteis_depois(inicio: date, n: int) -> date:
     return d
 
 
+def prazo_lembrete(regra, meta: dict) -> dict | None:
+    """Campos do prazo de um lembrete MANUAL com `prazo=`: data_base, data_limite e base_da_data, tirados do e-mail do
+    parceiro (data de envio, dias úteis, data de repasse). Nunca compara com a data de hoje: dizer se venceu não é do
+    motor (o fechamento pode ser simulado depois do mês)."""
+    tipo = (regra.params or {}).get("prazo")
+    if not tipo:
+        return None
+    envio, dias, repasse = meta.get("data_envio"), meta.get("prazo_dias_uteis"), meta.get("data_repasse")
+    if tipo == "contestacao_parceiro":
+        if not (envio and dias):
+            return {"data_base": None, "data_limite": None,
+                    "base_da_data": "o e-mail do parceiro não traz a data de envio ou os dias úteis do prazo"}
+        return {"data_base": str(envio), "data_limite": str(dias_uteis_depois(envio, int(dias))),
+                "base_da_data": f"data de envio do e-mail do parceiro ({envio}) + {dias} dias úteis informados no e-mail "
+                                "(sem contar feriados)"}
+    if not repasse:
+        return {"data_base": str(envio) if envio else None, "data_limite": None,
+                "base_da_data": "o e-mail do parceiro não traz a data de repasse"}
+    return {"data_base": str(envio) if envio else None, "data_limite": str(repasse),
+            "base_da_data": f"data de repasse informada no corpo do e-mail do parceiro de {envio}; a nota sai antes dela"}
+
+
 def _pct(v) -> str:
     return "" if v is None or pd.isna(v) else f"{Decimal(v).quantize(Decimal('0.01')).normalize():f}%"
 
@@ -184,14 +206,14 @@ def _faixa(serie) -> str:
 def _prazo(config, meta: dict, f) -> str:
     from .notas import primeiro_dia
     ref = primeiro_dia(f.competencia)
-    regra = next((r for r in config.lembretes(ref) if "prazo" in (r.situacao or "").lower()), None)
+    regra = next((r for r in config.lembretes(ref) if r.params.get("prazo") == "contestacao_parceiro"), None)
     partes = []
     if regra is not None:
         partes.append(f"Prazo (regra {regra.id}): {regra.o_que_fazer.rstrip('.')}.")
-    if meta.get("data_envio") and meta.get("prazo_dias_uteis"):
-        limite = dias_uteis_depois(meta["data_envio"], int(meta["prazo_dias_uteis"]))
-        partes.append(f"E-mail do parceiro de {meta['data_envio']}, {meta['prazo_dias_uteis']} dias úteis: responder até "
-                      f"{limite} (sem contar feriados).")
+        pz = prazo_lembrete(regra, meta)
+        if pz["data_limite"]:
+            partes.append(f"E-mail do parceiro de {pz['data_base']}, {meta['prazo_dias_uteis']} dias úteis: responder até "
+                          f"{pz['data_limite']} (sem contar feriados).")
     return " ".join(partes) if partes else "Prazo: ver o e-mail do parceiro."
 
 

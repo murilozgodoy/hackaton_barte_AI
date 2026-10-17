@@ -92,3 +92,39 @@ def test_ultima_linha_do_historico_decide_e_vale_para_varios_ids(pasta_dados, tm
     assert not any("premissas em uso" in a for a in avisos)
     sem = next(a for a in avisos if "sem aprovador" in a)
     assert "C-01, C-02" in sem and "P-05" not in sem
+
+
+# ---------------------------------------------------------------- Causa 1: o motor publica o que a IA somava ou comparava
+
+def test_resumo_publica_total_e_diferenca_notas_com_motivo(pasta_dados, tmp_path, capsys):
+    assert main(["fechar", "--entrada", str(pasta_dados), "--saida", str(tmp_path / "s"), "--sem-ia", "--json"]) == 0
+    t = json.loads((tmp_path / "s" / "resumo.json").read_text(encoding="utf-8"))["totais"]
+    from decimal import Decimal as D
+    assert D(t["comissao_total_brl"]) == D(t["comissao_checkout_brl"]) + D(t["comissao_remessa_brl"])
+    assert D(t["diferenca_notas_x_comissao_brl"]) == D(t["notas"]["valor_total_brl"]) - D(t["comissao_total_brl"])
+    com = {r["id_saida"]: D(r["comissao_brl"]) for r in __import__("csv").DictReader(
+        open(tmp_path / "s" / "comissoes_por_lojista.csv", encoding="utf-8"), delimiter=";")}
+    ids = t["diferenca_notas_x_comissao"]["ids_sem_nota"]
+    assert ids and all(com[i] <= 0 for i in ids) and -sum(com[i] for i in ids) == D(t["diferenca_notas_x_comissao_brl"])
+    assert all(i in t["diferenca_notas_x_comissao"]["motivo"] for i in ids)
+
+
+def test_lembretes_com_prazo_tem_datas_das_fontes_e_nao_de_hoje(pasta_dados, tmp_path, capsys):
+    assert main(["fechar", "--entrada", str(pasta_dados), "--saida", str(tmp_path / "s"), "--sem-ia", "--json"]) == 0
+    lemb = {l["regra_id"]: l for l in json.loads((tmp_path / "s" / "resumo.json").read_text(encoding="utf-8"))["lembretes"]}
+    con = next(l for l in lemb.values() if "dias úteis" in (l.get("base_da_data") or ""))
+    rep = next(l for l in lemb.values() if "data de repasse" in (l.get("base_da_data") or ""))
+    assert con["data_base"] == rep["data_base"] == "2026-10-02"    # data de envio do e-mail do parceiro
+    assert con["data_limite"] == "2026-10-09" and rep["data_limite"] == "2026-10-06"
+    assert not any(k in l for l in lemb.values() for k in ("vencido", "dias_restantes", "hoje"))
+    sem_prazo = [l for l in lemb.values() if "data_limite" not in l]
+    assert sem_prazo, "lembrete sem prazo= não ganha campos de data"
+
+
+def test_prazo_desconhecido_e_erro_de_regra(pasta_dados, tmp_path, capsys):
+    regras = tmp_path / "regras"
+    shutil.copytree(RAIZ / "regras", regras)
+    p = regras / "regras_negocio.csv"
+    p.write_text(p.read_text(encoding="utf-8-sig").replace("prazo=repasse_parceiro", "prazo=amanha"), encoding="utf-8")
+    assert main(["validar", "--entrada", str(pasta_dados), "--regras", str(regras), "--json"]) == 2
+    assert "prazo 'amanha' desconhecido" in capsys.readouterr().out

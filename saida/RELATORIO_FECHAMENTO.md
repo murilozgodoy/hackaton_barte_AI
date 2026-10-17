@@ -63,8 +63,7 @@ O que fazer com cada dinheiro. Naturezas diferentes nunca são somadas (faturar,
 
 ### Conhecimento capturado
 
-- Base de regras: 105 alterações registradas em `historico_alteracoes.csv` desde 2026-09-01 (79 criou, 23 alterou, 1 inativou, 2 removeu), em 80 regras/arquivos. Cada linha traz quem aprovou, quem registrou e a fonte (pessoa, canal, hora). Últimas:
-  - 2026-10-17 · E-03 · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h37 (resposta ao Theo), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“Coloquem os dois na pendência
+- Base de regras: 106 alterações registradas em `historico_alteracoes.csv` desde 2026-09-01 (79 criou, 24 alterou, 1 inativou, 2 removeu), em 81 regras/arquivos. Cada linha traz quem aprovou, quem registrou e a fonte (pessoa, canal, hora). Últimas:
   - 2026-10-17 · DP-14 · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h33 (resposta à Desbravadores), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta à Desbravadores 17/10 11h33 (“A Ponte manda o ajust
   - 2026-10-17 · X-01 · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h37 (resposta ao Theo) — X-01 é TAXA_EXCECAO: a Helena relata a concessão do Comercial, sem aprovação nominal do Comercial no Slack, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
   - 2026-10-17 · causas_divergencia.csv · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h37 (resposta ao Theo), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, resposta ao Theo 17/10 11h37 (“O que decide é o contrato, nã
@@ -72,6 +71,7 @@ O que fazer com cada dinheiro. Naturezas diferentes nunca são somadas (faturar,
   - 2026-10-17 · X-01 · ALTEROU · aprovado por Helena (Financeiro), Slack #duvidas-hackathon-ai, 17/10 11h38 (ao Southlands) e 11h49 (à Datarmos) — X-01 é TAXA_EXCECAO: a Helena relata a concessão do Comercial, sem aprovação nominal do Comercial no Slack, registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Helena (Financeiro), Slack #duvidas-hackathon-ai, ao Southlands 17/10 11h38 (“A devolução da Casa fica separad
   - 2026-10-17 · DP-16 · CRIOU · aprovado por PREMISSA MN AI (sem aprovação do financeiro), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Premissa do time MN AI, decisão de 17/10 13h (HIPOTESES.md, [PREMISSA])
   - 2026-10-17 · DP-17 · CRIOU · aprovado por PREMISSA MN AI (sem aprovação do financeiro), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Premissa do time MN AI, decisão de 17/10 (HIPOTESES.md, [PREMISSA])
+  - 2026-10-17 · M-01, M-02 · ALTEROU · aprovado por PREMISSA MN AI (sem aprovação do financeiro), registrado por Time MN AI (Nader Taha e Murilo Godoy), com Claude Code · fonte: Decisão do usuário (Nader Taha), 17/10, sobre o teste da skill no Claude.ai
 - Pendências: sem `--anterior`, não dá para dizer quais são novas e quais são recorrentes.
 
 ---
@@ -169,8 +169,8 @@ Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticam
 
 ## Lembretes do fechamento (regras em português, não executadas pelo sistema)
 
-- **M-01 · Prazo de contestação com a Ponte Câmbio** (Helena (Financeiro)): Em caso de divergência, responder o e-mail mensal da Ponte em até 5 dias úteis do recebimento. Vale para os spreads negativos e para o excesso de spread contestado. Depois do prazo a Ponte considera o relatório aceito
-- **M-02 · Nota de intermediação antes da data de repasse da Ponte** (Financeiro): Emitir a nota de intermediação para a Ponte Câmbio antes da data de repasse informada no e-mail mensal. Sem a nota, o repasse da participação não é creditado
+- **M-01 · Prazo de contestação com a Ponte Câmbio** (Helena (Financeiro)): Em caso de divergência, responder o e-mail mensal da Ponte em até 5 dias úteis do recebimento. Vale para os spreads negativos e para o excesso de spread contestado. Depois do prazo a Ponte considera o relatório aceito. **Data limite: 2026-10-09** (data de envio do e-mail do parceiro (2026-10-02) + 5 dias úteis informados no e-mail (sem contar feriados); o sistema não compara com a data de hoje).
+- **M-02 · Nota de intermediação antes da data de repasse da Ponte** (Financeiro): Emitir a nota de intermediação para a Ponte Câmbio antes da data de repasse informada no e-mail mensal. Sem a nota, o repasse da participação não é creditado. **Data limite: 2026-10-06** (data de repasse informada no corpo do e-mail do parceiro de 2026-10-02; a nota sai antes dela; o sistema não compara com a data de hoje).
 - **M-03 · Estorno da metade da Tarvo se a Ponte devolver excesso contestado** (Helena (Financeiro)): Se a Ponte devolver ao lojista o excesso de spread contestado, a metade da Tarvo sobre esse excesso é estornada no mês em que o ajuste ocorrer (não se reabre o mês faturado)
 - **M-05 · Recurso de lojista para remessa sem operação no mês** (Financeiro): É dinheiro do lojista para uma remessa que ainda não foi contratada: fica em 2.1.02.001 (recursos de lojistas para remessas a liquidar). Conferir no fechamento do mês seguinte que a operação saiu no relatório do parceiro. Não é pendência nem devolução
 - **M-06 · Aviso à Orbe ou à Ponte antes de toda condição comercial nova** (Comercial): Toda condição comercial nova (TAXA_EXCECAO ou vigência) exige aviso à Orbe (checkout) ou à Ponte (remessa) antes da data de início, com lojista, CNPJ/EC, produto, taxa e vigência. O fechamento seguinte confere se a taxa foi aplicada a partir da data. Rascunhos prontos em saida/comunicacoes/avisos_nova_condicao.md
@@ -199,5 +199,6 @@ Cada transação está em `divergencias_taxa.csv`. Nada foi ajustado automaticam
 - ✅ 5. todo lançamento do MERIDIANO está classificado: 100 lançamentos
 - ✅ 5. lançamento classificado por REGRA tem conta: 0 sem conta
 - ✅ 6. saldo do AURORA fecha linha a linha: 612334.81 + -2532423.41 = -1920088.60; extrato diz -1920088.60
+- ✅ 2. notas − comissão total = − comissões sem nota: notas − comissão = 5.50; comissões sem nota somam -5.50
 
 Arquivos: `comissoes_por_lojista.csv`, `divergencias_taxa.csv`, `notas_a_emitir.csv`, `lancamentos_classificados.csv`, `pendencias.csv`, `rastro.csv`, `carteira_pendente.csv`, `comunicacoes`, `comunicacoes/orbe_contestacao.csv`, `comunicacoes/orbe.md`, `comunicacoes/ponte_contestacao.csv`, `comunicacoes/ponte.md`, `comunicacoes/comercial.md`, `comunicacoes/avisos_nova_condicao.md`.
