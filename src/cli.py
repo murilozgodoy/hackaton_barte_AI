@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from .dinheiro import brl, soma
+from .fechamento import escrever, executar
 from .fontes import carregar_config_fontes, localizar, preparar_entrada
 from .leitores import carregar_todas
 from .leitores.comum import ErroLeitura
@@ -127,13 +129,36 @@ def cmd_validar(args) -> int:
 
 def cmd_fechar(args) -> int:
     ctx = carregar_contexto(args)
+    fech = executar(ctx.dados, ctx.config, ctx.competencia)
+    arquivos = escrever(fech, args.saida)
+    codigo = SAIDA_OK if fech.integro else SAIDA_INTEGRIDADE
     if args.json:
-        print(json.dumps({"comando": "fechar", "ok": True, "codigo": SAIDA_OK, **resumo_contexto(ctx)},
-                         ensure_ascii=False, indent=2, default=str))
-    else:
-        imprimir_contexto(ctx)
-        print("\nCálculo do fechamento: ainda não implementado nesta versão (próxima fase).")
-    return SAIDA_OK
+        print(json.dumps({
+            "comando": "fechar", "ok": fech.integro, "codigo": codigo,
+            "status_integridade": "OK" if fech.integro else "FALHA",
+            **resumo_contexto(ctx),
+            "totais": {"comissao_checkout_brl": str(soma(fech.comissoes["comissao_brl"]))},
+            "orbe_destinos": fech.destinos_orbe,
+            "integridade": [{"nome": c.nome, "ok": c.ok, "detalhe": c.detalhe} for c in fech.checagens],
+            "arquivos": {k: str(v) for k, v in arquivos.items()},
+        }, ensure_ascii=False, indent=2, default=str))
+        return codigo
+
+    imprimir_contexto(ctx)
+    print(f"\nComissão de CHECKOUT por lojista ({ctx.competencia}):")
+    print(f"  {'id_saida':<13}{'lojista':<42}{'cnpj':<16}{'transações':>10}  {'comissão':>16}")
+    for r in fech.comissoes.itertuples(index=False):
+        print(f"  {r.id_saida:<13}{str(r.lojista)[:40]:<42}{r.cnpj:<16}{r.qtd_transacoes:>10}  {brl(r.comissao_brl):>16}")
+    print(f"  {'TOTAL':<13}{'':<42}{'':<16}{int(fech.comissoes['qtd_transacoes'].sum()):>10}  "
+          f"{brl(soma(fech.comissoes['comissao_brl'])):>16}")
+    print("\nDestino das linhas da Orbe: " + ", ".join(f"{k} {v}" for k, v in fech.destinos_orbe.items()))
+    print("\nChecagens de integridade:")
+    for c in fech.checagens:
+        print(f"  [{'ok' if c.ok else 'ERRO':<5}] {c.nome} - {c.detalhe}")
+    print("\nArquivos gravados: " + ", ".join(str(p) for p in arquivos.values()))
+    if not fech.integro:
+        print("\nINTEGRIDADE FALHOU: os números acima não podem ser apresentados como válidos.", file=sys.stderr)
+    return codigo
 
 
 def construir_parser() -> argparse.ArgumentParser:

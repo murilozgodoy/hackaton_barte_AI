@@ -30,6 +30,37 @@ def _hu(v: Decimal) -> Decimal:
     return v.quantize(CENTAVO, rounding=ROUND_HALF_UP)
 
 
+def checar_rastro(saidas: dict[str, tuple[pd.DataFrame, str]], rastro: pd.DataFrame) -> list[Checagem]:
+    """Checagem 1: a soma do rastro por id_saida é igual ao valor reportado, para todo id com valor.
+
+    `saidas` = {nome do arquivo: (DataFrame, coluna de valor)}. Também confere que todo
+    id do rastro existe em alguma saída (nada órfão).
+    """
+    c: list[Checagem] = []
+    somas = rastro.groupby("id_saida")["valor"].apply(_soma) if len(rastro) else pd.Series(dtype=object)
+    ids_saida: set[str] = set()
+    for nome, (df, coluna) in saidas.items():
+        nao_batem, sem_rastro, conferidos = [], [], 0
+        for id_saida, valor in zip(df["id_saida"], df[coluna]):
+            ids_saida.add(id_saida)
+            if valor is None or (not isinstance(valor, Decimal) and pd.isna(valor)):
+                continue  # linha sem valor (ex.: pendência informativa) não precisa de rastro
+            if id_saida not in somas.index:
+                sem_rastro.append(id_saida)
+                continue
+            conferidos += 1
+            if somas[id_saida] != valor:
+                nao_batem.append(f"{id_saida}: reportado {valor}, rastro {somas[id_saida]}")
+        ok = not nao_batem and not sem_rastro
+        detalhe = (f"{conferidos} ids conferidos" if ok else
+                   f"{len(nao_batem)} não batem {nao_batem[:3]}; {len(sem_rastro)} sem rastro {sem_rastro[:3]}")
+        c.append(Checagem("integridade", f"1. soma do rastro = valor reportado ({nome})", ok, detalhe))
+    orfaos = sorted(set(somas.index) - ids_saida)
+    c.append(Checagem("integridade", "1. todo id do rastro existe nas saídas", not orfaos,
+                      f"{len(somas)} ids no rastro" if not orfaos else f"órfãos: {orfaos[:5]}"))
+    return c
+
+
 def validar_leitores(d: dict[str, pd.DataFrame]) -> list[Checagem]:
     c: list[Checagem] = []
 

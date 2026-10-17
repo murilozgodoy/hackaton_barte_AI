@@ -23,14 +23,22 @@ lembrar todo mês até alguém automatizar.**
    sem contrato)? → `EXCLUIR_E_PENDENCIA`
 4. **É um lançamento de extrato que vai sempre para a mesma conta?** → `CLASSIFICAR_CONTA`
 
-Não é nenhum dos quatro? → `MANUAL`. O sistema não executa nada: só cria uma
-pendência com o seu texto de `o_que_fazer` e o nome em `quem_decide`.
+Não é nenhum dos quatro? → `MANUAL`. O sistema não executa nada: só repete, no
+relatório de cada fechamento, o seu texto de `o_que_fazer` como lembrete para quem
+está em `quem_decide`.
 
 Dois tipos de apoio: `IGNORAR_DUPLICADO` (linha repetida num relatório conta uma vez)
 e `DONO_PENDENCIA` (diz quem decide cada tipo de pendência que o sistema gera sozinho,
 como divergência de taxa ou cadastro faltante).
 
-## Três exemplos reais de setembro/2026
+## Quatro exemplos reais de setembro/2026
+
+**Lembrete em português (M-01).** A Ponte dá 5 dias úteis para contestar o relatório.
+`tipo` = MANUAL · `parametros` = `linha_negocio=REMESSA`
+`o_que_fazer` = "Em caso de divergência, responder o e-mail mensal da Ponte em até 5 dias
+úteis do recebimento..." · `quem_decide` = Helena (Financeiro)
+Nada é calculado: o texto aparece no relatório de todo fechamento, com o nome de quem
+decide, até alguém transformar a situação em regra automática.
 
 **Acordo comercial (X-01).** A Casa do Estudante não paga tarifa no checkout de
 01/09 a 31/12/2026.

@@ -137,7 +137,10 @@ def test_exclusoes_duplicado_e_donos(config):
     assert config.regra_duplicado("orbe", SET) is None
     assert config.dono("CADASTRO", SET).quem_decide == "Financeiro/Comercial"
     assert config.dono("DIVERGENCIA_TAXA", SET).quem_decide == "Helena (Financeiro)"
-    assert config.lembretes(SET) == []
+    lembretes = config.lembretes(SET)
+    assert [r.id for r in lembretes] == ["M-01", "M-02", "M-03"]
+    assert all(r.tipo == "MANUAL" and r.quem_decide for r in lembretes)
+    assert lembretes[2].params == {"linha_negocio": "REMESSA", "cnpj": "17217888000111"}
 
 
 @pytest.mark.parametrize("status", ["INATIVA", "PROPOSTA"])
