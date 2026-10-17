@@ -129,7 +129,7 @@ def gerar(f, config, dir_regras: Path, pasta_saida: Path, competencia_txt: str, 
                 dif, metade = soma(g["diferenca_contrato_brl"]), soma(g["metade_tarvo_contrato_brl"])
                 linhas.append(cabeca + f"o que aconteceu: {brl(rel)} de spread no relatório; o que pedimos à Ponte (a trava deveria "
                               f"ter sido honrada): {brl(abs(dif))}, a diferença até o spread contratado de {brl(contr)} "
-                              f"({_faixa(g['taxa_contratada_pct'])} x PTAX x Valor ME), dos quais {brl(metade)} seriam a metade da Tarvo. "
+                              f"({_faixa(g['taxa_contratada_pct'])} x PTAX x Valor ME), do qual a metade da Tarvo seria {brl(metade)}. "
                               f"As colunas spread_relatorio_brl e spread_contratado_brl do anexo trazem os dois valores por operação. "
                               f"Operações: {ops}.")
             else:

@@ -241,8 +241,9 @@ def _exclusoes(c: _Coletor, linhas: pd.DataFrame, linha_negocio: str, unidade: s
                           "metade_tarvo_contrato_brl": soma(gg["metade_tarvo_contrato_brl"])}
                 dois_valores = (f" O que aconteceu: spread {brl(extras['spread_relatorio_brl'])} no relatório. O que pedimos ao "
                                 f"parceiro (a trava deveria ter sido honrada): spread contratado {brl(extras['spread_contratado_brl'])} "
-                                f"({_pct(gg['spread_contratado_pct'])} x PTAX x Valor ME), diferença {brl(abs(extras['diferenca_contrato_brl']))}, "
-                                f"dos quais {brl(extras['metade_tarvo_contrato_brl'])} seriam a metade da Tarvo.")
+                                f"({_pct(gg['spread_contratado_pct'])} x PTAX x Valor ME), ou seja, a diferença de "
+                                f"{brl(abs(extras['diferenca_contrato_brl']))} até esse spread contratado, do qual a metade da Tarvo seria "
+                                f"{brl(extras['metade_tarvo_contrato_brl'])}.")
             c.add(regra.tipo_pendencia, ref, valor, f"{regra.situacao}: {detalhe}.{dois_valores} {regra.o_que_fazer}", regra,
                   _rastro(gg, col_valor, col_regra=None, col_taxa="taxa_aplicada_pct" if linha_negocio == "CHECKOUT" else None),
                   subtipo=regra.subtipo, linha_negocio=linha_negocio,

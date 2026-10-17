@@ -136,7 +136,7 @@ def test_spread_negativo_com_os_dois_valores(fech):
             (D(rel), D(rel), D(contr), D(dif), D(metade)), ref
         assert f"O que aconteceu: spread {brl(D(rel))} no relatório" in r.motivo
         assert f"O que pedimos ao parceiro (a trava deveria ter sido honrada): spread contratado {brl(D(contr))}" in r.motivo
-        assert f"diferença {brl(-D(dif))}, dos quais {brl(D(metade))} seriam a metade da Tarvo" in r.motivo
+        assert f"a diferença de {brl(-D(dif))} até esse spread contratado, do qual a metade da Tarvo seria {brl(D(metade))}" in r.motivo
     assert (soma(s.spread_relatorio_brl), soma(s.spread_contratado_brl), soma(s.diferenca_contrato_brl), soma(s.metade_tarvo_contrato_brl)) == \
         (D("-1834.05"), D("1731.93"), D("-3565.98"), D("865.98"))
     # as outras pendências não têm os dois valores; o rastro continua somando o valor_brl

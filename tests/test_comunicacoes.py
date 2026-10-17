@@ -72,7 +72,7 @@ def test_ponte_mundo_aberto_negativos_e_repetida(saida):
     assert "1.5% aplicado contra 1.2% contratado" in md and "negociado e registrado desde julho" in md and "ressarcir o lojista" in md
     assert "Pedido b — 4 operações com spread negativo, fora da nossa comissão e da nota." in md and "Taxa travada no pedido (D-1)" in md
     assert ("o que aconteceu: -R$ 1.834,05 de spread no relatório; o que pedimos à Ponte (a trava deveria ter sido honrada): "
-            "R$ 3.565,98, a diferença até o spread contratado de R$ 1.731,93") in md and "dos quais R$ 865,98 seriam a metade da Tarvo" in md
+            "R$ 3.565,98, a diferença até o spread contratado de R$ 1.731,93") in md and "do qual a metade da Tarvo seria R$ 865,98" in md
     b = anexo[anexo.pedido == "b"].set_index("ref_origem")
     assert b.loc["PC-0926-0210", ["spread_relatorio_brl", "spread_contratado_brl", "diferenca_contrato_brl", "metade_tarvo_contrato_brl"]].tolist() == ["-687.52", "664.35", "-1351.87", "332.18"]
     assert b.loc["PC-0926-0545", "spread_contratado_brl"] == "292.88" and (anexo[anexo.pedido != "b"].spread_contratado_brl == "").all()
