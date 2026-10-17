@@ -7,7 +7,9 @@ attrs["totais_declarados"] para conferência.
 from __future__ import annotations
 
 import email
+import email.utils
 import io
+import re
 from datetime import date, datetime
 from email import policy
 from pathlib import Path
@@ -42,12 +44,44 @@ _NUMERICAS = ["valor_me", "taxa_cliente", "ptax", "valor_brl", "spread_brl", "sp
 def _anexo_xlsx(caminho: Path) -> tuple[bytes, str, dict]:
     msg = email.message_from_bytes(caminho.read_bytes(), policy=policy.default)
     meta = {"assunto": str(msg.get("Subject", "")), "data_email": str(msg.get("Date", "")),
-            "remetente": str(msg.get("From", ""))}
+            "remetente": str(msg.get("From", "")), **_ler_corpo(msg)}
     for parte in msg.walk():
         nome = parte.get_filename() or ""
         if nome.lower().endswith(".xlsx") or parte.get_content_type().endswith("spreadsheetml.sheet"):
             return parte.get_payload(decode=True), nome, meta
     raise ErroLeitura(f"{caminho.name}: nenhum anexo .xlsx encontrado no e-mail")
+
+
+_RE_REPASSE = re.compile(r"creditad[oa]\s+em\s+(\d{2}/\d{2}/\d{4})", re.IGNORECASE)
+_RE_PRAZO = re.compile(r"(\d+)\s+dias?\s+[úu]teis", re.IGNORECASE)
+
+
+def _ler_corpo(msg) -> dict:
+    """Do texto do e-mail: data de repasse ("será creditado em dd/mm/aaaa") e prazo de contestação ("N dias úteis").
+    Ausentes viram None (quem usa escreve o texto genérico)."""
+    corpo = ""
+    for parte in msg.walk():
+        if parte.get_content_type() == "text/plain":
+            try:
+                corpo += parte.get_content()
+            except Exception:   # corpo ilegível não impede ler o anexo
+                continue
+    data_env = None
+    try:
+        d = email.utils.parsedate_to_datetime(str(msg.get("Date", "")))
+        data_env = d.date() if d else None
+    except (TypeError, ValueError):
+        data_env = None
+    m = _RE_REPASSE.search(corpo)
+    p = _RE_PRAZO.search(corpo)
+    data_repasse = None
+    if m:
+        try:
+            data_repasse = data_br(m.group(1))
+        except ErroLeitura:
+            data_repasse = None
+    return {"corpo": corpo, "data_envio": data_env, "data_repasse": data_repasse,
+            "prazo_dias_uteis": int(p.group(1)) if p else None}
 
 
 def _eh_data(v) -> bool:

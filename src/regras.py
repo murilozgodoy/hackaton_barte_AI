@@ -68,14 +68,13 @@ TIPOS_PENDENCIA = {
     "DIVERGENCIA_TAXA", "TARIFA_ZERO_COBRADA", "SEM_CONTRATO", "SPREAD_NEGATIVO",
     "EXCESSO_SPREAD_CONTESTADO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO", "EXTRATO_NAO_IDENTIFICADO",
     "DEVOLUCAO", "EM_TRANSITO", "REVISAR_IA", "MANUAL", "FORA_COMPETENCIA", "COMPLIANCE",
-    "DUPLICATA_DIVERGENTE", "RECURSO_SEM_OPERACAO", "CONFERIR_REPASSE_PONTE", "CONTESTACAO_PONTE",
-    "ALERTA_ANTECIPACAO",
+    "DUPLICATA_DIVERGENTE", "RECURSO_SEM_OPERACAO", "CONFERIR_REPASSE_PONTE", "ALERTA_ANTECIPACAO",
 }
 # Pendências que o próprio motor gera (sem regra que as origine): precisam de DONO_PENDENCIA.
 PENDENCIAS_DO_MOTOR = {
     "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO", "SALDO_NEGATIVO_LOJISTA", "CADASTRO",
     "EXTRATO_NAO_IDENTIFICADO", "EM_TRANSITO", "REVISAR_IA", "FORA_COMPETENCIA",
-    "DUPLICATA_DIVERGENTE", "CONFERIR_REPASSE_PONTE", "CONTESTACAO_PONTE",
+    "DUPLICATA_DIVERGENTE", "CONFERIR_REPASSE_PONTE",
 }
 # Pendências opcionais: o motor só as gera se houver DONO_PENDENCIA ativa (sem dono, a situação
 # é tratada por lembrete MANUAL). Ligar/desligar é dado (status da regra), não código.
@@ -104,7 +103,7 @@ ESQUEMA = {
                             {"status", "aceitos", "valor_pendencia", "agrupar", "subtipo"}),
     "CLASSIFICAR_CONTA": ({"banco", "contem", "conta", "prioridade"},
                           {"sinal", "gera_pendencia", "tipo_pendencia", "subtipo", "transitoria", "papel"}),
-    "DONO_PENDENCIA": ({"tipo_pendencia"}, {"subtipo", "informativa"}),
+    "DONO_PENDENCIA": ({"tipo_pendencia"}, {"subtipo", "informativa", "incluida_em"}),
     "ALERTA": ({"fonte", "criterio", "tipo_pendencia"}, {"so_para", "subtipo", "informativa"}),
     "MANUAL": (set(), {"banco", "contem", "cnpj", "linha_negocio", "assunto"}),
 }
@@ -643,6 +642,12 @@ def _validar_params(regra: Regra, erro, avisos, onde, ctx: _Contexto):
             p["informativa"] = sim_nao(p.get("informativa", "false"))
         except ValueError as e:
             erro(f"informativa: {e}", "use true ou false")
+        # incluida_em=<tipo>: o valor já está dentro de outra pendência (ex.: a metade do excesso dentro da divergência):
+        # aparece, mas não soma no "em jogo" (nenhuma linha de origem conta duas vezes)
+        if "incluida_em" in p:
+            p["incluida_em"] = normalizar(p["incluida_em"]).replace(" ", "_")
+            if p["incluida_em"] not in TIPOS_PENDENCIA:
+                erro(f"incluida_em '{p['incluida_em']}' desconhecido", f"use um destes: {', '.join(sorted(TIPOS_PENDENCIA))}")
 
     if tipo == "TAXA_EXCECAO":
         try:

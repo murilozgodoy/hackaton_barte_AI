@@ -18,10 +18,10 @@ from .regras import NATUREZA_CONTRATO, Config, Regra
 
 PREFIXO_ID = "PEN-"
 COLUNAS = ["id_saida", "tipo", "ref_origem", "valor_brl", "motivo", "quem_decide", "subtipo", "linha_negocio",
-           "cnpj", "lojista", "qtd_itens", "regra_id", "o_que_fazer", "informativa"]
+           "cnpj", "lojista", "qtd_itens", "regra_id", "o_que_fazer", "informativa", "incluida_em"]
 COLUNAS_RASTRO = ["id_saida", "arquivo_origem", "ref_origem", "valor", "regra_id", "taxa_pct"]
 # ordem de apresentação: o que mexe com dinheiro e nota primeiro, informativas depois
-ORDEM_TIPOS = ["TARIFA_ZERO_COBRADA", "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO", "CONTESTACAO_PONTE",
+ORDEM_TIPOS = ["TARIFA_ZERO_COBRADA", "DIVERGENCIA_TAXA", "EXCESSO_SPREAD_CONTESTADO",
                "CONFERIR_REPASSE_PONTE", "SPREAD_NEGATIVO", "SEM_CONTRATO", "ALERTA_ANTECIPACAO",
                "SALDO_NEGATIVO_LOJISTA", "CADASTRO",
                "RECURSO_SEM_OPERACAO",
@@ -52,6 +52,7 @@ class _Coletor:
             "quem_decide": regra.quem_decide, "subtipo": subtipo, "linha_negocio": linha_negocio, "cnpj": cnpj,
             "lojista": lojista, "qtd_itens": qtd_itens, "regra_id": regra.id, "o_que_fazer": regra.o_que_fazer,
             "informativa": bool(regra.params.get("informativa", False)),   # fora do "em jogo" (regra diz)
+            "incluida_em": regra.params.get("incluida_em"),                 # valor já dentro de outra pendência
             "_rastro": rastro,
         })
 
@@ -92,7 +93,6 @@ def calcular(competencia_ref: date, chk_linhas, rem_linhas, divergencias, sem_no
     _saldo_negativo(c, sem_nota, chk_rastro)
     _extratos(c, lancamentos, em_transito)
     _recurso_sem_operacao(c, lancamentos, conciliacao)
-    _contestacao_parceiro(c, rem_linhas)
     _repasse_parceiro(c, rem_linhas, conciliacao, notas)
     return _montar(c)
 
@@ -451,37 +451,33 @@ def _recurso_sem_operacao(c: _Coletor, lanc: pd.DataFrame, conciliacao: dict) ->
           _rastro(base, "valor", "regra_id"), qtd_itens=len(base))
 
 
-def _contestacao_parceiro(c: _Coletor, rem: pd.DataFrame) -> None:
-    """Uma pendência por mês com tudo o que vai na resposta ao relatório do parceiro: operações com spread acima
-    do contratado (excesso cheio), operações excluídas por regra (ex.: spread negativo) e repetições. O valor é
-    o total em disputa (soma dos absolutos); a repetição entra no rastro com valor 0 (contada uma vez no
-    fechamento, vai na lista só para o parceiro corrigir o relatório), e por isso a checagem 1 fecha."""
+def lista_contestacao(rem: pd.DataFrame) -> pd.DataFrame:
+    """Operações que vão na resposta ao relatório do parceiro (anexo de e-mail, não pendência): spread acima do
+    contratado (excesso cheio, natureza EXCESSO_SPREAD), excluídas por regra (ex.: spread negativo, valor com sinal,
+    natureza = tipo da pendência) e repetidas (valor 0, natureza REPETIDA: contada uma vez, só para corrigir o
+    relatório). Cada natureza soma exatamente a pendência atômica correspondente."""
+    colunas = ["ref_origem", "cnpj", "lojista", "linha_negocio", "data", "produto", "taxa_contratada_pct",
+               "taxa_aplicada_pct", "valor_brl", "natureza", "motivo", "arquivo_origem"]
     excesso = rem[(rem["destino"] == "COMISSAO") & rem["diferenca_brl"].notna() & (rem["diferenca_brl"] > 0)]
     excluidas = rem[rem["destino"] == "EXCLUIDO"]
     repetidas = rem[rem["destino"].isin(["DUPLICATA_IGNORADA", "DUPLICATA_DIVERGENTE"])]
-    if excesso.empty and excluidas.empty and repetidas.empty:
-        return
-    regra = c.dono("CONTESTACAO_PONTE")
-    partes = [
-        _rastro(excesso, "diferenca_brl", "spread_contratado_origem", "spread_contratado_pct"),
-        _rastro(excluidas.assign(_abs=excluidas["spread_brl"].map(abs)), "_abs", "destino_regra"),
-        _rastro(repetidas.assign(_zero=ZERO), "_zero", "destino_regra"),
-    ]
-    rastro = pd.concat([x for x in partes if len(x)], ignore_index=True)
-    v_exc, v_neg = soma(excesso["diferenca_brl"]), soma(excluidas["spread_brl"].map(abs))
-    trechos = []
-    if len(excesso):
-        trechos.append(f"{len(excesso)} operações de {_nomes(excesso['lojista'])} com spread acima do contratado "
-                       f"({brl(v_exc)} de excesso cheio cobrado do lojista)")
-    if len(excluidas):
-        trechos.append(f"{len(excluidas)} operações excluídas por regra ({_nomes(excluidas['motivo'])}: {brl(v_neg)})")
-    if len(repetidas):
-        trechos.append(f"{len(repetidas)} repetida(s) no relatório ({_nomes(repetidas['num_operacao'])}), contada(s) uma "
-                       f"vez no fechamento e listada(s) para o parceiro corrigir o relatório (valor 0 no rastro)")
-    motivo = (f"Lista para a contestação do relatório do parceiro de câmbio, {brl(v_exc + v_neg)} em disputa: "
-              + "; ".join(trechos) + f". {regra.o_que_fazer}")
-    c.add("CONTESTACAO_PONTE", f"{len(rastro)} operações", v_exc + v_neg, motivo, regra, rastro,
-          linha_negocio="REMESSA", qtd_itens=len(rastro))
+    partes = []
+    for df, natureza, col_valor, motivo in ((excesso, "EXCESSO_SPREAD", "diferenca_brl", "spread aplicado acima do contratado: excesso cheio a devolver ao lojista"),
+                                            (excluidas, None, "spread_brl", None),
+                                            (repetidas, "REPETIDA", None, "operação repetida no relatório: contada uma vez, corrigir o relatório")):
+        if df.empty:
+            continue
+        partes.append(pd.DataFrame({
+            "ref_origem": df["ref_origem"], "cnpj": df["cnpj"], "lojista": df["lojista"], "linha_negocio": "REMESSA",
+            "data": df["data_contratacao"], "produto": "spread " + df["moeda"].astype(str),
+            "taxa_contratada_pct": df["spread_contratado_pct"], "taxa_aplicada_pct": df["spread_pct"],
+            "valor_brl": df[col_valor] if col_valor else ZERO,
+            "natureza": natureza if natureza else df["tipo_pendencia"],
+            "motivo": motivo if motivo else df["motivo"], "arquivo_origem": df["arquivo_origem"],
+        }))
+    if not partes:
+        return pd.DataFrame(columns=colunas)
+    return pd.concat(partes, ignore_index=True)[colunas]
 
 
 def _repasse_parceiro(c: _Coletor, rem: pd.DataFrame, conciliacao: dict, notas: pd.DataFrame) -> None:
@@ -520,7 +516,9 @@ def _repasse_parceiro(c: _Coletor, rem: pd.DataFrame, conciliacao: dict, notas: 
                              f"{brl(p['limite_arredondamento'])}): investigar antes de contestar")
     nf = notas[notas["linha_negocio"] == "REMESSA"]
     nf_txt = f"a nota {nf['id_saida'].iloc[0]} ({brl(nf['valor_brl'].iloc[0])})" if len(nf) else "a comissão calculada"
-    motivo = (f"Conferir o TED do parceiro de câmbio contra {nf_txt}. Se o parceiro pagar {_pct([participacao * 100])} "
+    quando = (f"previsto para {p['data_repasse']} (data do e-mail do parceiro)" if p.get("data_repasse")
+              else "na data de repasse informada no e-mail do parceiro")
+    motivo = (f"Conferir o TED do parceiro de câmbio {quando} contra {nf_txt}. Se o parceiro pagar {_pct([participacao * 100])} "
               f"do total que declarou ({brl(p['spread_total_declarado'])} -> {brl(p['repasse_pelo_total_declarado'])}), "
               f"a diferença possível é {brl(diferenca)} (= " + " ".join(descricao) + f"). {regra.o_que_fazer}")
     c.add("CONFERIR_REPASSE_PONTE", p["total_declarado_ref"], diferenca, motivo, regra, rastro,

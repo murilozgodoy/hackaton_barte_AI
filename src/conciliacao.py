@@ -81,5 +81,6 @@ def calcular(dados: dict[str, pd.DataFrame], ponte_linhas: pd.DataFrame, com_rem
         "residual": residual,
         "residual_e_arredondamento": residual is not None and abs(residual) <= limite,
         "limite_arredondamento": limite,
+        "data_repasse": ponte.attrs.get("data_repasse"),     # do corpo do e-mail do parceiro, se houver
     }
     return {"orbe_banco": orbe_banco, "remessa_banco": remessa_banco, "ponte": ponte_info}

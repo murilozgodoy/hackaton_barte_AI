@@ -298,9 +298,10 @@ def imprimir_resumo_final(f: Fechamento, res: dict, arquivos: dict[str, Path], c
     print(f"Pendências: {t['pendencias']['quantidade']}" + (f" ({n_inf} informativas)" if n_inf else "")
           + f", {brl(Decimal(t['pendencias']['em_jogo_brl']))} em jogo, por responsável:")
     for quem, g in t["pendencias"]["por_responsavel"].items():
-        inf = g.get("informativas", 0)
+        inf, incl = g.get("informativas", 0), g.get("incluidas_em_outra", 0)
+        notas_g = [f"{inf} informativa{'s' if inf > 1 else ''}"] * bool(inf) + [f"{incl} já incluída{'s' if incl > 1 else ''} em outra"] * bool(incl)
         print(f"  {quem}: {g['quantidade']} pendência(s), {brl(Decimal(g['valor_brl']))} em jogo"
-              + (f" ({inf} informativa{'s' if inf > 1 else ''})" if inf else ""))
+              + (f" ({', '.join(notas_g)})" if notas_g else ""))
     familias: dict[str, list[bool]] = {}
     for c in f.checagens:
         familias.setdefault(c.nome.split(".")[0], []).append(c.ok)

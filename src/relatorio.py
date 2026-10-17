@@ -51,7 +51,11 @@ def valor_em_jogo(pend) -> Decimal:
 
     Aceita o DataFrame de pendências ou uma série de valores (aí nada é informativo)."""
     if isinstance(pend, pd.DataFrame):
-        sel = pend[~pend["informativa"].astype(bool)] if "informativa" in pend.columns else pend
+        sel = pend
+        if "informativa" in sel.columns:
+            sel = sel[~sel["informativa"].astype(bool)]
+        if "incluida_em" in sel.columns:
+            sel = sel[sel["incluida_em"].isna() | (sel["incluida_em"] == "")]
         return soma(abs(v) for v in sel["valor_brl"] if v is not None)
     return soma(abs(v) for v in pend if v is not None)
 
@@ -60,7 +64,8 @@ def _grupo(df: pd.DataFrame, coluna: str, col_valor: str) -> dict:
     out = {}
     for chave, g in df.groupby(coluna, sort=False):
         out[str(chave)] = {"quantidade": int(len(g)), "valor_brl": _s(valor_em_jogo(g)),
-                           "informativas": int(g["informativa"].astype(bool).sum())}
+                           "informativas": int(g["informativa"].astype(bool).sum()),
+                           "incluidas_em_outra": int(g["incluida_em"].notna().sum())}
     return out
 
 
@@ -107,7 +112,8 @@ def resumo(f, config, arquivos: dict[str, Path], entrada: dict | None = None) ->
                 "informativas": int(f.pendencias["informativa"].astype(bool).sum()) if len(f.pendencias) else 0,
                 "em_jogo_brl": _s(valor_em_jogo(f.pendencias)) if len(f.pendencias) else "0.00",
                 "nota": "valor_brl por responsável e por tipo é a soma dos valores absolutos (valor em jogo), sem as "
-                        "pendências informativas; tipos podem se sobrepor (ex.: excesso e sua metade)",
+                        "pendências informativas nem as já incluídas em outra (incluida_em): nenhuma linha de origem "
+                        "conta duas vezes",
                 "por_responsavel": _grupo(f.pendencias, "quem_decide", "valor_brl"),
                 "por_tipo": _grupo(f.pendencias, "tipo", "valor_brl"),
             },
@@ -230,8 +236,8 @@ def markdown(f, config, res: dict) -> str:
 
     partes += ["## Pendências por responsável", "",
                "\"Em jogo\" é a soma dos valores absolutos das pendências do responsável, sem as informativas "
-               "(marcadas por regra, ex.: em trânsito e alertas); tipos podem se sobrepor "
-               "(o excesso de spread e a metade da Tarvo sobre ele, por exemplo).", ""]
+               "(marcadas por regra, ex.: em trânsito e alertas) e sem as já incluídas em outra pendência: "
+               "nenhuma linha de origem conta duas vezes.", ""]
     if f.pendencias.empty:
         partes.append("Nenhuma.")
     for quem, g in f.pendencias.groupby("quem_decide", sort=False):
@@ -240,8 +246,13 @@ def markdown(f, config, res: dict) -> str:
                    + (f" ({n_inf} informativa{'s' if n_inf > 1 else ''})" if n_inf else ""), ""]
         for r in g.itertuples():
             valor = brl(r.valor_brl) if r.valor_brl is not None else "sem valor"
-            partes.append(f"- **{r.id_saida} · {r.tipo}{(' / ' + r.subtipo) if r.subtipo else ''}**"
-                          f"{' (informativa)' if r.informativa else ''} ({r.ref_origem}, {valor}): {r.motivo}")
+            marca = " (informativa)" if r.informativa else (f" (já incluída em {r.incluida_em})" if r.incluida_em else "")
+            partes.append(f"- **{r.id_saida} · {r.tipo}{(' / ' + r.subtipo) if r.subtipo else ''}**{marca} "
+                          f"({r.ref_origem}, {valor}): {r.motivo}")
+        incl = g[g["incluida_em"].notna()]
+        for r in incl.itertuples():
+            partes.append(f"- Rodapé: {r.tipo} ({brl(r.valor_brl)}) já incluído em {r.incluida_em} de {r.lojista}: "
+                          f"mostrado, mas fora da soma do \"em jogo\".")
         partes.append("")
 
     cj = res["carteira_pendente"]

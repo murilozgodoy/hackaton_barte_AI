@@ -138,6 +138,10 @@ def test_ponte_campos(dados):
     assert (p.data_contratacao.dt.month == 9).all()
     assert (p.data_liquidacao.dt.month == 10).sum() == 6
     assert set(p.status_compliance) == {"APROVADO", "APROVADO C/ RESSALVA"}
+    # corpo do e-mail: data de repasse e prazo de contestação (nunca ficam fixos em regra)
+    from datetime import date
+    assert p.attrs["data_repasse"] == date(2026, 10, 6) and p.attrs["prazo_dias_uteis"] == 5
+    assert p.attrs["data_envio"] == date(2026, 10, 2) and "pontecambio" in p.attrs["remetente"]
 
 
 # ---------------------------------------------------------------- Plano de contas

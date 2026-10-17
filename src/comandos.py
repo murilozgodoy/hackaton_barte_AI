@@ -158,6 +158,8 @@ def listar_pendencias(pasta_saida: Path, quem: str | None = None, tipo: str | No
     grupos = []
     for q, g in p.groupby("quem_decide", sort=False):
         inf = g["informativa"].map(normalizar).eq("TRUE") if "informativa" in g.columns else pd.Series(False, index=g.index)
+        if "incluida_em" in g.columns:
+            inf = inf | g["incluida_em"].astype(str).str.strip().ne("")
         valores = [_dec(v) for v, i in zip(g["valor_brl"], inf) if not i]
         grupos.append({"quem_decide": q, "quantidade": int(len(g)), "informativas": int(inf.sum()),
                        "valor_em_jogo_brl": str(soma(abs(v) for v in valores if v is not None)),

@@ -30,12 +30,16 @@ def test_lista_de_pendencias(fech):
     p = fech.pendencias
     assert p.id_saida.tolist() == [f"PEN-{i:04d}" for i in range(1, len(p) + 1)]
     assert p.tipo.value_counts().to_dict() == {
-        "TARIFA_ZERO_COBRADA": 1, "DIVERGENCIA_TAXA": 3, "EXCESSO_SPREAD_CONTESTADO": 1, "CONTESTACAO_PONTE": 1,
+        "TARIFA_ZERO_COBRADA": 1, "DIVERGENCIA_TAXA": 3, "EXCESSO_SPREAD_CONTESTADO": 1,
         "CONFERIR_REPASSE_PONTE": 1, "SPREAD_NEGATIVO": 4, "SEM_CONTRATO": 1, "SALDO_NEGATIVO_LOJISTA": 1,
         "EXTRATO_NAO_IDENTIFICADO": 1, "DEVOLUCAO": 1, "EM_TRANSITO": 1, "ALERTA_ANTECIPACAO": 1}
     assert p.quem_decide.notna().all() and (p.motivo.str.len() > 40).all()
-    assert p.quem_decide.value_counts().to_dict() == {"Helena (Financeiro)": 11, "Helena (Financeiro) + Comercial": 2,
+    assert p.quem_decide.value_counts().to_dict() == {"Helena (Financeiro)": 10, "Helena (Financeiro) + Comercial": 2,
                                                      "Comercial": 1, "Financeiro": 3}
+    # a metade do excesso já está na divergência da Mundo Aberto: aparece, mas fora da soma do "em jogo"
+    assert p[p.tipo == "EXCESSO_SPREAD_CONTESTADO"].incluida_em.iloc[0] == "DIVERGENCIA_TAXA"
+    from src.relatorio import valor_em_jogo
+    assert valor_em_jogo(p[p.quem_decide == "Helena (Financeiro)"]) == D("5341.28")
     # informativas (por regra, informativa=true): fora do "em jogo"
     assert set(p[p.informativa].tipo) == {"EM_TRANSITO", "ALERTA_ANTECIPACAO"} and p.informativa.dtype == bool
 
@@ -167,7 +171,8 @@ def test_conferir_repasse_ponte(fech):
                                "do total que declarou (R$ 78.073,59 -> R$ 39.036,80), a diferença possível é R$ 506,65 (= ")
     assert "+ R$ 917,03 de 4 operações excluídas (Spread negativo na remessa, regra E-03)" in r.motivo
     assert "- R$ 410,94 de 1 operação repetida, contada uma vez" in r.motivo and "+ R$ 0,56 de arredondamento" in r.motivo
-    assert "Não é perda: a contestação ainda não foi aberta" in r.motivo and "06/10" in r.motivo
+    assert "Não é perda: a contestação ainda não foi aberta" in r.motivo and "previsto para 2026-10-06 (data do e-mail do parceiro)" in r.motivo
+    assert "06/10" not in r.o_que_fazer      # nenhuma data fixa na regra: a data vem do e-mail
     assert "credita só 50%" not in r.motivo and "Contestar" not in r.motivo and ";" not in r.motivo and not r.informativa
     rastro = fech.rastro[fech.rastro.id_saida == r.id_saida]
     assert len(rastro) == 6 and soma(rastro.valor) == D("506.65")
@@ -176,19 +181,17 @@ def test_conferir_repasse_ponte(fech):
     assert rastro[rastro.ref_origem == ref_total].valor.iloc[0] == D("0.56") and r.ref_origem == ref_total
 
 
-def test_contestacao_ponte(fech):
-    """A2 (Helena ao Insper AI, 16/10 22h34): uma pendência de contestação com o valor e as operações: as 23 da
-    Mundo Aberto (excesso cheio), os 4 spreads negativos e a repetida, que entra no rastro com valor 0 (contada
-    uma vez no fechamento; vai na lista só para a Ponte corrigir o relatório), sem quebrar a checagem 1."""
-    r = _por(fech, "CONTESTACAO_PONTE").iloc[0]
-    assert (r.valor_brl, r.quem_decide, r.regra_id, r.qtd_itens, r.linha_negocio) == (D("3252.90"), "Helena (Financeiro)", "DP-13", 28, "REMESSA")
-    assert "R$ 1.418,85" in r.motivo and "R$ 1.834,05" in r.motivo and "PC-0926-0162" in r.motivo and "M-01" in r.motivo
-    rastro = fech.rastro[fech.rastro.id_saida == r.id_saida].set_index("ref_origem")
-    assert len(rastro) == 28 and soma(rastro.valor) == D("3252.90")
-    assert rastro.loc["PC-0926-0162", "valor"] == D("0.00")
-    negativos = rastro.loc[["PC-0926-0210", "PC-0926-0326", "PC-0926-0491", "PC-0926-0545"], "valor"]
-    assert soma(negativos) == D("1834.05") and (negativos > 0).all()
-    assert soma(rastro.drop(index=["PC-0926-0162", "PC-0926-0210", "PC-0926-0326", "PC-0926-0491", "PC-0926-0545"]).valor) == D("1418.85")
+def test_lista_de_contestacao_da_ponte_nao_e_pendencia(fech):
+    """A contestação (Helena ao Insper AI, 16/10 22h34) é anexo de e-mail (FASE D), não pendência: somaria de novo
+    o que já está nas pendências atômicas. A lista tem as 23 da Mundo Aberto (excesso cheio), os 4 spreads
+    negativos (com sinal) e a PC-0926-0162 repetida com valor 0; cada natureza soma a pendência correspondente."""
+    from src.pendencias import lista_contestacao
+    assert _por(fech, "CONTESTACAO_PONTE").empty and "CONTESTACAO_PONTE" not in set(fech.pendencias.tipo)
+    lc = lista_contestacao(fech.ponte_linhas)
+    assert len(lc) == 28 and lc.natureza.value_counts().to_dict() == {"EXCESSO_SPREAD": 23, "SPREAD_NEGATIVO": 4, "REPETIDA": 1}
+    assert soma(lc[lc.natureza == "EXCESSO_SPREAD"].valor_brl) == D("1418.85") == _por(fech, "DIVERGENCIA_TAXA").set_index("cnpj").loc[MA, "valor_brl"]
+    assert soma(lc[lc.natureza == "SPREAD_NEGATIVO"].valor_brl) == D("-1834.05") == soma(_por(fech, "SPREAD_NEGATIVO").valor_brl)
+    assert lc[lc.natureza == "REPETIDA"].iloc[0].ref_origem == "PC-0926-0162" and lc[lc.natureza == "REPETIDA"].iloc[0].valor_brl == D("0")
 
 
 def test_cnpj_da_ponte_sem_cadastro_entra_na_nota_com_pendencia_para_o_comercial(dados, config):
@@ -245,12 +248,15 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     res = json.loads((tmp_path / "resumo.json").read_text(encoding="utf-8"))
     assert res["status_integridade"] == "OK" and res["competencia"] == "2026-09"
     assert res["totais"]["comissao_checkout_brl"] == "207039.73" and res["totais"]["comissao_remessa_brl"] == "39543.45"
-    assert res["totais"]["pendencias"]["quantidade"] == 17
-    assert res["totais"]["pendencias"]["por_responsavel"]["Comercial"] == {"quantidade": 1, "valor_brl": "7876.05", "informativas": 0}
-    # informativas (EM_TRANSITO, ALERTA_ANTECIPACAO) ficam fora do "em jogo"
-    assert res["totais"]["pendencias"]["por_responsavel"]["Financeiro"] == {"quantidade": 3, "valor_brl": "19750.00", "informativas": 1}
-    assert res["totais"]["pendencias"]["por_responsavel"]["Helena (Financeiro) + Comercial"] == {"quantidade": 2, "valor_brl": "15397.42", "informativas": 1}
-    assert res["totais"]["pendencias"]["informativas"] == 2 and res["totais"]["pendencias"]["em_jogo_brl"] == "52327.11"
+    assert res["totais"]["pendencias"]["quantidade"] == 16
+    pr = res["totais"]["pendencias"]["por_responsavel"]
+    assert pr["Comercial"] == {"quantidade": 1, "valor_brl": "7876.05", "informativas": 0, "incluidas_em_outra": 0}
+    # informativas (EM_TRANSITO, ALERTA_ANTECIPACAO) e a metade do excesso (já na divergência) ficam fora do "em jogo"
+    assert pr["Financeiro"] == {"quantidade": 3, "valor_brl": "19750.00", "informativas": 1, "incluidas_em_outra": 0}
+    assert pr["Helena (Financeiro) + Comercial"] == {"quantidade": 2, "valor_brl": "15397.42", "informativas": 1, "incluidas_em_outra": 0}
+    assert pr["Helena (Financeiro)"] == {"quantidade": 10, "valor_brl": "5341.28", "informativas": 0, "incluidas_em_outra": 1}
+    assert res["totais"]["pendencias"]["informativas"] == 2 and res["totais"]["pendencias"]["em_jogo_brl"] == "48364.75"
+    assert res["conciliacao"]["parceiro_cambio"]["data_repasse"] == "2026-10-06"
     assert "M-05" in res["conciliacao"]["remessa_x_banco"]["observacao"] and "18.240,00" in res["conciliacao"]["remessa_x_banco"]["observacao"]
     assert res["arquivos"]["pendencias"] == "pendencias.csv"
     assert res["conciliacao"]["parceiro_cambio"]["efeitos_por_destino"]["EXCLUIDO"]["efeito"] == "917.03"
@@ -271,6 +277,8 @@ def test_resumo_json_e_relatorio(dados, tmp_path):
     assert "RECURSO_SEM_OPERACAO" not in rel and "M-05" in rel and "mês seguinte" in rel
     assert "pendencias.csv" in rel and "saldo negativo sem nota" in rel and "R$ 5,50" in rel
     assert "### Financeiro — 3 pendência(s), R$ 19.750,00 em jogo (1 informativa)" in rel and "REPASSE_PONTE_DIVERGENTE" not in rel
+    assert "### Helena (Financeiro) — 10 pendência(s), R$ 5.341,28 em jogo" in rel
+    assert "Rodapé: EXCESSO_SPREAD_CONTESTADO (R$ 709,46) já incluído em DIVERGENCIA_TAXA de Mundo Aberto" in rel
     assert "1.5%–1.5%" not in rel and "+ -R$" not in rel
 
 
