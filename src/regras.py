@@ -8,7 +8,7 @@ linha do complemento que só repete a planilha gera aviso.
 
 regras/regras_negocio.csv: cada regra tem um `tipo` de uma lista fechada. O
 motor só executa tipos conhecidos, a partir da coluna `parametros`, no formato
-chave=valor separado por " | " (ex.: banco=AURORA | contem=PIX ENVIADO | conta=2.1.01.001).
+chave=valor separado por " | " (ex.: banco=AURORA | contem=PIX ENVIADO | conta=<código do plano>).
 Alternativas de texto dentro de um valor usam " OU " (ex.: contem=PONTE AEREA OU PONTE AÉREA);
 listas usam vírgula (ex.: aceitos=APROVADO,APROVADO C/ RESSALVA). Números aceitam
 vírgula ou ponto decimal. Só regras com status ATIVA são executadas. MANUAL nunca é
@@ -399,11 +399,16 @@ def montar_cadastro(taxas: pd.DataFrame, caminho_complemento: Path, erros: list[
             "origem": "planilha", "linhas_planilha": [], "linha_complemento": None,
             "informado_por": None, "observacao": None})
         b["linhas_planilha"].append(r.linha_planilha)
-        if r.ec_orbe:
-            if b["ec_orbe"] and b["ec_orbe"] != r.ec_orbe:
-                erros.append(f"planilha de taxas: CNPJ {r.cnpj} com EC {b['ec_orbe']} e {r.ec_orbe} em "
+        try:
+            ec_planilha = normalizar_ec(r.ec_orbe)
+        except ErroLeitura as e:
+            erros.append(f"planilha de taxas linha {r.linha_planilha}: {e}. Como corrigir: EC só com dígitos")
+            continue
+        if ec_planilha:
+            if b["ec_orbe"] and b["ec_orbe"] != ec_planilha:
+                erros.append(f"planilha de taxas: CNPJ {r.cnpj} com EC {b['ec_orbe']} e {ec_planilha} em "
                              f"linhas diferentes ({b['linhas_planilha']}). Como corrigir: deixe um EC só")
-            b["ec_orbe"] = r.ec_orbe
+            b["ec_orbe"] = ec_planilha
 
     for n, c in ler_csv_regras(caminho_complemento, COLUNAS_COMPLEMENTO):
         onde = f"{caminho_complemento.name} linha {n}"
